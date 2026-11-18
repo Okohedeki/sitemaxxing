@@ -36,7 +36,7 @@ function linearDown(value: number, fine: number, zero: number): number {
   return 1 - (value - fine) / (zero - fine);
 }
 
-export function scoreFromParts(parts: { colorfulness: number; edge: number; regions: number; typeRatio: number; slopHits: number; slopTerms?: string[]; buttons: number; leftEdges: number; charsPerLine: number }): ScoreResult {
+export function scoreFromParts(parts: { colorfulness: number; edge: number; regions: number; typeRatio: number; slopHits: number; slopTerms?: string[]; buttons: number; quietButtons?: number; leftEdges: number; charsPerLine: number }): ScoreResult {
   const t = TARGETS;
   const metrics: Record<string, ScoreMetric> = {};
   const add = (key: string, value: number, sub: number, note: string) => {
@@ -48,8 +48,10 @@ export function scoreFromParts(parts: { colorfulness: number; edge: number; regi
   add('complexity', parts.edge, 0.6 * edgeSub + 0.4 * regionSub, `edge density ${(parts.edge * 100).toFixed(1)}%, ${parts.regions} busy regions`);
   add('typeContrast', parts.typeRatio, (parts.typeRatio - t.typeContrast.min) / (t.typeContrast.fine - t.typeContrast.min), `h1 is ${parts.typeRatio.toFixed(1)}x body (target ≥ ${t.typeContrast.fine})`);
   add('copySlop', parts.slopHits, 1 - parts.slopHits * t.copySlop.perHit, `${parts.slopHits} slop or emoji hits in headings and buttons${parts.slopTerms?.length ? ` (${parts.slopTerms.slice(0, 6).join(', ')})` : ''}`);
-  const b = parts.buttons;
-  add('focus', b, b === 0 ? 0.5 : b === 1 ? 1 : b === 2 ? 0.75 : b === 3 ? 0.4 : 0.1, `${b} buttons above the fold (target: 1 primary, at most 1 quiet secondary)`);
+  const solid = parts.buttons;
+  const quiet = parts.quietButtons ?? 0;
+  const focusSub = solid === 0 ? 0.5 : solid === 1 ? (quiet <= 1 ? 1 : 0.85) : solid === 2 ? 0.3 : solid === 3 ? 0.15 : 0.05;
+  add('focus', solid, focusSub, `${solid} solid button${solid === 1 ? '' : 's'} and ${quiet} quiet above the fold (target: 1 primary, at most 1 quiet secondary)`);
   add('alignment', parts.leftEdges, linearDown(parts.leftEdges, t.alignment.fine, t.alignment.zero), `${parts.leftEdges} distinct left edges (target ≤ ${t.alignment.fine})`);
   const cpl = parts.charsPerLine;
   const llSub = cpl === 0 ? 0.8 : cpl < t.lineLength.min ? clamp01(1 - (t.lineLength.min - cpl) / t.lineLength.zeroBeyond) : cpl > t.lineLength.max ? clamp01(1 - (cpl - t.lineLength.max) / t.lineLength.zeroBeyond) : 1;
@@ -82,7 +84,13 @@ export function domParts(dom: ScoreDOM) {
   const headingText = fold.filter((n) => ['h1', 'h2', 'h3'].includes(n.tag) || isButtonLike(n)).map((n) => n.text);
   const slopTerms = headingText.flatMap((t) => slopHits(t).map((h) => h.term));
   const hits = slopTerms.length;
-  const buttons = fold.filter(isButtonLike).length;
+  const allButtons = fold.filter(isButtonLike);
+  const isSolid = (n: { styles: Record<string, string> }) => {
+    const bg = n.styles.backgroundColor ?? '';
+    return (bg !== '' && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent') || (n.styles.backgroundImage ?? 'none') !== 'none';
+  };
+  const buttons = allButtons.filter(isSolid).length;
+  const quietButtons = allButtons.length - buttons;
   // Block-level text only: labels, nav links and inline spans do not define the page's edges.
   const textBlocks = fold.filter((n) => ['h1', 'h2', 'h3', 'p', 'li'].includes(n.tag) && n.text.length > 15 && n.box.w > 40);
   const leftEdges = new Set(textBlocks.map((n) => Math.round(n.box.x / 8) * 8)).size;
@@ -97,7 +105,7 @@ export function domParts(dom: ScoreDOM) {
     const lines = Math.max(1, Math.round(p.box.h / lh));
     cpl = lines > 1 ? Math.round(p.box.w / (fs * 0.5)) : Math.round(p.text.length);
   }
-  return { typeRatio, slopHits: hits, slopTerms, buttons, leftEdges, charsPerLine: cpl };
+  return { typeRatio, slopHits: hits, slopTerms, buttons, quietButtons, leftEdges, charsPerLine: cpl };
 }
 
 export function imageParts(img: Raster) {

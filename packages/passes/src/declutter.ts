@@ -77,6 +77,15 @@ export const declutter = definePass({
         removed.push('eyebrow pill');
       }
     }
+    // A second solid button in the nav competes with the hero action: demote it to a ghost.
+    if (ctas.length) {
+      const solidNav = buttonsIn(dom, navOf(dom)).find((x) => !LOGIN_RE.test(x.text.trim()) && (x.styles.backgroundColor ?? '') !== 'rgba(0, 0, 0, 0)');
+      const el = solidNav ? jsxEdit.find(file, (e) => jsxEdit.hasClass(e, 'btn') && !jsxEdit.hasClass(e, 'ghost') && !toRemove.includes(e) && (jsxEdit.textOf(e).includes(solidNav.text.trim()) || /navCta|nav-cta/.test(e.getText()))) : undefined;
+      if (el) {
+        jsxEdit.addClass(el, 'ghost');
+        removed.push(`demoted "${solidNav!.text.trim()}" to a quiet button`);
+      }
+    }
     jsxEdit.removeElements(toRemove.filter(Boolean) as any[]);
     const app = jsxEdit.tidy(file.getFullText());
     files.push({ path: ctx.config.sources.app, before: src.app, after: app });

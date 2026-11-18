@@ -1,20 +1,20 @@
 {
   "weights": {
     "colorfulness": 0.15,
-    "complexity": 0.2,
+    "complexity": 0.1,
     "typeContrast": 0.15,
-    "copySlop": 0.2,
-    "focus": 0.15,
+    "copySlop": 0.25,
+    "focus": 0.2,
     "alignment": 0.1,
     "lineLength": 0.05
   },
   "targets": {
-    "colorfulness": { "fine": 18, "zero": 90 },
+    "colorfulness": { "fine": 15, "zero": 75 },
     "complexity": { "edgeFine": 0.028, "edgeZero": 0.09, "regionsFine": 18, "regionsZero": 60 },
-    "typeContrast": { "min": 2.0, "fine": 2.75 },
-    "copySlop": { "perHit": 0.16 },
+    "typeContrast": { "min": 2.1, "fine": 2.75 },
+    "copySlop": { "perHit": 0.2 },
     "focus": { "ideal": 1, "quietSecondary": 1 },
-    "alignment": { "fine": 2, "zero": 6 },
+    "alignment": { "fine": 1, "zero": 4 },
     "lineLength": { "min": 45, "max": 90, "zeroBeyond": 50 }
   }
 }

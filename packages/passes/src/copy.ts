@@ -1,5 +1,5 @@
 import { definePass, jsxEdit, jsonEdit, cssEdit, type CopyChange, type Finding, type PassContext, type PatchFile } from '@sitemaxxing/core';
-import { SLOP_WORDS, adjectiveRuns, slopHits, stripEmoji, EMOJI_RE } from '@sitemaxxing/rules';
+import { SLOP_WORDS, SLOP_PHRASES, adjectiveRuns, slopHits, stripEmoji, EMOJI_RE } from '@sitemaxxing/rules';
 import { cleanText, copyColumnOf, ctaOf, descendants, h1Of, heroOf, readSources, selFor, wordCount } from './shared';
 
 interface CopyInputs {
@@ -58,15 +58,16 @@ function sentenceCase(s: string): string {
 /** Deterministic rewrite used offline: strip slop and emoji, then build claims from facts. */
 export function ruleBasedRewrite(inp: CopyInputs, facts: Fact[]): CopyInputs {
   const strip = (t: string) =>
-    stripEmoji(t)
+    SLOP_PHRASES.reduce((acc, ph) => acc.replace(new RegExp(ph, 'gi'), ''), stripEmoji(t))
       .replace(new RegExp(`\\b(${SLOP_WORDS.map((w) => w.replace(/-/g, '\\-')).join('|')})\\b`, 'gi'), '')
       .replace(/\b(the|of|your|and|with|to)\b\s+(?=(the|of|your|and|with|to)\b)/gi, '')
       .replace(/\s{2,}/g, ' ')
       .replace(/\s+([.,!?])/g, '$1')
       .trim();
   const f = (i: number) => (facts[i] ? `${facts[i].value} ${facts[i].label.toLowerCase()}` : '');
-  let headline = strip(inp.headline);
-  if (facts.length && (wordCount(headline) < 3 || slopHits(headline).length || wordCount(headline) > 8)) headline = sentenceCase(f(0)) + '.';
+  let headline = sentenceCase(strip(inp.headline).replace(/^(the|a|an)\s+/i, ''));
+  const wasSlop = slopHits(inp.headline).length > 0;
+  if (facts.length && (wasSlop || wordCount(headline) < 3 || wordCount(headline) > 8)) headline = sentenceCase(f(0)) + '.';
   if (wordCount(headline) > 8) headline = headline.split(/\s+/).slice(0, 8).join(' ');
   let subhead = facts.length ? sentenceCase(facts.map((_, i) => f(i)).filter(Boolean).join(', ')) + '.' : strip(inp.subhead);
   if (wordCount(subhead) > 25) subhead = subhead.split(/\s+/).slice(0, 25).join(' ');

@@ -14,7 +14,7 @@ describe('mog score', () => {
   });
 
   it('rewards a calm, specific page and punishes a busy sloppy one', () => {
-    const good = scoreFromParts({ colorfulness: 12, edge: 0.02, regions: 10, typeRatio: 3.5, slopHits: 0, buttons: 1, leftEdges: 2, charsPerLine: 60 });
+    const good = scoreFromParts({ colorfulness: 12, edge: 0.02, regions: 10, typeRatio: 3.5, slopHits: 0, buttons: 1, quietButtons: 1, leftEdges: 1, charsPerLine: 60 });
     const bad = scoreFromParts({ colorfulness: 70, edge: 0.08, regions: 50, typeRatio: 2.2, slopHits: 7, buttons: 4, leftEdges: 5, charsPerLine: 110 });
     expect(good.score).toBeGreaterThanOrEqual(90);
     expect(bad.score).toBeLessThanOrEqual(30);
