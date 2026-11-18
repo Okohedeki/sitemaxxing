@@ -239,6 +239,8 @@ export interface PassView {
   order: number;
   points: number;
   status: PassStatus;
+  /** The stored status, unaffected by a transient preview. */
+  baseStatus: PassStatus;
   description: string;
   chosenVariantId?: string;
   variants: Variant[];

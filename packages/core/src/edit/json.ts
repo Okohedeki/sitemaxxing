@@ -79,7 +79,7 @@ function spans(text: string): Map<string, Span> {
       }
     } else if (c === '"') str();
     else {
-      while (i < text.length && !/[,\]\}\s]/.test(text[i])) i++;
+      while (i < text.length && !/[,\]}\s]/.test(text[i])) i++;
     }
     out.set(path, { start, end: i });
   };

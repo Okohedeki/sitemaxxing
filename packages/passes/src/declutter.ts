@@ -1,6 +1,6 @@
 import { definePass, jsxEdit, jsonEdit, type Finding, type PatchFile } from '@sitemaxxing/core';
 import { EMOJI_RE } from '@sitemaxxing/rules';
-import { buttonsIn, copyColumnOf, descendants, h1Of, heroOf, jsxFor, navLinks, navOf, px, readSources, selFor } from './shared';
+import { buttonsIn, copyColumnOf, descendants, fullText, h1Of, heroOf, jsxFor, navLinks, navOf, px, readSources, selFor } from './shared';
 
 const LOGIN_RE = /^(log ?in|sign ?in|login|account)$/i;
 const TRUST_RE = /(trusted by|rating|award|countries|customers|users|★|✓|\d[\d,]+\+)/i;
@@ -27,8 +27,8 @@ export const declutter = definePass({
     const h1 = h1Of(dom);
     const pill = col && h1 ? dom.childrenOf(col).find((n) => n.box.y < h1.box.y && n.box.h < 48 && (px(n.styles.borderRadius) >= 20 || n.styles.textTransform === 'uppercase' || EMOJI_RE.test(n.text))) : undefined;
     if (pill) findings.push({ message: `eyebrow pill above the headline: "${pill.text.slice(0, 40)}"`, selector: pill.selector });
-    const trust = col ? dom.childrenOf(col).find((n) => n.box.y > (ctas[0]?.box.y ?? 0) && TRUST_RE.test(n.text) && n.text.length < 120) : undefined;
-    if (trust) findings.push({ message: `trust or badge row: "${trust.text.slice(0, 50)}"`, selector: trust.selector });
+    const trust = col ? dom.childrenOf(col).find((n) => n.box.y > (ctas[0]?.box.y ?? 0) && TRUST_RE.test(fullText(dom, n)) && fullText(dom, n).length < 120) : undefined;
+    if (trust) findings.push({ message: `trust or badge row: "${fullText(dom, trust).slice(0, 50)}"`, selector: trust.selector });
     const emojiIcons = descendants(dom, heroOf(dom)).filter((n) => n.text.length <= 4 && EMOJI_RE.test(n.text) && n.tag !== 'h1');
     if (emojiIcons.length >= 2) findings.push({ message: `${emojiIcons.length} emoji used as icons` });
     const applies = findings.some((f) => f.severity === 'warn') || findings.length >= 2;
@@ -62,7 +62,7 @@ export const declutter = definePass({
       }
     }
     // Trust / badge row
-    const trust = col ? dom.childrenOf(col).find((n) => n.box.y > (ctas[0]?.box.y ?? 0) && TRUST_RE.test(n.text) && n.text.length < 120) : undefined;
+    const trust = col ? dom.childrenOf(col).find((n) => n.box.y > (ctas[0]?.box.y ?? 0) && TRUST_RE.test(fullText(dom, n)) && fullText(dom, n).length < 120) : undefined;
     const trustEl = jsxFor(file, trust);
     if (trustEl) {
       toRemove.push(trustEl);

@@ -16,7 +16,8 @@ describe('rule-based copy rewrite (offline fallback)', () => {
     expect(slopHits(out.cta)).toEqual([]);
     expect(out.headline.split(' ').length).toBeLessThanOrEqual(8);
     expect(out.subhead.split(' ').length).toBeLessThanOrEqual(25);
-    expect(out.subhead).toContain('40 ms');
+    expect(out.headline).toContain('40 ms');
+    expect(out.subhead).toContain('3 regions');
     expect(out.pill).not.toContain('✨');
   });
 

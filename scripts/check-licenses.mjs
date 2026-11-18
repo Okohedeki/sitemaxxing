@@ -23,7 +23,7 @@ const allowed = [
 
 const out = execFileSync(
   process.platform === 'win32' ? 'npx.cmd' : 'npx',
-  ['license-checker-rseidelsohn', '--production', '--json', '--onlyAllow', allowed, '--excludePrivatePackages'],
+  ['license-checker-rseidelsohn', '--start', 'packages/cli', '--production', '--json', '--onlyAllow', allowed, '--excludePrivatePackages'],
   { encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'], shell: process.platform === 'win32' },
 );
 const count = Object.keys(JSON.parse(out)).length;

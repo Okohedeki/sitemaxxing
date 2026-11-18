@@ -69,10 +69,12 @@ export function ruleBasedRewrite(inp: CopyInputs, facts: Fact[]): CopyInputs {
   const wasSlop = slopHits(inp.headline).length > 0;
   if (facts.length && (wasSlop || wordCount(headline) < 3 || wordCount(headline) > 8)) headline = sentenceCase(f(0)) + '.';
   if (wordCount(headline) > 8) headline = headline.split(/\s+/).slice(0, 8).join(' ');
-  let subhead = facts.length ? sentenceCase(facts.map((_, i) => f(i)).filter(Boolean).join(', ')) + '.' : strip(inp.subhead);
+  const usedFact = facts.length && headline === sentenceCase(f(0)) + '.' ? 1 : 0;
+  const rest = facts.slice(usedFact).map((_, i) => f(i + usedFact)).filter(Boolean);
+  let subhead = rest.length ? sentenceCase(rest.join(', ')) + '.' : facts.length ? sentenceCase(f(0)) + '.' : strip(inp.subhead);
   if (wordCount(subhead) > 25) subhead = subhead.split(/\s+/).slice(0, 25).join(' ');
   let cta = strip(inp.cta).replace(/\b(free|now|today)\b/gi, '').trim();
-  cta = cta ? sentenceCase(cta.toLowerCase()) : 'See how it works';
+  cta = wordCount(cta) >= 2 ? sentenceCase(cta.toLowerCase()) : 'See how it works';
   if (wordCount(cta) > 4) cta = cta.split(/\s+/).slice(0, 4).join(' ');
   const pill = inp.pill ? sentenceCase(strip(inp.pill).toLowerCase()) : undefined;
   return { headline, subhead, cta, pill };

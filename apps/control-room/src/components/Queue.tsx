@@ -78,7 +78,7 @@ function Row(props: {
   return (
     <li
       id={'row-' + p.id}
-      className={['item', enter ? 'enter' : '', p.status === 'rejected' ? 'rejected' : '', p.status === 'previewing' ? 'previewing' : '', p.status === 'skipped' ? 'skipped' : '', props.selected ? 'selected' : ''].join(' ')}
+      className={['item', enter ? 'enter' : '', p.baseStatus === 'rejected' ? 'rejected' : '', p.status === 'previewing' ? 'previewing' : '', p.status === 'skipped' ? 'skipped' : '', props.selected ? 'selected' : ''].join(' ')}
       onMouseEnter={() => !locked && props.onHover(p.id)}
       onMouseLeave={() => !locked && props.onHover(null)}
       onClick={props.onSelect}
@@ -140,7 +140,7 @@ function Row(props: {
             ))}
           </div>
         ) : null}
-        {p.status === 'rejected' ? (
+        {p.baseStatus === 'rejected' ? (
           <div className="reasons" aria-label="Why not?">
             {REASON_CHIPS.map((c) => (
               <button key={c} aria-pressed={props.reason === c} onClick={(e) => (e.stopPropagation(), props.onReason(c))}>
@@ -177,7 +177,7 @@ function Row(props: {
         <button className="ib ok" title="Approve" aria-label={`Approve ${p.name}`} aria-pressed={p.status === 'approved' || p.status === 'committed'} disabled={locked || p.status === 'stale'} onClick={(e) => (e.stopPropagation(), props.onDecide('approve'))}>
           {icons.ok}
         </button>
-        <button className="ib no" title="Reject" aria-label={`Reject ${p.name}`} aria-pressed={p.status === 'rejected'} disabled={locked} onClick={(e) => (e.stopPropagation(), props.onDecide('reject'))}>
+        <button className="ib no" title="Reject" aria-label={`Reject ${p.name}`} aria-pressed={p.baseStatus === 'rejected'} disabled={locked} onClick={(e) => (e.stopPropagation(), props.onDecide('reject'))}>
           {icons.no}
         </button>
       </div>

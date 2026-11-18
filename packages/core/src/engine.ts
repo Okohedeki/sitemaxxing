@@ -501,6 +501,7 @@ export class Engine {
         order: r.order,
         points: r.points,
         status: rt.previewing?.defId === r.def_id ? 'previewing' : r.status,
+        baseStatus: r.status,
         description: def?.description ?? '',
         chosenVariantId: r.chosen_variant_id ?? undefined,
         variants,
@@ -994,6 +995,7 @@ export class Engine {
 
   private async labelledShot(page: Page, file: string, label: string) {
     try {
+      await page.evaluate(() => (window as any).__sitemaxxingHide?.());
       await page.evaluate((text) => {
         let el = document.getElementById('sm-timelapse-chip');
         if (!el) {

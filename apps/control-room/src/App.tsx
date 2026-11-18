@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { HubEvent, ProjectState, PassView, ReasonChip } from '@sitemaxxing/core/protocol';
-import { REASON_CHIPS } from '@sitemaxxing/core/protocol';
 import { HubClient, hubUrl } from './hub';
 import { TopBar } from './components/TopBar';
 import { StepRail } from './components/StepRail';
@@ -39,6 +38,8 @@ export function App() {
   const hoverTimer = useRef<number | null>(null);
 
   const say = useCallback((text: string, on = false) => setLive({ text, on }), []);
+  /** States returned by an RPC were built while the engine was still busy; the busy event clears it. */
+  const adopt = useCallback((s: ProjectState) => setState({ ...s, busy: null }), []);
   const showToast = useCallback((text: string, err = false) => {
     setToast({ text, err });
     window.setTimeout(() => setToast(null), err ? 4200 : 2600);
@@ -63,7 +64,10 @@ export function App() {
           setState(e.state);
           break;
         case 'busy':
+          // The state event is sent before the engine clears its busy flag, so mirror it here.
+          setState((s) => (s ? { ...s, busy: e.what } : s));
           if (e.what) say(`${e.what}…`, true);
+          else setLive((l) => (l.text.endsWith('…') ? { text: 'Ready', on: false } : l));
           break;
         case 'error':
           showToast(e.message, true);
@@ -101,7 +105,6 @@ export function App() {
     const first = projects[0];
     setField(first.rootPath);
     void loadProject(first.id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projects]);
 
   const loadProject = useCallback(
@@ -109,12 +112,12 @@ export function App() {
       setProjectId(id);
       try {
         const s = await hub.rpc<ProjectState>('project.load', { project_id: id });
-        setState(s);
+        adopt(s);
         setField(s.project.rootPath);
         if (!s.audited) {
           say('Auditing the page…', true);
           const audited = await hub.rpc<ProjectState>('audit_page', { project_id: id });
-          setState(audited);
+          adopt(audited);
           say(`Mog score ${audited.score?.score ?? '–'}. Start with a direction, then refine.`);
         } else say(`Mog score ${s.score?.score ?? '–'}. Hover a row to preview it live.`);
       } catch (e) {
@@ -151,7 +154,7 @@ export function App() {
       setProjectId(r.projectId);
       say('Auditing the page…', true);
       const s = await hub.rpc<ProjectState>('audit_page', { project_id: r.projectId });
-      setState(s);
+      adopt(s);
       setProjects(await hub.rpc<Project[]>('projects.list'));
       say(`Mog score ${s.score?.score ?? '–'}. Start with a direction, then refine.`);
     } catch (e) {

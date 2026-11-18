@@ -81,6 +81,16 @@ export function descendants(dom: SnapshotDOM, root: SnapNode | undefined): SnapN
   return out;
 }
 
+/** Text of a node plus everything below it (the snapshot stores a wrapper's own text only). */
+export function fullText(dom: SnapshotDOM, n: SnapNode | undefined): string {
+  if (!n) return '';
+  return [n.text, ...descendants(dom, n).map((d) => d.text)]
+    .filter(Boolean)
+    .join(' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 export function ctaOf(dom: SnapshotDOM): SnapNode | undefined {
   const col = copyColumnOf(dom) ?? heroOf(dom);
   const btns = buttonsIn(dom, col);
