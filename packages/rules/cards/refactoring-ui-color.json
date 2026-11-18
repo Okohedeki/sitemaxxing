@@ -1,0 +1,15 @@
+{
+  "id": "refactoring-ui-color",
+  "passes": [
+    "direction"
+  ],
+  "principle": "Build a palette on purpose: a few neutral greys, one accent used sparingly, and no gradients doing the work that hierarchy should do.",
+  "detect": "Gradient backgrounds on buttons or headline text; several saturated hues competing above the fold; colour used as decoration rather than meaning.",
+  "fix": "Define paper, ink and a single accent as tokens. Make buttons solid ink, drop gradient text, and let the accent appear only where attention belongs.",
+  "source": {
+    "title": "Refactoring UI",
+    "author": "Adam Wathan & Steve Schoger",
+    "url": "https://www.refactoringui.com/"
+  },
+  "kind": "book"
+}

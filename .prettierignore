@@ -1,0 +1,6 @@
+node_modules
+dist
+.playground
+pnpm-lock.yaml
+docs/mockups
+CHANGELOG.md

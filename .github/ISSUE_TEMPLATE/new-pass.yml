@@ -1,0 +1,29 @@
+name: New pass
+description: Propose a new design pass
+labels: [pass]
+body:
+  - type: input
+    id: name
+    attributes:
+      label: Pass name
+    validations:
+      required: true
+  - type: textarea
+    id: detect
+    attributes:
+      label: What it detects
+      description: The slop signals that make this pass apply.
+    validations:
+      required: true
+  - type: textarea
+    id: fix
+    attributes:
+      label: What it changes
+      description: Remember that a pass changes one thing and produces one patch.
+    validations:
+      required: true
+  - type: textarea
+    id: rules
+    attributes:
+      label: Rule cards it cites
+      description: Existing card ids, or sources for new cards.

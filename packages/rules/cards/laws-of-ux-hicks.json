@@ -1,0 +1,16 @@
+{
+  "id": "laws-of-ux-hicks",
+  "passes": [
+    "declutter",
+    "nav-dropdown"
+  ],
+  "principle": "Decision time grows with the number and complexity of choices, so every extra option in a view has a cost.",
+  "detect": "More than five navigation links; two or more equally weighted calls to action.",
+  "fix": "Cap top-level navigation at three or four links and keep one primary action per view.",
+  "source": {
+    "title": "Laws of UX",
+    "author": "Jon Yablonski",
+    "url": "https://lawsofux.com/hicks-law/"
+  },
+  "kind": "blog"
+}

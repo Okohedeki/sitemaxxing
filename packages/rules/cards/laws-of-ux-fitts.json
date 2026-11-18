@@ -1,0 +1,16 @@
+{
+  "id": "laws-of-ux-fitts",
+  "passes": [
+    "arrow-button",
+    "declutter"
+  ],
+  "principle": "Targets that are larger and closer are faster to hit; the primary action deserves the biggest, most reachable target.",
+  "detect": "A main call to action the same size as the secondary one; hit targets under 24px.",
+  "fix": "Make the primary button the largest control in the view with at least 24px of hit area.",
+  "source": {
+    "title": "Laws of UX",
+    "author": "Jon Yablonski",
+    "url": "https://lawsofux.com/fitts-law/"
+  },
+  "kind": "blog"
+}

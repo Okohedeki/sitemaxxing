@@ -1,0 +1,15 @@
+{
+  "id": "butterick-fonts",
+  "passes": [
+    "font"
+  ],
+  "principle": "System defaults and overused geometric sans faces make text look unconsidered; pairing one characterful display face with a neutral text face is the single biggest upgrade.",
+  "detect": "One font for everything (often a default or a ubiquitous geometric sans); faux italics on a serif used as decoration.",
+  "fix": "Choose a display face with character and a quiet text face, both with proper italics and open licences.",
+  "source": {
+    "title": "Practical Typography",
+    "author": "Matthew Butterick",
+    "url": "https://practicaltypography.com/font-recommendations.html"
+  },
+  "kind": "book"
+}

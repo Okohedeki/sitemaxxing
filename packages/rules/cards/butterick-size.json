@@ -1,0 +1,15 @@
+{
+  "id": "butterick-size",
+  "passes": [
+    "font-size"
+  ],
+  "principle": "Body text on screens wants to be larger than people think, and headings should be set by ratio to the body, not by whim.",
+  "detect": "Body text under 16px; a headline under 2.5 times the body size.",
+  "fix": "Body between 16 and 20px; the headline between 2.5 and 4 times the body on a real scale.",
+  "source": {
+    "title": "Practical Typography",
+    "author": "Matthew Butterick",
+    "url": "https://practicaltypography.com/point-size.html"
+  },
+  "kind": "book"
+}

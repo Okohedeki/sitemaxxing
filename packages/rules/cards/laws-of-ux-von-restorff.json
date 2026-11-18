@@ -1,0 +1,16 @@
+{
+  "id": "laws-of-ux-von-restorff",
+  "passes": [
+    "declutter",
+    "arrow-button"
+  ],
+  "principle": "When several things look alike, the one that differs is remembered; make the primary action the odd one out.",
+  "detect": "All buttons share the same style; nothing stands out.",
+  "fix": "Give only the primary action solid fill and hover feedback.",
+  "source": {
+    "title": "Laws of UX",
+    "author": "Jon Yablonski",
+    "url": "https://lawsofux.com/von-restorff-effect/"
+  },
+  "kind": "blog"
+}

@@ -1,0 +1,16 @@
+{
+  "id": "tuch-2012-prototypicality",
+  "passes": [
+    "direction",
+    "declutter"
+  ],
+  "principle": "First impressions are best when a page is both visually simple and looks like what people expect from its category.",
+  "detect": "Dense pages with many colours and shapes, or layouts that do not resemble a typical landing page of their kind.",
+  "fix": "Reduce visual complexity first, then keep the familiar structure (nav, hero, proof) while refining the details.",
+  "source": {
+    "title": "The role of visual complexity and prototypicality regarding first impression of websites",
+    "author": "Tuch, Presslaber, Stöcklin, Opwis & Bargas-Avila (2012)",
+    "url": "https://doi.org/10.1016/j.ijhcs.2012.06.003"
+  },
+  "kind": "paper"
+}

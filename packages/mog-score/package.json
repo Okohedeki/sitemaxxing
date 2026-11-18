@@ -1,0 +1,33 @@
+{
+  "name": "@sitemaxxing/mog-score",
+  "version": "0.1.0",
+  "description": "Mog score v1: a transparent first-impression heuristic from a screenshot and computed styles.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@sitemaxxing/rules": "workspace:*",
+    "pngjs": "^7.0.0"
+  },
+  "peerDependencies": {
+    "playwright": "^1.49.1"
+  },
+  "devDependencies": {
+    "@types/pngjs": "^6.0.5",
+    "playwright": "^1.49.1",
+    "tsup": "^8.3.5",
+    "typescript": "^5.7.2"
+  }
+}

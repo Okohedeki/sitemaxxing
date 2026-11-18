@@ -1,0 +1,15 @@
+{
+  "id": "human-md-specificity",
+  "passes": [
+    "copy"
+  ],
+  "principle": "Writing that sounds generated is vague; specific nouns, numbers and places are what make a sentence believable.",
+  "detect": "Headlines built from stock verbs (unlock, discover, leverage), stacked adjectives, emoji in headings, subheads over 25 words.",
+  "fix": "Make one concrete claim in the headline, cut the subhead by half and fill it with real figures, and let buttons say what happens next.",
+  "source": {
+    "title": "HUMAN.md",
+    "author": "Briana May",
+    "url": "https://human.md/"
+  },
+  "kind": "blog"
+}

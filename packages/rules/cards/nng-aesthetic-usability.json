@@ -1,0 +1,16 @@
+{
+  "id": "nng-aesthetic-usability",
+  "passes": [
+    "direction",
+    "spacing"
+  ],
+  "principle": "An attractive interface is perceived as easier to use, and small usability problems are forgiven more readily.",
+  "detect": "A page that works but looks unfinished; users complain about ease of use when the real issue is appearance.",
+  "fix": "Invest in the visible finish (colour, spacing, type) before adding features.",
+  "source": {
+    "title": "The Aesthetic-Usability Effect",
+    "author": "Kate Moran (Nielsen Norman Group)",
+    "url": "https://www.nngroup.com/articles/aesthetic-usability-effect/"
+  },
+  "kind": "blog"
+}

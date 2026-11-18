@@ -1,0 +1,24 @@
+name: New rule card
+description: Propose a rule card from design writing or research
+labels: [rule-card]
+body:
+  - type: input
+    id: source
+    attributes:
+      label: Source (title, author, url)
+    validations:
+      required: true
+  - type: textarea
+    id: principle
+    attributes:
+      label: Principle, in your own words
+    validations:
+      required: true
+  - type: textarea
+    id: detectfix
+    attributes:
+      label: How to detect it and how to fix it
+  - type: input
+    id: passes
+    attributes:
+      label: Passes it applies to

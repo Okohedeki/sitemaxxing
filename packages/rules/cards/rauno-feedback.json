@@ -1,0 +1,16 @@
+{
+  "id": "rauno-feedback",
+  "passes": [
+    "arrow-button",
+    "hero-art"
+  ],
+  "principle": "Interfaces feel alive when they react to the pointer in proportion to its movement.",
+  "detect": "Static hero art; buttons that do nothing on hover.",
+  "fix": "Let the hero art respond to the cursor gently and let the button arrow move on hover.",
+  "source": {
+    "title": "Invisible Details of Interaction Design",
+    "author": "Rauno Freiberg",
+    "url": "https://rauno.me/craft/interaction-design"
+  },
+  "kind": "blog"
+}

@@ -1,0 +1,16 @@
+import { defineConfig } from 'tsup';
+
+export default defineConfig({
+  entry: { index: 'src/index.ts' },
+  format: ['esm'],
+  dts: true,
+  clean: true,
+  target: 'node20',
+  external: [
+    '@sitemaxxing/core',
+    '@sitemaxxing/rules',
+    '@sitemaxxing/passes',
+    '@sitemaxxing/mog-score',
+    '@sitemaxxing/overlay',
+  ],
+});

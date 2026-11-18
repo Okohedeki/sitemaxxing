@@ -1,0 +1,16 @@
+{
+  "id": "laws-of-ux-aesthetic-usability",
+  "passes": [
+    "direction",
+    "font"
+  ],
+  "principle": "Users perceive aesthetically pleasing design as more usable.",
+  "detect": "A functional page with default fonts and no considered palette.",
+  "fix": "Pick a direction and a type pairing deliberately.",
+  "source": {
+    "title": "Laws of UX",
+    "author": "Jon Yablonski",
+    "url": "https://lawsofux.com/aesthetic-usability-effect/"
+  },
+  "kind": "blog"
+}

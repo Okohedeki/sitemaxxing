@@ -1,0 +1,16 @@
+{
+  "id": "every-layout",
+  "passes": [
+    "alignment",
+    "spacing"
+  ],
+  "principle": "Robust layouts come from a few composable primitives (stack, cluster, sidebar) rather than per-element tweaks.",
+  "detect": "Ad hoc margins and alignments on individual elements.",
+  "fix": "Treat the copy column as a stack with one gap and one alignment.",
+  "source": {
+    "title": "Every Layout",
+    "author": "Heydon Pickering & Andy Bell",
+    "url": "https://every-layout.dev/"
+  },
+  "kind": "book"
+}

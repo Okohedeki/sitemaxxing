@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.playground/
+.sitemaxxing/
+test-results/
+playwright-report/
+e2e/.tmp/
+*.log
+.env
+.env.*
+.DS_Store
+coverage/

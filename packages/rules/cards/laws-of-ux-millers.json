@@ -1,0 +1,16 @@
+{
+  "id": "laws-of-ux-millers",
+  "passes": [
+    "declutter",
+    "copy"
+  ],
+  "principle": "Working memory holds only a handful of items, so chunk content and keep lists short.",
+  "detect": "Long rows of badges, six feature cards, dense trust lines.",
+  "fix": "Keep groups to three or four items and replace vague lists with a few concrete figures.",
+  "source": {
+    "title": "Laws of UX",
+    "author": "Jon Yablonski",
+    "url": "https://lawsofux.com/millers-law/"
+  },
+  "kind": "blog"
+}

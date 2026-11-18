@@ -1,0 +1,16 @@
+{
+  "id": "refactoring-ui-depth",
+  "passes": [
+    "direction",
+    "imagery"
+  ],
+  "principle": "Shadows and borders should describe real layering; shadows on everything flatten the page back out.",
+  "detect": "Drop shadows on feature cards, images and buttons at the same time.",
+  "fix": "Remove decorative shadows; use hairline borders or spacing to separate content.",
+  "source": {
+    "title": "Refactoring UI",
+    "author": "Adam Wathan & Steve Schoger",
+    "url": "https://www.refactoringui.com/"
+  },
+  "kind": "book"
+}

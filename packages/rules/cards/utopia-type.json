@@ -1,0 +1,15 @@
+{
+  "id": "utopia-type",
+  "passes": [
+    "font-size"
+  ],
+  "principle": "A fluid type scale interpolates sizes between viewports so headlines stay proportional without breakpoints.",
+  "detect": "Fixed pixel headline sizes that are either tiny on desktop or overflow on phones.",
+  "fix": "Express sizes with clamp() between a phone and a desktop value.",
+  "source": {
+    "title": "Utopia",
+    "author": "James Gilyead & Trys Mudford",
+    "url": "https://utopia.fyi/"
+  },
+  "kind": "blog"
+}

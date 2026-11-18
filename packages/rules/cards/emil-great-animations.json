@@ -1,0 +1,16 @@
+{
+  "id": "emil-great-animations",
+  "passes": [
+    "arrow-button",
+    "reveal-hero"
+  ],
+  "principle": "Good animations are fast (roughly 150 to 300ms), use ease-out curves, and animate only what the user is looking at.",
+  "detect": "Hover effects with no easing or generic scale-ups; every block fading in on scroll.",
+  "fix": "One purposeful entrance on load, 150 to 250ms hover feedback with a custom ease-out, and nothing else moving.",
+  "source": {
+    "title": "Great Animations",
+    "author": "Emil Kowalski",
+    "url": "https://emilkowal.ski/ui/great-animations"
+  },
+  "kind": "blog"
+}

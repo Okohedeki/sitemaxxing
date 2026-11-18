@@ -1,0 +1,24 @@
+:root {
+  --bg: #f6f4ef;
+  --ink: #1c2430;
+  --soft: #4b525d;
+  --line: #e2ddd2;
+  --acc: #25467a;
+  --dot: #25467a;
+  --display: "Poppins", sans-serif;
+  --body: "Poppins", sans-serif;
+  --label: "Poppins", sans-serif;
+  --em-face: Georgia, serif;
+  --em-style: italic;
+  --em-ink: var(--acc);
+  --btn-bg: var(--ink);
+  --btn-ink: #ffffff;
+  --btn-shadow: 0 8px 18px rgba(28, 36, 48, 0.18);
+  --pill-bg: transparent;
+  --pill-ink: var(--acc);
+  --pill-border: 1px solid var(--acc);
+  --media-radius: 28px;
+  --media-border: 6px solid #ffffff;
+  --media-shadow: 0 30px 60px rgba(30, 40, 60, 0.18);
+  --logo-bg: var(--acc);
+}

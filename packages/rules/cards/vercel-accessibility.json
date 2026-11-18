@@ -1,0 +1,16 @@
+{
+  "id": "vercel-accessibility",
+  "passes": [
+    "imagery",
+    "arrow-button"
+  ],
+  "principle": "Interactive elements need visible focus, enough contrast and hit areas large enough to use.",
+  "detect": "Text on images below 4.5:1 contrast; buttons without focus styles; targets under 24px.",
+  "fix": "Add a contrast overlay, keep focus-visible outlines, and size targets to at least 24px.",
+  "source": {
+    "title": "Web Interface Guidelines",
+    "author": "Vercel",
+    "url": "https://vercel.com/design/guidelines"
+  },
+  "kind": "blog"
+}

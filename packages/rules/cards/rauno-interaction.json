@@ -1,0 +1,16 @@
+{
+  "id": "rauno-interaction",
+  "passes": [
+    "nav-dropdown",
+    "arrow-button"
+  ],
+  "principle": "Small details, such as how a menu opens, where it anchors and how it responds to the pointer, are what make an interface feel considered.",
+  "detect": "A plain text dropdown list with no preview, no transition and no clear anchor.",
+  "fix": "Give the menu a shape (tiles, a fullscreen reveal or a drawer), a short eased transition and content worth opening.",
+  "source": {
+    "title": "Invisible Details of Interaction Design",
+    "author": "Rauno Freiberg",
+    "url": "https://rauno.me/craft/interaction-design"
+  },
+  "kind": "blog"
+}

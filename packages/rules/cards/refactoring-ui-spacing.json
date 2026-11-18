@@ -1,0 +1,15 @@
+{
+  "id": "refactoring-ui-spacing",
+  "passes": [
+    "spacing"
+  ],
+  "principle": "Start with too much white space and remove it until it feels right; use a constrained spacing scale instead of arbitrary pixel values.",
+  "detect": "Many distinct padding and margin values; sections that touch; hero padding under about 48px on desktop.",
+  "fix": "Adopt a 4/8-point scale, make section spacing two to three times component spacing, and express it fluidly with clamp().",
+  "source": {
+    "title": "Refactoring UI",
+    "author": "Adam Wathan & Steve Schoger",
+    "url": "https://www.refactoringui.com/"
+  },
+  "kind": "book"
+}

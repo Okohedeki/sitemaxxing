@@ -1,0 +1,16 @@
+{
+  "id": "laws-of-ux-jakob",
+  "passes": [
+    "nav-dropdown",
+    "declutter"
+  ],
+  "principle": "People spend most of their time on other sites and expect yours to work the same way.",
+  "detect": "Navigation patterns that hide standard destinations or behave unexpectedly.",
+  "fix": "Use familiar navigation (a menu button, a drawer, preview tiles) with the expected open and close behaviour.",
+  "source": {
+    "title": "Laws of UX",
+    "author": "Jon Yablonski",
+    "url": "https://lawsofux.com/jakobs-law/"
+  },
+  "kind": "blog"
+}

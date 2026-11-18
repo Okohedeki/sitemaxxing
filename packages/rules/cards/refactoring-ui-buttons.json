@@ -1,0 +1,16 @@
+{
+  "id": "refactoring-ui-buttons",
+  "passes": [
+    "declutter",
+    "arrow-button"
+  ],
+  "principle": "Buttons should look like a hierarchy: one solid primary action, quieter secondary actions, and tertiary actions as plain links.",
+  "detect": "Two solid buttons side by side; a sign-in button styled like the main call to action.",
+  "fix": "Keep one primary button per view; render the rest as ghost buttons or links, or remove them.",
+  "source": {
+    "title": "Refactoring UI",
+    "author": "Adam Wathan & Steve Schoger",
+    "url": "https://www.refactoringui.com/"
+  },
+  "kind": "book"
+}

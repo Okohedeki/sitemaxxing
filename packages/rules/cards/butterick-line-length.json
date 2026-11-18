@@ -1,0 +1,16 @@
+{
+  "id": "butterick-line-length",
+  "passes": [
+    "font-size",
+    "alignment"
+  ],
+  "principle": "Lines that are too long tire the eye; around 45 to 90 characters per line reads best.",
+  "detect": "Subheads or paragraphs running past about 90 characters per line.",
+  "fix": "Constrain text measure with a max-width in ch units.",
+  "source": {
+    "title": "Practical Typography",
+    "author": "Matthew Butterick",
+    "url": "https://practicaltypography.com/line-length.html"
+  },
+  "kind": "book"
+}

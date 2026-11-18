@@ -1,0 +1,24 @@
+{
+  "name": "@sitemaxxing/rules",
+  "version": "0.1.0",
+  "description": "Rule cards (CC BY 4.0) and slop-word lists that ground every Sitemaxxing pass.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist", "cards", "slop-words.json"],
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "devDependencies": {
+    "tsup": "^8.3.5",
+    "typescript": "^5.7.2"
+  }
+}

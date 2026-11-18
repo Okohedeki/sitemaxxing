@@ -1,0 +1,21 @@
+{
+  "name": "@sitemaxxing/overlay",
+  "version": "0.1.0",
+  "description": "Dev-only overlay injected into the target site: score pill, change highlights, copy typewriter, forced states.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/overlay.js",
+  "exports": {
+    ".": "./dist/overlay.js"
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@sitemaxxing/core": "workspace:*",
+    "tsup": "^8.3.5",
+    "typescript": "^5.7.2"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "id": "every-layout-stack",
+  "passes": [
+    "spacing"
+  ],
+  "principle": "Vertical rhythm should come from one gap applied between siblings, not from margins on each child.",
+  "detect": "Children with different top and bottom margins inside the same column.",
+  "fix": "Use flex or grid gap on the container and remove per-child margins.",
+  "source": {
+    "title": "Every Layout",
+    "author": "Heydon Pickering & Andy Bell",
+    "url": "https://every-layout.dev/"
+  },
+  "kind": "book"
+}

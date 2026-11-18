@@ -1,0 +1,32 @@
+{
+  "brand": "Fieldnote",
+  "nav": [
+    { "label": "Product", "href": "#product" },
+    { "label": "Solutions", "href": "#solutions" },
+    { "label": "Pricing", "href": "#pricing" },
+    { "label": "Resources", "href": "#resources" },
+    { "label": "Company", "href": "#company" },
+    { "label": "Blog", "href": "#blog" }
+  ],
+  "login": "Log in",
+  "navCta": "Get Started Free",
+  "pill": "✨ AI-Powered Soil Intelligence",
+  "headline": "Unlock the Power of Smarter Farming with AI",
+  "highlight": "Smarter Farming",
+  "subhead": "Leverage cutting-edge AI and satellite technology to revolutionize your agricultural operations and drive unprecedented growth.",
+  "cta": "Get Started Free 🚀",
+  "secondaryCta": "Watch Demo ▶",
+  "trust": "Trusted by 10,000+ farmers worldwide 🌱",
+  "artCaption": "Live soil moisture · 1,204 fields",
+  "features": [
+    { "icon": "🚀", "title": "Lightning Fast", "text": "Get actionable insights in seconds, not days." },
+    { "icon": "🤖", "title": "AI-Powered", "text": "Cutting-edge machine learning for smarter decisions." },
+    { "icon": "🌍", "title": "Global Scale", "text": "Trusted by farms of every size, everywhere." }
+  ],
+  "facts": [
+    { "value": "12 cm", "label": "Map resolution" },
+    { "value": "Daily", "label": "Satellite revisits" },
+    { "value": "38", "label": "Countries mapped" }
+  ],
+  "footer": "Fieldnote Inc. · Davis, California · hello@fieldnote.example"
+}

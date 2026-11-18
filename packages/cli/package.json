@@ -1,0 +1,39 @@
+{
+  "name": "sitemaxxing",
+  "version": "0.1.0",
+  "description": "Give your website a glow-up: live, reviewable design passes committed as versions, with a Mog score.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "sitemaxxing": "./bin/sitemaxxing.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist", "bin"],
+  "keywords": ["design", "vite", "mcp", "landing-page", "ui", "overlay"],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sitemaxxing/sitemaxxing"
+  },
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@sitemaxxing/core": "workspace:*",
+    "@sitemaxxing/mcp-server": "workspace:*",
+    "@sitemaxxing/passes": "workspace:*",
+    "@sitemaxxing/vite-plugin": "workspace:*",
+    "cac": "^6.7.14"
+  },
+  "devDependencies": {
+    "tsup": "^8.3.5",
+    "typescript": "^5.7.2"
+  }
+}

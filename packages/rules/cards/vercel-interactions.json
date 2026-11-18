@@ -1,0 +1,15 @@
+{
+  "id": "vercel-interactions",
+  "passes": [
+    "arrow-button"
+  ],
+  "principle": "Hover and press states should give immediate, proportional feedback and never block the next action.",
+  "detect": "A call to action with no hover feedback at all.",
+  "fix": "Add a small, fast hover motion to the button's arrow or icon.",
+  "source": {
+    "title": "Web Interface Guidelines",
+    "author": "Vercel",
+    "url": "https://vercel.com/design/guidelines"
+  },
+  "kind": "blog"
+}

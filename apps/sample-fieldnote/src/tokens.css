@@ -1,0 +1,24 @@
+:root {
+  --bg: #ffffff;
+  --ink: #1f2333;
+  --soft: #5b6072;
+  --line: #eceaf5;
+  --acc: #6c4cf5;
+  --dot: #6c4cf5;
+  --display: "Poppins", sans-serif;
+  --body: "Poppins", sans-serif;
+  --label: "Poppins", sans-serif;
+  --btn-bg: linear-gradient(90deg, #8b5cf6, #6c4cf5 50%, #3b82f6);
+  --btn-ink: #ffffff;
+  --btn-shadow: 0 10px 24px rgba(108, 76, 245, 0.28);
+  --pill-bg: #f1ecff;
+  --pill-ink: #6c4cf5;
+  --pill-border: 1px solid transparent;
+  --grad-text: linear-gradient(90deg, #8b5cf6, #3b82f6);
+  --grad-ink: transparent;
+  --art-bg: linear-gradient(135deg, #c4b5fd, #93c5fd 60%, #a7f3d0);
+  --art-shadow: 0 28px 70px rgba(108, 76, 245, 0.25);
+  --art-radius: 46% 54% 40% 60% / 55% 40% 60% 45%;
+  --card-shadow: 0 8px 28px rgba(31, 35, 51, 0.06);
+  --logo-bg: radial-gradient(circle at 30% 30%, #a48bff, #6c4cf5);
+}

@@ -1,0 +1,16 @@
+{
+  "id": "lindgaard-2006",
+  "passes": [
+    "imagery",
+    "direction"
+  ],
+  "principle": "People form a stable judgement of a page's appeal within about 50 milliseconds, long before they read anything.",
+  "detect": "A first viewport whose overall shape, colour and image quality look generic or cluttered.",
+  "fix": "Treat the first viewport as a single composition: one strong image or art element, one headline, calm colour.",
+  "source": {
+    "title": "Attention web designers: You have 50 milliseconds to make a good first impression!",
+    "author": "Lindgaard, Fernandes, Dudek & Brown (2006)",
+    "url": "https://doi.org/10.1080/01449290500330448"
+  },
+  "kind": "paper"
+}

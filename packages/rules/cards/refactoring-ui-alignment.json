@@ -1,0 +1,15 @@
+{
+  "id": "refactoring-ui-alignment",
+  "passes": [
+    "alignment"
+  ],
+  "principle": "Mixed alignment reads as sloppy; most text wants a single left edge, and centring is for short, symmetric content only.",
+  "detect": "More than two distinct left edges above the fold; centred body text next to left-aligned text; nav links floating between the logo and the actions.",
+  "fix": "Commit to one grid and one left edge for copy. Centre only on purpose. Push nav links to the right edge.",
+  "source": {
+    "title": "Refactoring UI",
+    "author": "Adam Wathan & Steve Schoger",
+    "url": "https://www.refactoringui.com/"
+  },
+  "kind": "book"
+}

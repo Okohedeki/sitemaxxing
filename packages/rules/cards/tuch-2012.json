@@ -1,0 +1,15 @@
+{
+  "id": "tuch-2012",
+  "passes": [
+    "declutter"
+  ],
+  "principle": "Low visual complexity is the strongest lever on how appealing a page feels at a glance.",
+  "detect": "Several equal-weight elements in the first viewport: pills, badges, trust rows, multiple buttons, icon rows.",
+  "fix": "Remove or demote everything that is not the headline, the subhead and one action.",
+  "source": {
+    "title": "The role of visual complexity and prototypicality regarding first impression of websites",
+    "author": "Tuch et al. (2012)",
+    "url": "https://doi.org/10.1016/j.ijhcs.2012.06.003"
+  },
+  "kind": "paper"
+}

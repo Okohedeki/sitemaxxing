@@ -1,0 +1,15 @@
+{
+  "id": "refactoring-ui-images",
+  "passes": [
+    "imagery"
+  ],
+  "principle": "Imagery earns its place by scale and quality; a small image in a box competes with the text instead of supporting it.",
+  "detect": "A hero image sitting in a rounded, bordered, shadowed card beside the copy; decorative blobs; emoji used as artwork.",
+  "fix": "Give one image or art element real weight, full-bleed or near it, and set text on it behind a contrast overlay of at least 4.5:1.",
+  "source": {
+    "title": "Refactoring UI",
+    "author": "Adam Wathan & Steve Schoger",
+    "url": "https://www.refactoringui.com/"
+  },
+  "kind": "book"
+}

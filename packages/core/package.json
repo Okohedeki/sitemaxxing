@@ -1,0 +1,38 @@
+{
+  "name": "@sitemaxxing/core",
+  "version": "0.1.0",
+  "description": "Sitemaxxing core: types, plugin API, patch queue, versions, decision log, LLM adapters, database.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./protocol": {
+      "types": "./dist/protocol.d.ts",
+      "import": "./dist/protocol.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.2.0",
+    "diff": "^7.0.0",
+    "jiti": "^2.4.2",
+    "playwright": "^1.49.1",
+    "postcss": "^8.4.49",
+    "ts-morph": "^24.0.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/diff": "^6.0.0",
+    "tsup": "^8.3.5",
+    "typescript": "^5.7.2"
+  }
+}

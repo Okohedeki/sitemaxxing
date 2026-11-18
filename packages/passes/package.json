@@ -1,0 +1,31 @@
+{
+  "name": "@sitemaxxing/passes",
+  "version": "0.1.0",
+  "description": "Built-in Sitemaxxing passes: direction, the ten day-one techniques, hero art and preloader.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@sitemaxxing/components": "workspace:*",
+    "@sitemaxxing/core": "workspace:*",
+    "@sitemaxxing/rules": "workspace:*",
+    "postcss": "^8.4.49",
+    "ts-morph": "^24.0.0"
+  },
+  "devDependencies": {
+    "tsup": "^8.3.5",
+    "typescript": "^5.7.2"
+  }
+}

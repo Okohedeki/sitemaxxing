@@ -1,0 +1,16 @@
+{
+  "id": "utopia-scale",
+  "passes": [
+    "font-size",
+    "spacing"
+  ],
+  "principle": "Choosing a ratio and deriving every size from it gives a page internal consistency.",
+  "detect": "Sizes that bear no relation to one another.",
+  "fix": "Derive headline, subhead and label sizes from one ratio.",
+  "source": {
+    "title": "Utopia",
+    "author": "James Gilyead & Trys Mudford",
+    "url": "https://utopia.fyi/"
+  },
+  "kind": "blog"
+}

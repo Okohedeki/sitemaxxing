@@ -1,0 +1,15 @@
+{
+  "id": "vercel-content",
+  "passes": [
+    "copy"
+  ],
+  "principle": "Interface copy is clearest when it is short, specific and tells people what will happen.",
+  "detect": "Buttons that say \"Get started\" with no object; subheads describing feelings rather than outcomes.",
+  "fix": "Name the outcome in the button and the measurable thing in the subhead.",
+  "source": {
+    "title": "Web Interface Guidelines",
+    "author": "Vercel",
+    "url": "https://vercel.com/design/guidelines"
+  },
+  "kind": "blog"
+}

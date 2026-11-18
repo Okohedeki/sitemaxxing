@@ -1,0 +1,17 @@
+{
+  "id": "vercel-motion",
+  "passes": [
+    "reveal-hero",
+    "preloader",
+    "hero-art"
+  ],
+  "principle": "Motion must honour reduced-motion preferences and never trap the user behind an animation.",
+  "detect": "Entrance animations or preloaders that ignore prefers-reduced-motion.",
+  "fix": "Swap instantly under reduced motion and keep any preloader well under two seconds.",
+  "source": {
+    "title": "Web Interface Guidelines",
+    "author": "Vercel",
+    "url": "https://vercel.com/design/guidelines"
+  },
+  "kind": "blog"
+}

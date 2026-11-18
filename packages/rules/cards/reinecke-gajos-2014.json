@@ -1,0 +1,15 @@
+{
+  "id": "reinecke-gajos-2014",
+  "passes": [
+    "direction"
+  ],
+  "principle": "Aesthetic preferences differ by country, age, education and gender, so an average is not a target; preferences should be learned per person or segment.",
+  "detect": "A single style applied to everyone without any signal about who the audience is.",
+  "fix": "Offer directions as choices rather than one answer, and record which ones a given person picks.",
+  "source": {
+    "title": "Quantifying visual preferences around the world",
+    "author": "Reinecke & Gajos (2014)",
+    "url": "https://doi.org/10.1145/2556288.2557052"
+  },
+  "kind": "paper"
+}

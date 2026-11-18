@@ -1,0 +1,30 @@
+{
+  "brand": "Isvik Expeditions",
+  "nav": [
+    { "label": "Voyages", "href": "#voyages" },
+    { "label": "Destinations", "href": "#destinations" },
+    { "label": "Experience", "href": "#experience" },
+    { "label": "About", "href": "#about" },
+    { "label": "Journal", "href": "#journal" }
+  ],
+  "destinations": [
+    { "label": "Svalbard", "href": "#svalbard", "blurb": "Polar bears, 78°N" },
+    { "label": "Greenland", "href": "#greenland", "blurb": "Ice fjords by kayak" },
+    { "label": "Antarctica", "href": "#antarctica", "blurb": "The Peninsula, 12 guests" }
+  ],
+  "login": "Sign in",
+  "navCta": "Book Now",
+  "pill": "✦ POLAR EXPEDITIONS · EST. 2008",
+  "headline": "Discover the Untamed Polar Wilderness",
+  "highlight": "Wilderness",
+  "subhead": "Embark on extraordinary small-ship voyages to the planet's most remote frontiers, guided by world-class experts and crafted for travelers who seek the truly unforgettable.",
+  "cta": "Begin Your Journey",
+  "secondaryCta": "Explore Voyages",
+  "badges": ["★ 4.9 rating", "50+ countries", "Award-winning"],
+  "facts": [
+    { "value": "12", "label": "Guests per landing" },
+    { "value": "Svalbard & Antarctica", "label": "Two polar regions" },
+    { "value": "Naturalists", "label": "Lead every voyage" }
+  ],
+  "footer": "Isvik Expeditions · Tromsø, Norway · hello@isvik.example"
+}

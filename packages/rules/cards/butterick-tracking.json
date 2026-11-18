@@ -1,0 +1,15 @@
+{
+  "id": "butterick-tracking",
+  "passes": [
+    "font-size"
+  ],
+  "principle": "Large display text needs tighter letterspacing than body text; positive tracking on a headline looks loose.",
+  "detect": "Display tracking at zero or positive; uppercase labels with no added tracking.",
+  "fix": "Track headlines around minus two to minus three and a half percent; add tracking only to small uppercase labels.",
+  "source": {
+    "title": "Practical Typography",
+    "author": "Matthew Butterick",
+    "url": "https://practicaltypography.com/letterspacing.html"
+  },
+  "kind": "book"
+}

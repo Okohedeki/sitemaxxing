@@ -1,0 +1,15 @@
+{
+  "id": "utopia-fluid-space",
+  "passes": [
+    "spacing"
+  ],
+  "principle": "Spacing can scale fluidly with the viewport in the same way as type, keeping proportions consistent.",
+  "detect": "Padding values that are fixed at one size for every screen.",
+  "fix": "Use a fluid space scale with clamp() for gutters and section padding.",
+  "source": {
+    "title": "Utopia",
+    "author": "James Gilyead & Trys Mudford",
+    "url": "https://utopia.fyi/"
+  },
+  "kind": "blog"
+}

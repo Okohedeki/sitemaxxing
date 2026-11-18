@@ -1,0 +1,16 @@
+{
+  "id": "emil-good-vs-great",
+  "passes": [
+    "reveal-hero",
+    "preloader"
+  ],
+  "principle": "The difference between an adequate and a great animation is restraint: the right property, the right duration, and respecting what came before.",
+  "detect": "Animations that move several properties at once or last longer than half a second.",
+  "fix": "Animate transform and opacity, keep durations short, and stagger by small fixed steps.",
+  "source": {
+    "title": "Good Vs Great Animations",
+    "author": "Emil Kowalski",
+    "url": "https://emilkowal.ski/ui/good-vs-great-animations"
+  },
+  "kind": "blog"
+}

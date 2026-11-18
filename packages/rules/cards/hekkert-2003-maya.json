@@ -1,0 +1,16 @@
+{
+  "id": "hekkert-2003-maya",
+  "passes": [
+    "direction",
+    "hero-art"
+  ],
+  "principle": "People prefer designs that are as novel as they can be while still feeling familiar: typical enough to read, new enough to notice.",
+  "detect": "A page that is either indistinguishable from every template or so unusual that its purpose is unclear.",
+  "fix": "Keep a typical structure and introduce novelty in one element, such as the hero art or the type pairing.",
+  "source": {
+    "title": "\"Most advanced, yet acceptable\": Typicality and novelty as joint predictors of aesthetic preference in industrial design",
+    "author": "Hekkert, Snelders & van Wieringen (2003)",
+    "url": "https://doi.org/10.1348/000712603762842147"
+  },
+  "kind": "paper"
+}

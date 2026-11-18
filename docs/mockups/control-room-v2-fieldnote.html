@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sitemaxxing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Manrope:wght@400;500;600;700&family=Poppins:wght@400;600;700&family=Instrument+Sans:wght@400;500;600&family=Newsreader:opsz,wght@6..72,400;6..72,500&family=Unbounded:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* Layout: dark studio chrome. Top: brand, source, URL, score, commit. Left: step rail + live site. Right: the change queue. One visual world, single theme. */
+:root{
+  --bg:#0c0d10; --panel:#14161b; --raise:#1b1e25; --line:#262a33; --ink:#eef0f4; --muted:#8c93a1;
+  --accent:#ff6b8b; --accent-soft:rgba(255,107,139,.14);
+  --good:#5ad19a; --good-soft:rgba(90,209,154,.14); --bad:#ff8a6b; --bad-soft:rgba(255,138,107,.13);
+  --ui:"Manrope",system-ui,sans-serif; --mono:"JetBrains Mono",ui-monospace,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--ink);font:14px/1.45 var(--ui)}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.bar{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.brand{font-weight:700;font-size:15px;letter-spacing:-.01em;display:flex;align-items:center;gap:9px}
+.brand svg{width:20px;height:20px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;background:var(--panel)}
+.seg button{border:0;background:none;padding:6px 11px;font-size:13px;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--raise);color:var(--ink)}
+.url{flex:1 1 240px;display:flex;gap:8px;min-width:0}
+.url input{flex:1;min-width:0;padding:8px 10px;border:1px solid var(--line);border-radius:9px;background:var(--panel);font-family:var(--mono);font-size:12.5px}
+.btn{border:1px solid var(--line);background:var(--panel);padding:8px 12px;border-radius:9px;font-weight:600;font-size:13px;white-space:nowrap}
+.btn:hover{border-color:#3a404c}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#1a0a10}
+.btn.primary:disabled{opacity:.35;cursor:not-allowed}
+
+/* score */
+.score{display:flex;align-items:center;gap:10px;padding:4px 10px 4px 4px;border:1px solid var(--line);border-radius:999px;background:var(--panel)}
+.ring{width:34px;height:34px;position:relative}
+.ring svg{width:34px;height:34px;transform:rotate(-90deg)}
+.ring b{position:absolute;inset:0;display:grid;place-items:center;font:600 12px var(--mono)}
+.score small{display:block;font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;line-height:1.1}
+.score span{font:500 12px var(--mono)}
+.delta{color:var(--good);font:500 12px var(--mono);opacity:0;transition:opacity .3s}
+.delta.show{opacity:1}
+
+.main{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:16px;padding:16px;align-items:start}
+@media (max-width:1040px){.main{grid-template-columns:1fr}}
+.stage{display:flex;flex-direction:column;gap:10px;min-width:0}
+
+/* step rail */
+.rail{display:flex;gap:0;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--panel)}
+.rail div{flex:1;padding:8px 12px;font-size:12.5px;color:var(--muted);display:flex;gap:8px;align-items:center;border-right:1px solid var(--line);white-space:nowrap;min-width:0}
+.rail div:last-child{border-right:0}
+.rail i{font:500 11px var(--mono);width:18px;height:18px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--line);font-style:normal;flex:none}
+.rail .on{color:var(--ink);background:var(--raise)}
+.rail .on i{border-color:var(--accent);color:var(--accent)}
+.rail .done i{background:var(--good);border-color:var(--good);color:#06140d}
+@media (max-width:620px){.rail div span{display:none}}
+
+.stagebar{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.live{font-size:13px;color:var(--muted);display:flex;align-items:center;gap:8px}
+.live b{color:var(--ink);font-weight:600}
+.dot{width:8px;height:8px;border-radius:50%;background:#3a404c}
+.dot.on{background:var(--accent);box-shadow:0 0 0 4px var(--accent-soft)}
+
+.browser{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#000}
+.chrome{display:flex;align-items:center;gap:6px;padding:8px 12px;border-bottom:1px solid var(--line);font-family:var(--mono);font-size:12px;color:var(--muted);background:var(--panel)}
+.chrome span{width:9px;height:9px;border-radius:50%;background:#2c313b}
+.chrome em{font-style:normal;margin-left:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.frame{container-type:inline-size;position:relative}
+
+/* recreate overlay */
+.recreate{position:absolute;inset:0;z-index:60;background:var(--panel);display:none;place-items:center;padding:24px}
+.recreate.on{display:grid}
+.recreate h3{margin:0 0 14px;font-size:15px}
+.recreate ol{list-style:none;padding:0;margin:0;display:grid;gap:12px;font-size:13px;min-width:280px}
+.recreate li{display:flex;gap:10px;align-items:center;color:var(--muted)}
+.recreate li.doing,.recreate li.done{color:var(--ink)}
+.recreate li i{width:16px;height:16px;border-radius:50%;border:1.5px solid var(--line);flex:none}
+.recreate li.doing i{border-color:var(--accent);border-top-color:transparent;animation:spin .8s linear infinite}
+.recreate li.done i{background:var(--good);border-color:var(--good)}
+.recreate li em{font-style:normal;font-family:var(--mono);font-size:12px;color:var(--good);margin-left:auto}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* queue */
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.phead{padding:14px 16px 12px;border-bottom:1px solid var(--line);display:grid;gap:10px}
+.phead .row{display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.phead h2{margin:0;font-size:15px}
+.counts{font:12px var(--mono);color:var(--muted)}
+.list{list-style:none;margin:0;padding:0;max-height:calc(100vh - 250px);overflow:auto}
+@media (max-width:1040px){.list{max-height:none}}
+.group{padding:10px 16px 6px;font:500 11px var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:.08em;border-bottom:1px solid var(--line);background:var(--bg)}
+.item{display:grid;grid-template-columns:1fr auto;gap:10px;padding:12px 16px;border-bottom:1px solid var(--line);align-items:start;transition:background .15s,opacity .3s,transform .3s}
+.item.enter{opacity:0;transform:translateY(6px)}
+.item:hover,.item.previewing{background:var(--raise)}
+.item h3{margin:0;font-size:14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.item p{margin:3px 0 0;color:var(--muted);font-size:13px}
+.pts{font:500 11px var(--mono);color:var(--good)}
+.chip{font:500 11px var(--mono);padding:2px 7px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
+.chip.approved{background:var(--good-soft);color:var(--good);border-color:transparent}
+.chip.rejected{background:var(--bad-soft);color:var(--bad);border-color:transparent}
+.chip.committed{background:var(--ink);color:var(--bg);border-color:transparent}
+.chip.previewing{background:var(--accent);color:#1a0a10;border-color:transparent}
+.item.rejected .t{text-decoration:line-through;color:var(--muted)}
+.diff{margin-top:6px;font-size:12.5px;display:grid;gap:3px}
+.diff del{color:var(--bad);background:var(--bad-soft);padding:0 3px;border-radius:3px}
+.diff ins{color:var(--good);text-decoration:none;background:var(--good-soft);padding:0 3px;border-radius:3px}
+.variants{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px}
+.variants button{border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:5px;text-align:left;font-size:11.5px;display:grid;gap:4px;line-height:1.2;color:var(--ink)}
+.variants button svg{width:100%;aspect-ratio:16/10;display:block;border-radius:4px}
+.variants button[aria-pressed="true"]{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.variants button:disabled{opacity:.45;cursor:default}
+.acts{display:flex;gap:4px}
+.ib{width:30px;height:30px;border-radius:8px;border:1px solid var(--line);background:var(--bg);display:grid;place-items:center;padding:0}
+.ib svg{width:15px;height:15px}
+.ib:hover{border-color:#3a404c}
+.ib.ok[aria-pressed="true"]{background:var(--good);border-color:var(--good);color:#06140d}
+.ib.no[aria-pressed="true"]{background:var(--bad);border-color:var(--bad);color:#1a0a06}
+.ib:disabled{opacity:.3;cursor:default}
+.pfoot{padding:12px 16px;display:grid;gap:8px}
+.pfoot h4{margin:0;font:500 11px var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.versions{display:flex;gap:6px;flex-wrap:wrap}
+.versions button{font:12px var(--mono);border:1px solid var(--line);background:var(--bg);border-radius:7px;padding:5px 9px}
+.versions button[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.toast{position:fixed;left:50%;bottom:20px;transform:translate(-50%,20px);background:var(--ink);color:var(--bg);padding:10px 14px;border-radius:10px;font-size:13px;font-weight:600;opacity:0;transition:.25s;pointer-events:none}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+
+/* ================= SAMPLE SITE: Fieldnote (sloppy baseline) ================= */
+.site{--bg:#ffffff;--ink:#1f2333;--soft:#5b6072;--line:#eceaf5;--dot:#6c4cf5;--acc:#6c4cf5;--display:"Poppins",sans-serif;--body:"Poppins",sans-serif;--label:"Poppins",sans-serif;
+  background:var(--bg);color:var(--ink);font-family:var(--body);position:relative;overflow:hidden;min-height:52cqi}
+.site *{transition:padding .45s ease,gap .45s ease,font-size .45s ease,letter-spacing .45s ease,color .45s ease,background-color .45s ease,border-color .45s ease}
+.site,.site *{transition-property:padding,gap,font-size,letter-spacing,color,background-color,border-color}
+.x-nav{display:flex;align-items:center;gap:2cqi;padding:1.6cqi 2.4cqi;position:relative;z-index:6}
+.x-logo{font:700 1.6cqi var(--display);display:flex;align-items:center;gap:.7cqi;white-space:nowrap}
+.x-logo i{width:1.8cqi;height:1.8cqi;border-radius:50%;background:radial-gradient(circle at 30% 30%,#a48bff,#6c4cf5);display:inline-block}
+.x-links{display:flex;gap:2cqi;list-style:none;margin:0 auto;padding:0;font-size:1.15cqi;font-weight:600;color:var(--soft)}
+.x-navbtns{display:flex;gap:.8cqi;align-items:center}
+.x-btn{display:inline-flex;align-items:center;gap:.6cqi;padding:1cqi 1.8cqi;border-radius:99px;font-size:1.2cqi;font-weight:600;text-decoration:none;white-space:nowrap;cursor:pointer;border:1.5px solid transparent;color:#fff;background:linear-gradient(90deg,#8b5cf6,#6c4cf5 50%,#3b82f6)}
+.x-btn.ghost{background:transparent;color:var(--ink);border-color:var(--line)}
+.x-btn .ar{display:inline-block;transition:transform .25s cubic-bezier(.2,.7,.1,1)}
+.x-menu{display:none;align-items:center;gap:.8cqi;border:0;background:none;font:500 1.2cqi var(--label);color:var(--ink);letter-spacing:.02em;padding:.6cqi 0}
+.x-menu b{width:2.6cqi;height:2.6cqi;border-radius:50%;background:var(--ink);display:inline-block;position:relative}
+.x-menu b::before,.x-menu b::after{content:"";position:absolute;left:28%;right:28%;height:1.5px;background:var(--bg);top:42%}
+.x-menu b::after{top:56%}
+
+.x-hero{display:grid;grid-template-columns:1.05fr 1fr;gap:2cqi;padding:3cqi 2.4cqi 2cqi;align-items:center}
+.x-copy{display:flex;flex-direction:column;gap:1.3cqi;align-items:flex-start}
+.x-pill{font-size:1.05cqi;font-weight:600;padding:.5cqi 1.2cqi;border-radius:99px;background:#f1ecff;color:#6c4cf5}
+.x-h1{margin:0;font:700 3.6cqi/1.15 var(--display);letter-spacing:-.005em;text-wrap:balance}
+.x-h1 .grad{background:linear-gradient(90deg,#8b5cf6,#3b82f6);-webkit-background-clip:text;background-clip:text;color:transparent}
+.x-sub{margin:0;font-size:1.3cqi;line-height:1.6;color:var(--soft);max-width:44cqi}
+.x-ctas{display:flex;gap:1cqi}
+.x-trust{font-size:1.05cqi;color:var(--soft)}
+.x-art{position:relative;height:30cqi}
+.x-blob{position:absolute;inset:1cqi;border-radius:46% 54% 40% 60%/55% 40% 60% 45%;background:linear-gradient(135deg,#c4b5fd,#93c5fd 60%,#a7f3d0);display:grid;place-items:center;font-size:6cqi;box-shadow:0 2cqi 6cqi rgba(108,76,245,.25)}
+#dots{position:absolute;inset:0;width:100%;height:100%;display:none}
+.x-cap{position:absolute;left:0;bottom:-.4cqi;font:400 1cqi var(--label);color:var(--soft);display:none;letter-spacing:.04em;text-transform:uppercase}
+.x-cap b{display:inline-block;width:.8cqi;height:.8cqi;border-radius:50%;background:var(--acc);margin-right:.6cqi;vertical-align:.05cqi}
+.x-feats{display:grid;grid-template-columns:repeat(3,1fr);gap:1.6cqi;padding:1cqi 2.4cqi 3cqi}
+.x-feat{border:1px solid var(--line);border-radius:1.4cqi;padding:1.6cqi;box-shadow:0 .6cqi 2cqi rgba(31,35,51,.06)}
+.x-feat h4{margin:.6cqi 0 .3cqi;font-size:1.3cqi}
+.x-feat p{margin:0;font-size:1.05cqi;color:var(--soft)}
+.x-feat .em{font-size:2cqi}
+.x-spec{display:none;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--line);margin:0 2.4cqi}
+.x-spec div{padding:1.8cqi 0;border-right:1px solid var(--line);padding-left:1.6cqi}
+.x-spec div:first-child{padding-left:0}
+.x-spec div:last-child{border-right:0}
+.x-spec b{display:block;font:400 3.2cqi/1 var(--display);letter-spacing:-.02em}
+.x-spec span{font:400 1cqi var(--label);color:var(--soft);text-transform:uppercase;letter-spacing:.06em}
+
+/* reveal navigation overlay */
+.x-reveal{position:absolute;inset:0;z-index:5;background:var(--ink);color:var(--bg);display:grid;grid-template-columns:1.4fr 1fr;padding:9cqi 2.4cqi 3cqi;gap:3cqi;clip-path:circle(0% at 96% 4%);pointer-events:none;visibility:hidden}
+.x-reveal nav{display:flex;flex-direction:column;gap:.4cqi}
+.x-reveal a{font:400 5.4cqi/1.05 var(--display);letter-spacing:-.025em;display:flex;gap:1.2cqi;align-items:baseline}
+.x-reveal a small{font:400 1cqi var(--label);opacity:.55;letter-spacing:.06em}
+.x-reveal aside{align-self:end;font:400 1.1cqi/1.6 var(--label);opacity:.7;display:grid;gap:1.6cqi}
+
+/* change highlight */
+.flash{outline:2px dashed var(--accent);outline-offset:4px}
+.tag{position:absolute;z-index:70;font:500 11px/1 var(--mono);background:var(--accent);color:#1a0a10;padding:4px 7px;border-radius:5px;pointer-events:none;white-space:nowrap;transition:opacity .3s}
+.caret::after{content:"";display:inline-block;width:.06em;height:.9em;background:currentColor;margin-left:.04em;vertical-align:-.08em;animation:blink .8s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+
+/* ================= TRANSFORMATIONS ================= */
+/* 1 Direction (sets tokens) */
+.t-direction.dir-lab{--bg:#eeede8;--ink:#121212;--soft:#5d5d58;--line:#d6d4cc;--dot:#121212;--acc:#ff4a1c;--display:"Instrument Sans",sans-serif;--body:"Instrument Sans",sans-serif;--label:"JetBrains Mono",monospace}
+.t-direction.dir-editorial{--bg:#f4efe6;--ink:#1d1a16;--soft:#6b6358;--line:#ddd3c3;--dot:#2c4a2e;--acc:#2c4a2e;--display:"Newsreader",serif;--body:"Instrument Sans",sans-serif;--label:"Instrument Sans",sans-serif}
+.t-direction.dir-signal{--bg:#0b1020;--ink:#eef1f8;--soft:#9aa3b8;--line:#232b44;--dot:#ffb23e;--acc:#ffb23e;--display:"Unbounded",sans-serif;--body:"Instrument Sans",sans-serif;--label:"JetBrains Mono",monospace}
+.t-direction .x-logo i{background:var(--acc)}
+.t-direction .x-btn{background:var(--ink);color:var(--bg)}
+.t-direction .x-btn.ghost{background:transparent;color:var(--ink);border-color:var(--line)}
+.t-direction .x-pill{background:transparent;border:1px solid var(--line);color:var(--soft)}
+.t-direction .x-h1 .grad{background:none;color:var(--acc)}
+.t-direction .x-blob{background:var(--line);box-shadow:none}
+.t-direction .x-feat{box-shadow:none}
+/* 2 Declutter */
+.t-declutter .slop{display:none}
+.t-declutter .x-links{margin-left:auto}
+/* 3 Copy handled in JS + spec row */
+.t-copy .x-feats{display:none}
+.t-copy .x-spec{display:grid}
+.t-copy .x-h1 .grad{color:inherit;background:none}
+/* 4 Type scale */
+.t-type .x-h1{font-size:6.4cqi;line-height:.98;letter-spacing:-.035em;font-weight:500}
+.t-direction.dir-editorial.t-type .x-h1{font-weight:400;letter-spacing:-.02em}
+.t-direction.dir-signal.t-type .x-h1{font-size:5.4cqi;font-weight:400;letter-spacing:-.03em;line-height:1.02}
+.t-type .x-sub{font-size:1.45cqi;max-width:36cqi}
+.t-type .x-pill{font-family:var(--label);font-weight:400;font-size:1cqi;letter-spacing:.06em;text-transform:uppercase}
+/* 5 Spacing */
+.t-spacing .x-nav{padding:2.2cqi 4.4cqi}
+.t-spacing .x-hero{padding:6cqi 4.4cqi 4cqi;gap:4cqi}
+.t-spacing .x-copy{gap:2.4cqi}
+.t-spacing .x-spec{margin:0 4.4cqi}
+.t-spacing .x-feats{padding:1cqi 4.4cqi 4cqi}
+.t-spacing .x-reveal{padding:10cqi 4.4cqi 4cqi}
+/* 6 Hero: dot shapes */
+.t-hero .x-blob{display:none}
+.t-hero #dots{display:block}
+.t-hero .x-cap{display:block}
+/* 7 Navigation: reveal */
+.t-nav .x-links,.t-nav .x-navbtns{display:none}
+.t-nav .x-menu{display:inline-flex;margin-left:auto}
+.t-nav.nav-open .x-reveal{visibility:visible;pointer-events:auto}
+.t-nav.rv-circle .x-reveal{transition:clip-path .8s cubic-bezier(.7,0,.2,1)}
+.t-nav.rv-circle.nav-open .x-reveal{clip-path:circle(150% at 96% 4%)}
+.t-nav.rv-curtain .x-reveal{clip-path:inset(0 0 100% 0);transition:clip-path .75s cubic-bezier(.7,0,.2,1)}
+.t-nav.rv-curtain.nav-open .x-reveal{clip-path:inset(0 0 0 0)}
+.t-nav.rv-split .x-reveal{clip-path:inset(0 50% 0 50%);transition:clip-path .7s cubic-bezier(.7,0,.2,1)}
+.t-nav.rv-split.nav-open .x-reveal{clip-path:inset(0 0 0 0)}
+.t-nav.nav-open .x-reveal a{animation:up .7s .25s cubic-bezier(.2,.7,.1,1) both}
+.t-nav.nav-open .x-reveal a:nth-child(2){animation-delay:.31s}.t-nav.nav-open .x-reveal a:nth-child(3){animation-delay:.37s}.t-nav.nav-open .x-reveal a:nth-child(4){animation-delay:.43s}
+.t-nav.nav-open .x-menu{color:var(--bg)}
+.t-nav.nav-open .x-menu b{background:var(--bg)}
+.t-nav.nav-open .x-menu b::before,.t-nav.nav-open .x-menu b::after{background:var(--ink)}
+.t-nav.nav-open .x-logo{color:var(--bg)}
+@keyframes up{from{opacity:0;transform:translateY(3cqi)}to{opacity:1;transform:none}}
+/* 8 Button detail */
+.t-button .x-btn:not(.ghost){padding-right:1.2cqi}
+.t-button .x-btn .ar{width:2cqi;height:2cqi;border-radius:50%;background:var(--bg);color:var(--ink);display:inline-grid;place-items:center;font-size:1cqi;margin-left:.4cqi;overflow:hidden}
+.t-button .x-btn:hover .ar,.t-button .x-btn.force .ar{transform:rotate(-45deg)}
+
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+<header class="bar">
+  <div class="brand"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="9" fill="none" stroke="#ff6b8b" stroke-width="2"/><path d="M6 12.5 10 6l4 6.5" fill="none" stroke="#eef0f4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Sitemaxxing</div>
+  <div class="seg" role="group" aria-label="Source">
+    <button id="mUrl" aria-pressed="true">Any URL</button>
+    <button id="mRepo" aria-pressed="false">My repo</button>
+  </div>
+  <form class="url" id="urlForm">
+    <label for="url" style="position:absolute;left:-9999px">Site URL</label>
+    <input id="url" value="https://fieldnote.ag" spellcheck="false">
+    <button class="btn" type="submit">Maxx it</button>
+  </form>
+  <div class="score" title="Mog score: estimated first-impression appeal from visual complexity, type contrast and copy specificity">
+    <div class="ring"><svg viewBox="0 0 36 36"><circle cx="18" cy="18" r="15" fill="none" stroke="#262a33" stroke-width="3"/><circle id="ringArc" cx="18" cy="18" r="15" fill="none" stroke="#ff6b8b" stroke-width="3" stroke-linecap="round" stroke-dasharray="94.2" stroke-dashoffset="94.2" style="transition:stroke-dashoffset .6s"/></svg><b id="scoreN">0</b></div>
+    <div><small>Mog score</small><span id="scoreTxt">v1</span></div>
+    <span class="delta" id="delta">+0</span>
+  </div>
+  <button class="btn primary" id="commit" disabled>Commit</button>
+</header>
+
+<main class="main">
+  <section class="stage" aria-label="Live preview">
+    <div class="rail" id="rail">
+      <div data-s="0"><i>1</i><span>Recreate</span></div>
+      <div data-s="1"><i>2</i><span>Pick a direction</span></div>
+      <div data-s="2"><i>3</i><span>Refine</span></div>
+      <div data-s="3"><i>4</i><span>Commit</span></div>
+    </div>
+    <div class="stagebar">
+      <div class="seg" role="group" aria-label="Compare">
+        <button id="vBefore" aria-pressed="false">Current</button>
+        <button id="vAfter" aria-pressed="true">With changes</button>
+      </div>
+      <div class="live"><span class="dot" id="dot"></span><span id="liveText">Ready</span></div>
+    </div>
+    <div class="browser">
+      <div class="chrome"><span></span><span></span><span></span><em id="chromeUrl">fieldnote.ag</em></div>
+      <div class="frame" id="frame">
+        <div class="recreate" id="recreate"><div><h3 id="recTitle">Recreating site</h3><ol id="recSteps"></ol></div></div>
+        <div class="site" id="site">
+          <header class="x-nav">
+            <div class="x-logo"><i></i>Fieldnote</div>
+            <ul class="x-links"><li>Product</li><li>Solutions</li><li>Pricing</li><li class="slop">Resources</li><li class="slop">Company</li><li class="slop">Blog</li></ul>
+            <div class="x-navbtns"><a class="x-btn ghost slop">Log in</a><a class="x-btn">Get Started Free</a></div>
+            <button class="x-menu" id="menuBtn" type="button"><span id="menuTxt">Menu</span><b></b></button>
+          </header>
+          <div class="x-reveal" id="reveal" aria-hidden="true">
+            <nav><a><small>01</small>Product</a><a><small>02</small>Field maps</a><a><small>03</small>Pricing</a><a><small>04</small>Journal</a></nav>
+            <aside><div>Fieldnote Inc.<br>Davis, California</div><div>hello@fieldnote.ag<br>Book a field walk</div></aside>
+          </div>
+          <section class="x-hero">
+            <div class="x-copy">
+              <span class="x-pill" id="pill">✨ AI-Powered Soil Intelligence</span>
+              <h1 class="x-h1" id="h1"></h1>
+              <p class="x-sub" id="sub"></p>
+              <div class="x-ctas">
+                <a class="x-btn" id="cta"><span id="ctaText"></span><span class="ar">→</span></a>
+                <a class="x-btn ghost slop">Watch Demo ▶</a>
+              </div>
+              <div class="x-trust slop">Trusted by 10,000+ farmers worldwide 🌱</div>
+            </div>
+            <div class="x-art" id="art">
+              <div class="x-blob" aria-hidden="true">🌾📊</div>
+              <canvas id="dots" aria-hidden="true"></canvas>
+              <div class="x-cap"><b></b>Live soil moisture · 1,204 fields</div>
+            </div>
+          </section>
+          <section class="x-feats">
+            <div class="x-feat"><span class="em">🚀</span><h4>Lightning Fast</h4><p>Get actionable insights in seconds, not days.</p></div>
+            <div class="x-feat"><span class="em">🤖</span><h4>AI-Powered</h4><p>Cutting-edge machine learning for smarter decisions.</p></div>
+            <div class="x-feat"><span class="em">🌍</span><h4>Global Scale</h4><p>Trusted by farms of every size, everywhere.</p></div>
+          </section>
+          <section class="x-spec">
+            <div><b>12 cm</b><span>Map resolution</span></div>
+            <div><b>Daily</b><span>Satellite revisits</span></div>
+            <div><b>38</b><span>Countries mapped</span></div>
+          </section>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <aside class="panel" aria-label="Change queue">
+    <div class="phead">
+      <div class="row"><h2>Change queue</h2><span class="counts" id="counts"></span></div>
+      <div class="row">
+        <button class="btn" id="play">Play all live</button>
+        <div style="display:flex;gap:6px"><button class="btn" id="approveAll">Approve all</button><button class="btn" id="reset">Reset</button></div>
+      </div>
+    </div>
+    <ul class="list" id="list"></ul>
+    <div class="pfoot"><h4>Versions</h4><div class="versions" id="versions"></div></div>
+  </aside>
+</main>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+const COPY = {
+  pill:{slop:'✨ AI-Powered Soil Intelligence', maxx:'Soil moisture, mapped daily'},
+  h1:{slop:'Unlock the Power of <span class="grad">Smarter Farming</span> with AI', maxx:'Know every field, every morning.'},
+  sub:{slop:'Leverage cutting-edge AI and satellite technology to revolutionize your agricultural operations and drive unprecedented growth.',
+       maxx:'Fieldnote maps soil moisture at 12 cm resolution from daily satellite passes, so you water where it’s dry and nowhere else.'},
+  cta:{slop:'Get Started Free 🚀', maxx:'Map your first field'}
+};
+const TH = {
+  lab:'<svg viewBox="0 0 48 30"><rect width="48" height="30" fill="#eeede8"/><rect x="5" y="8" width="24" height="4" fill="#121212"/><rect x="5" y="15" width="16" height="4" fill="#121212"/><circle cx="38" cy="16" r="6" fill="none" stroke="#121212" stroke-dasharray="1 1.6"/><rect x="5" y="23" width="6" height="2" fill="#ff4a1c"/></svg>',
+  editorial:'<svg viewBox="0 0 48 30"><rect width="48" height="30" fill="#f4efe6"/><text x="5" y="16" font-family="Georgia" font-size="9" fill="#1d1a16">Know</text><text x="5" y="25" font-family="Georgia" font-size="9" fill="#1d1a16">every</text><circle cx="38" cy="16" r="6" fill="#2c4a2e" opacity=".85"/></svg>',
+  signal:'<svg viewBox="0 0 48 30"><rect width="48" height="30" fill="#0b1020"/><rect x="5" y="9" width="22" height="4" fill="#eef1f8"/><rect x="5" y="16" width="14" height="4" fill="#eef1f8"/><g fill="#ffb23e"><circle cx="34" cy="12" r="1"/><circle cx="38" cy="12" r="1"/><circle cx="42" cy="12" r="1"/><circle cx="34" cy="16" r="1"/><circle cx="38" cy="16" r="1.6"/><circle cx="42" cy="16" r="1"/><circle cx="34" cy="20" r="1"/><circle cx="38" cy="20" r="1"/><circle cx="42" cy="20" r="1"/></g></svg>',
+  morph:'<svg viewBox="0 0 48 30"><rect width="48" height="30" fill="#14161b"/><g fill="#eef0f4"><circle cx="14" cy="15" r="1.1"/><circle cx="18" cy="11" r="1.1"/><circle cx="18" cy="19" r="1.1"/><circle cx="22" cy="15" r="1.1"/><circle cx="18" cy="15" r="1.1"/></g><path d="M26 15h4" stroke="#ff6b8b"/><g fill="#eef0f4"><circle cx="34" cy="10" r="1.1"/><circle cx="38" cy="14" r="1.1"/><circle cx="34" cy="18" r="1.1"/><circle cx="38" cy="20" r="1.1"/><circle cx="36" cy="15" r="1.1"/></g></svg>',
+  globe:'<svg viewBox="0 0 48 30"><rect width="48" height="30" fill="#14161b"/><g fill="#eef0f4"><circle cx="24" cy="15" r="1.4"/><circle cx="19" cy="12" r="1.1"/><circle cx="29" cy="12" r="1.1"/><circle cx="19" cy="18" r="1.1"/><circle cx="29" cy="18" r="1.1"/><circle cx="24" cy="8" r=".8"/><circle cx="24" cy="22" r=".8"/><circle cx="15" cy="15" r=".7"/><circle cx="33" cy="15" r=".7"/></g></svg>',
+  field:'<svg viewBox="0 0 48 30"><rect width="48" height="30" fill="#14161b"/><g fill="#eef0f4"><circle cx="8" cy="15" r="1"/><circle cx="14" cy="12" r="1"/><circle cx="20" cy="10" r="1"/><circle cx="26" cy="12" r="1"/><circle cx="32" cy="15" r="1"/><circle cx="38" cy="18" r="1"/><circle cx="8" cy="21" r="1"/><circle cx="14" cy="18" r="1"/><circle cx="20" cy="16" r="1"/><circle cx="26" cy="18" r="1"/><circle cx="32" cy="21" r="1"/><circle cx="38" cy="24" r="1"/></g></svg>',
+  circle:'<svg viewBox="0 0 48 30"><rect width="48" height="30" fill="#e8e7e2"/><circle cx="44" cy="3" r="30" fill="#121212"/></svg>',
+  curtain:'<svg viewBox="0 0 48 30"><rect width="48" height="30" fill="#e8e7e2"/><rect width="48" height="19" fill="#121212"/></svg>',
+  split:'<svg viewBox="0 0 48 30"><rect width="48" height="30" fill="#e8e7e2"/><rect x="12" width="24" height="30" fill="#121212"/></svg>'
+};
+const PASSES = [
+  {id:'direction', group:'Direction', name:'Visual direction', pfx:'dir', pts:16, change:'Whole-page look: palette, type pairing and tone', targets:['#site'],
+    variants:[{id:'lab',label:'Lab'},{id:'editorial',label:'Editorial'},{id:'signal',label:'Signal'}]},
+  {id:'declutter', group:'Refine', name:'Declutter', pts:8, change:'Cut 3 nav links, Log in, pill emoji, demo button, trust line', targets:['.x-nav','.x-copy']},
+  {id:'copy', group:'Refine', name:'Copy', pts:10, change:'Specific claims instead of AI filler; features → spec row', diff:true, targets:['#h1','#sub','#cta','.x-spec']},
+  {id:'type', group:'Refine', name:'Type scale', pts:7, change:'Headline 36 → 64 px, tracking −3.5%, mono labels', targets:['#h1']},
+  {id:'spacing', group:'Refine', name:'Spacing', pts:5, change:'8-pt scale; gutters 24 → 44, hero 30 → 60', targets:['.x-hero']},
+  {id:'hero', group:'Components', name:'Hero: dot shapes', pfx:'dt', pts:12, change:'Replace the gradient blob with a live dot field', targets:['#art'],
+    variants:[{id:'morph',label:'Morphing shapes'},{id:'globe',label:'Dot globe'},{id:'field',label:'Field wave'}]},
+  {id:'nav', group:'Components', name:'Reveal navigation', pfx:'rv', pts:6, change:'Six links + two buttons → one menu that reveals the site', targets:['#menuBtn'], open:true,
+    variants:[{id:'circle',label:'Circle reveal'},{id:'curtain',label:'Curtain drop'},{id:'split',label:'Center split'}]},
+  {id:'button', group:'Components', name:'Button detail', pts:4, change:'Arrow sits in a disc and turns on hover', targets:['#cta'], force:'#cta'}
+];
+const BASE = 34;
+const T = id => 't-' + id, $ = s => document.querySelector(s), P = id => PASSES.find(x => x.id === id);
+const site = $('#site'), list = $('#list');
+const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+let status = {}, variant = {}, hoverVar = null, previewing = null, playing = false, view = 'after', mode = 'url';
+let versions = [], activeVersion = 1, copyOn = null, lastScore = BASE, scanId = 0;
+const icons = {
+  eye:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 8s2.5-5 7-5 7 5 7 5-2.5 5-7 5-7-5-7-5Z"/><circle cx="8" cy="8" r="2"/></svg>',
+  ok:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 8.5 6.5 12 13 4.5"/></svg>',
+  no:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 4l8 8M12 4l-8 8"/></svg>'
+};
+
+/* ---------- dot field (original) ---------- */
+const cv = $('#dots'), cx = cv.getContext('2d');
+let dots = [], dotMode = 'morph', shapeIx = 0, shapeT = 0, mouse = {x:-9, y:-9};
+const N = 520;
+function sampleShape(kind){
+  const pts = [], g = 0.075;
+  for (let y = -1; y <= 1.001; y += g) for (let x = -1; x <= 1.001; x += g){
+    let inside = false;
+    if (kind === 'disc') inside = x*x + y*y < .78;
+    if (kind === 'leaf'){ const a = -.6, rx = x*Math.cos(a) - y*Math.sin(a), ry = x*Math.sin(a) + y*Math.cos(a); inside = Math.abs(rx) < .5*Math.cos(ry*Math.PI/2) && Math.abs(ry) < .98; }
+    if (kind === 'rows') inside = Math.abs(y) < .8 && Math.abs(x) < .9 && (Math.round((y + 1) / g) % 3 !== 2);
+    if (kind === 'drop'){ const yy = y + .15; inside = (x*x + yy*yy < .42 && yy > -.1) || (Math.abs(x) < .65*(yy + .95) && yy < 0 && yy > -.95); }
+    if (inside) pts.push([x, y]);
+  }
+  return pts;
+}
+const SHAPES = ['disc','drop','leaf','rows'].map(sampleShape);
+function initDots(){ dots = Array.from({length:N}, (_, i) => ({x:0, y:0, tx:0, ty:0, r:1, a:1, s:Math.random()})); assignShape(0, true); }
+function assignShape(ix, snap){
+  const pts = SHAPES[ix];
+  dots.forEach((d, i) => { const p = pts[i % pts.length]; d.tx = p[0]; d.ty = p[1]; d.ta = i < pts.length ? 1 : 0; if (snap){ d.x = d.tx; d.y = d.ty; d.a = d.ta; } });
+}
+function resize(){ const r = cv.getBoundingClientRect(), dpr = Math.min(2, devicePixelRatio || 1); cv.width = Math.max(1, r.width * dpr); cv.height = Math.max(1, r.height * dpr); }
+cv.addEventListener('pointermove', e => { const r = cv.getBoundingClientRect(); mouse.x = ((e.clientX - r.left) / r.width) * 2 - 1; mouse.y = ((e.clientY - r.top) / r.height) * 2 - 1; });
+cv.addEventListener('pointerleave', () => { mouse.x = mouse.y = -9; });
+let col = '#000', colTick = 0, last = 0;
+function frame(now){
+  requestAnimationFrame(frame);
+  if (!site.classList.contains('t-hero') || !cv.offsetParent) return;
+  const dt = Math.min(50, now - (last || now)); last = now;
+  if (cv.width < 2 || colTick++ % 20 === 0){ resize(); col = getComputedStyle(site).getPropertyValue('--dot').trim() || '#000'; }
+  const W = cv.width, H = cv.height, S = Math.min(W, H) * .46, ox = W / 2, oy = H / 2, R = Math.max(1.2, S / 70);
+  cx.clearRect(0, 0, W, H); cx.fillStyle = col;
+  const t = now / 1000;
+  if (dotMode === 'morph'){
+    shapeT += dt;
+    if (shapeT > 2600 && !reduced()){ shapeT = 0; shapeIx = (shapeIx + 1) % SHAPES.length; assignShape(shapeIx); }
+    for (const d of dots){
+      d.x += (d.tx - d.x) * (.06 + d.s * .05); d.y += (d.ty - d.y) * (.06 + d.s * .05); d.a += (d.ta - d.a) * .08;
+      let px = d.x, py = d.y; const mx = px - mouse.x, my = py - mouse.y, md = mx*mx + my*my;
+      if (md < .09){ const f = (.09 - md) * 2.2; px += mx * f; py += my * f; }
+      if (d.a < .02) continue;
+      cx.globalAlpha = d.a; cx.beginPath(); cx.arc(ox + px * S, oy + py * S, R, 0, 6.283); cx.fill();
+    }
+  } else if (dotMode === 'globe'){
+    const rot = reduced() ? .6 : t * .35;
+    for (let i = 0; i < N; i++){
+      const y = 1 - (i / (N - 1)) * 2, rr = Math.sqrt(1 - y*y), th = i * 2.39996 + rot;
+      const x = Math.cos(th) * rr, z = Math.sin(th) * rr;
+      const k = (z + 1.4) / 2.4; cx.globalAlpha = .15 + .85 * (z > 0 ? k : k * .35);
+      cx.beginPath(); cx.arc(ox + x * S * .95, oy + y * S * .95, R * (.5 + k * .8), 0, 6.283); cx.fill();
+    }
+  } else {
+    const cols = 34, rows = 15, ph = reduced() ? 0 : t * 1.6;
+    for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++){
+      const u = i / (cols - 1) * 2 - 1, v = j / (rows - 1) * 2 - 1;
+      let px = u * 1.05, py = v * .62 + Math.sin(u * 3.2 + ph + v * 1.6) * .1;
+      const mx = px - mouse.x, my = py - mouse.y, md = mx*mx + my*my;
+      if (md < .06){ py -= (.06 - md) * 3; }
+      const z = (Math.sin(u * 3.2 + ph + v * 1.6) + 1) / 2;
+      cx.globalAlpha = .25 + z * .75; cx.beginPath(); cx.arc(ox + px * S, oy + py * S, R * (.6 + z * .6), 0, 6.283); cx.fill();
+    }
+  }
+  cx.globalAlpha = 1;
+}
+initDots(); requestAnimationFrame(frame); addEventListener('resize', resize);
+
+/* ---------- state + rendering ---------- */
+function appliedSet(){
+  const s = new Set();
+  PASSES.forEach(p => { const st = status[p.id]; if (st === 'committed') s.add(p.id); if (view === 'after' && st === 'approved') s.add(p.id); });
+  if (view === 'after' && previewing) s.add(previewing);
+  return s;
+}
+const effVars = () => hoverVar ? {...variant, [hoverVar.p]: hoverVar.v} : {...variant};
+function applyClasses(s, vars){
+  PASSES.forEach(p => { site.classList.toggle(T(p.id), s.has(p.id)); if (p.variants) p.variants.forEach(v => site.classList.toggle(`${p.pfx}-${v.id}`, vars[p.id] === v.id)); });
+  const m = vars.hero || 'morph'; if (m !== dotMode){ dotMode = m; if (m === 'morph') assignShape(shapeIx, false); }
+}
+function typeInto(el, text, speed){
+  if (reduced()){ el.textContent = text; return; }
+  el.classList.add('caret'); el.textContent = ''; let i = 0;
+  const tick = () => { el.textContent = text.slice(0, ++i); if (i < text.length) setTimeout(tick, speed); else el.classList.remove('caret'); }; tick();
+}
+function setCopy(on, animate){
+  if (on === copyOn) return; copyOn = on; const k = on ? 'maxx' : 'slop';
+  if (on && animate){ typeInto($('#h1'), COPY.h1.maxx, 32); typeInto($('#sub'), COPY.sub.maxx, 9); typeInto($('#ctaText'), COPY.cta.maxx, 38); $('#pill').textContent = COPY.pill.maxx; }
+  else { $('#h1').innerHTML = COPY.h1[k]; $('#sub').textContent = COPY.sub[k]; $('#ctaText').textContent = COPY.cta[k]; $('#pill').textContent = COPY.pill[k]; }
+}
+function flash(p){
+  const fr = $('#frame').getBoundingClientRect();
+  p.targets.forEach(sel => { const el = $(sel); if (!el) return;
+    el.classList.add('flash'); clearTimeout(el._ft); el._ft = setTimeout(() => el.classList.remove('flash'), 1400);
+    const r = el.getBoundingClientRect(), tag = document.createElement('div'); tag.className = 'tag';
+    tag.textContent = p.name + (p.variants ? ' · ' + p.variants.find(v => v.id === effVars()[p.id]).label : '');
+    tag.style.left = Math.max(6, r.left - fr.left) + 'px'; tag.style.top = Math.max(6, r.top - fr.top - 22) + 'px';
+    $('#frame').appendChild(tag); setTimeout(() => { tag.style.opacity = 0; setTimeout(() => tag.remove(), 300); }, 1200);
+  });
+}
+function scoreOf(s){ let n = BASE; PASSES.forEach(p => { if (s.has(p.id)) n += p.pts; }); return Math.min(99, n); }
+function renderScore(s){
+  const n = scoreOf(s); $('#scoreN').textContent = n; $('#ringArc').style.strokeDashoffset = 94.2 * (1 - n / 100);
+  const d = n - lastScore, el = $('#delta');
+  if (d !== 0){ el.textContent = (d > 0 ? '+' : '') + d; el.style.color = d > 0 ? 'var(--good)' : 'var(--bad)'; el.classList.add('show'); clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('show'), 1600); }
+  lastScore = n;
+  $('#scoreTxt').textContent = view === 'before' ? `v${versions.at(-1).v} as is` : (previewing ? 'previewing' : 'with changes');
+}
+function render(animateId){
+  const s = appliedSet(), vars = effVars();
+  applyClasses(s, vars);
+  setCopy(s.has('copy'), animateId === 'copy');
+  document.querySelectorAll('.force').forEach(e => e.classList.remove('force'));
+  const p = previewing && view === 'after' ? P(previewing) : null;
+  if (p && p.force) $(p.force).classList.add('force');
+  site.classList.toggle('nav-open', !!(p && p.open && s.has('nav')));
+  $('#menuTxt').textContent = site.classList.contains('nav-open') ? 'Close' : 'Menu';
+  if (animateId){ const q = P(animateId); if (q && s.has(q.id)) flash(q); }
+  renderScore(s); renderList(); renderBar(); renderRail();
+}
+function chipFor(id){
+  if (previewing === id) return ['previewing','Previewing'];
+  return {proposed:['','Proposed'], approved:['approved','Approved'], rejected:['rejected','Rejected'], committed:['committed','In v' + versions.at(-1).v]}[status[id]];
+}
+function renderList(){
+  PASSES.forEach(p => {
+    const li = document.getElementById('row-' + p.id); if (!li) return;
+    const st = status[p.id], [cls, label] = chipFor(p.id), locked = st === 'committed';
+    li.className = 'item ' + (st === 'rejected' ? 'rejected ' : '') + (previewing === p.id ? 'previewing' : '');
+    const c = li.querySelector('.chip'); c.className = 'chip ' + cls; c.textContent = label;
+    li.querySelector('.ok').setAttribute('aria-pressed', st === 'approved' || locked);
+    li.querySelector('.no').setAttribute('aria-pressed', st === 'rejected');
+    li.querySelectorAll('.ib,.variants button').forEach(b => b.disabled = locked);
+    li.querySelectorAll('.variants button').forEach(b => b.setAttribute('aria-pressed', variant[p.id] === b.dataset.v));
+  });
+  const v = Object.values(status);
+  $('#counts').textContent = `${v.filter(x=>x==='approved').length} approved · ${v.filter(x=>x==='rejected').length} rejected`;
+}
+function renderBar(){
+  const n = Object.values(status).filter(v => v === 'approved').length, c = $('#commit');
+  c.disabled = n === 0; c.textContent = n ? `Commit ${n} → v${versions.at(-1).v + 1}` : 'Commit';
+  $('#vBefore').textContent = `v${versions.at(-1).v}`;
+  const vs = $('#versions'); vs.innerHTML = '';
+  versions.forEach(v => { const b = document.createElement('button'); b.textContent = `v${v.v} · ${v.score}`; b.title = v.label; b.setAttribute('aria-pressed', v.v === activeVersion); b.onclick = () => showVersion(v.v); vs.appendChild(b); });
+}
+let recreating = false;
+function renderRail(){
+  const dirDone = status.direction === 'approved' || status.direction === 'committed';
+  const anyRefine = PASSES.some(p => p.id !== 'direction' && (status[p.id] === 'approved' || status[p.id] === 'rejected'));
+  const step = recreating ? 0 : !dirDone && !anyRefine ? 1 : versions.length > 1 && !Object.values(status).includes('approved') ? 3 : 2;
+  [...$('#rail').children].forEach((d, i) => { d.className = i < step ? 'done' : i === step ? 'on' : ''; });
+}
+const setLive = (t, on) => { $('#liveText').innerHTML = t; $('#dot').classList.toggle('on', !!on); };
+
+function buildRow(p){
+  const li = document.createElement('li'); li.id = 'row-' + p.id; li.className = 'item enter';
+  const diff = p.diff ? `<div class="diff"><div><del>Unlock the Power of Smarter Farming with AI</del></div><div><ins>Know every field, every morning.</ins></div><div><del>Get Started Free 🚀</del> → <ins>Map your first field</ins></div></div>` : '';
+  const vars = p.variants ? `<div class="variants">${p.variants.map(v => `<button data-v="${v.id}" data-label="${v.label}" aria-pressed="false" aria-label="${p.name}: ${v.label}">${TH[v.id]}<span>${v.label}</span></button>`).join('')}</div>` : '';
+  li.innerHTML = `<div><h3><span class="t">${p.name}</span><span class="chip">Proposed</span><span class="pts">+${p.pts}</span></h3><p>${p.change}</p>${diff}${vars}</div>
+    <div class="acts"><button class="ib pv" title="Preview" aria-label="Preview ${p.name}">${icons.eye}</button><button class="ib ok" title="Approve" aria-label="Approve ${p.name}" aria-pressed="false">${icons.ok}</button><button class="ib no" title="Reject" aria-label="Reject ${p.name}" aria-pressed="false">${icons.no}</button></div>`;
+  li.addEventListener('mouseenter', () => { if (!playing) preview(p.id); });
+  li.addEventListener('mouseleave', () => { if (!playing){ hoverVar = null; preview(null); } });
+  li.querySelector('.pv').onclick = () => preview(previewing === p.id ? null : p.id);
+  li.querySelector('.ok').onclick = () => decide(p.id, 'approved');
+  li.querySelector('.no').onclick = () => decide(p.id, 'rejected');
+  li.querySelectorAll('.variants button').forEach(b => {
+    b.addEventListener('mouseenter', () => { if (playing) return; hoverVar = {p:p.id, v:b.dataset.v}; previewing = p.id; setLive(`Previewing <b>${p.name}: ${b.dataset.label}</b>`, true); render(p.id); });
+    b.addEventListener('mouseleave', () => { if (playing) return; hoverVar = null; render(); });
+    b.onclick = () => { variant[p.id] = b.dataset.v; hoverVar = null; previewing = p.id; setLive(`Picked <b>${b.dataset.label}</b>`, true); render(p.id); };
+  });
+  return li;
+}
+function preview(id){
+  if (id && status[id] === 'committed') id = null;
+  if (previewing === id) return;
+  if (view !== 'after' && id) setView('after');
+  previewing = id; const p = id && P(id);
+  setLive(p ? `Previewing <b>${p.name}</b>` : (playing ? 'Playing…' : 'Ready'), !!p || playing);
+  render(id);
+}
+function decide(id, what){
+  status[id] = status[id] === what ? 'proposed' : what; const p = P(id);
+  setLive(`${p.name}${p.variants ? ' (' + p.variants.find(v => v.id === variant[id]).label + ')' : ''} ${status[id] === 'proposed' ? 'reset' : status[id]}`, false);
+  render(status[id] === 'approved' ? id : null);
+}
+async function playAll(){
+  if (playing){ playing = false; $('#play').textContent = 'Play all live'; hoverVar = null; preview(null); return; }
+  playing = true; $('#play').textContent = 'Stop';
+  const wait = ms => new Promise(r => setTimeout(r, ms));
+  for (const p of PASSES){
+    if (!playing) break; if (status[p.id] !== 'proposed') continue;
+    document.getElementById('row-' + p.id).scrollIntoView({block:'nearest', behavior:'smooth'});
+    if (p.variants){
+      for (const v of p.variants){ if (!playing) break; hoverVar = {p:p.id, v:v.id}; previewing = p.id; setLive(`Previewing <b>${p.name}: ${v.label}</b>`, true); render(p.id); await wait(p.id === 'hero' ? 2800 : 2000); }
+      hoverVar = null;
+    } else { preview(p.id); await wait(p.id === 'copy' ? 3400 : 1900); }
+  }
+  playing = false; $('#play').textContent = 'Play all live'; preview(null);
+}
+function commit(){
+  const ids = PASSES.filter(p => status[p.id] === 'approved').map(p => p.id); if (!ids.length) return;
+  ids.forEach(id => status[id] = 'committed');
+  const prev = versions.at(-1), set = [...prev.set, ...ids];
+  versions.push({v: prev.v + 1, set, vars:{...variant}, score: scoreOf(new Set(set)), label: ids.map(id => P(id).name).join(', ')});
+  activeVersion = versions.at(-1).v;
+  PASSES.forEach(p => { if (status[p.id] === 'rejected') status[p.id] = 'proposed'; });
+  previewing = null; view = 'after'; syncSeg();
+  toast(`v${activeVersion} committed · mog score ${versions.at(-1).score}`);
+  setLive(`v${activeVersion} is the current version. Export as code from here.`, false);
+  render();
+}
+function showVersion(v){
+  if (v === versions.at(-1).v){ activeVersion = v; render(); setLive('Viewing current version', false); return; }
+  const ver = versions.find(x => x.v === v); activeVersion = v; previewing = null;
+  const set = new Set(ver.set); applyClasses(set, ver.vars); setCopy(set.has('copy'), false); site.classList.remove('nav-open');
+  renderScore(set); renderBar(); setLive(`Viewing <b>v${v}</b> (read-only)`, false);
+}
+function setView(v){ view = v; activeVersion = versions.at(-1).v; syncSeg(); render(); setLive(v === 'before' ? `Showing <b>v${versions.at(-1).v}</b> without pending changes` : 'Showing pending changes', false); }
+function syncSeg(){ $('#vBefore').setAttribute('aria-pressed', view === 'before'); $('#vAfter').setAttribute('aria-pressed', view === 'after'); }
+function toast(t){ const el = $('#toast'); el.textContent = t; el.classList.add('show'); clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('show'), 2600); }
+function setMode(m){ mode = m; $('#mUrl').setAttribute('aria-pressed', m === 'url'); $('#mRepo').setAttribute('aria-pressed', m === 'repo'); $('#url').value = m === 'url' ? 'https://fieldnote.ag' : 'http://localhost:5173'; scan(); }
+
+async function recreate(host, my){
+  const rc = $('#recreate'), ol = $('#recSteps');
+  const steps = [['Capturing page, styles and assets'], ['Rebuilding as editable components'], ['Comparing against the original', '93% visual match'], ['Scoring first impression', `mog score ${BASE}`], ['Drafting directions and changes']];
+  $('#recTitle').textContent = `Recreating ${host}`;
+  ol.innerHTML = steps.map(s => `<li><i></i><span>${s[0]}</span></li>`).join(''); rc.classList.add('on');
+  const lis = [...ol.children];
+  for (let i = 0; i < steps.length; i++){
+    if (my !== scanId) return;
+    lis[i].className = 'doing'; await new Promise(r => setTimeout(r, reduced() ? 0 : 600));
+    lis[i].className = 'done'; if (steps[i][1]) lis[i].insertAdjacentHTML('beforeend', `<em>${steps[i][1]}</em>`);
+  }
+  await new Promise(r => setTimeout(r, reduced() ? 0 : 300)); rc.classList.remove('on');
+}
+async function scan(){
+  const my = ++scanId;
+  playing = false; previewing = null; hoverVar = null; view = 'after'; syncSeg();
+  status = {}; variant = {direction:'lab', hero:'morph', nav:'circle'};
+  versions = [{v:1, set:[], vars:{...variant}, score:BASE, label: mode === 'url' ? 'Recreated from URL' : 'Original'}]; activeVersion = 1; copyOn = null; lastScore = BASE;
+  PASSES.forEach(p => status[p.id] = 'proposed');
+  list.innerHTML = '';
+  const raw = $('#url').value, host = (() => { try { return new URL(raw).host || raw; } catch(e){ return raw; } })();
+  $('#chromeUrl').textContent = host + (mode === 'url' ? ' · recreated copy' : ' · dev server');
+  recreating = mode === 'url'; render();
+  if (mode === 'url'){ setLive(`Recreating <b>${host}</b> as code…`, true); await recreate(host, my); if (my !== scanId) return; }
+  recreating = false;
+  let g = null, k = 0;
+  PASSES.forEach(p => {
+    if (p.group !== g){ g = p.group; const h = document.createElement('li'); h.className = 'group'; h.textContent = g === 'Direction' ? 'Step 2 · Pick a direction' : g === 'Refine' ? 'Step 3 · Refine' : 'Step 3 · Components'; list.appendChild(h); }
+    const li = buildRow(p); list.appendChild(li);
+    setTimeout(() => { if (my !== scanId) return; li.classList.remove('enter'); }, reduced() ? 0 : 100 + (k++) * 130);
+  });
+  setLive(`Mog score <b>${BASE}</b>. Start with a direction, then refine.`, false);
+  render();
+}
+
+$('#urlForm').addEventListener('submit', e => { e.preventDefault(); scan(); });
+$('#mUrl').onclick = () => setMode('url'); $('#mRepo').onclick = () => setMode('repo');
+$('#play').onclick = playAll; $('#commit').onclick = commit; $('#reset').onclick = scan;
+$('#approveAll').onclick = () => { PASSES.forEach(p => { if (status[p.id] === 'proposed') status[p.id] = 'approved'; }); setLive('All proposed changes approved', false); render(); };
+$('#vBefore').onclick = () => setView('before'); $('#vAfter').onclick = () => setView('after');
+$('#menuBtn').onclick = () => { site.classList.toggle('nav-open'); $('#menuTxt').textContent = site.classList.contains('nav-open') ? 'Close' : 'Menu'; };
+scan();
+</script>
+</body>
+</html>

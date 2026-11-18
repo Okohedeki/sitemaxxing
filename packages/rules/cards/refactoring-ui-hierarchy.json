@@ -1,0 +1,16 @@
+{
+  "id": "refactoring-ui-hierarchy",
+  "passes": [
+    "declutter",
+    "font-size"
+  ],
+  "principle": "Visual hierarchy comes from de-emphasising most things so that one thing can lead; not every element deserves bold, colour and size.",
+  "detect": "Several elements of equal weight in one view: two primary buttons, badges next to headlines, icon rows competing with copy.",
+  "fix": "Pick the one element that matters and quiet the rest with lower contrast, smaller size and less weight, or remove them.",
+  "source": {
+    "title": "Refactoring UI",
+    "author": "Adam Wathan & Steve Schoger",
+    "url": "https://www.refactoringui.com/"
+  },
+  "kind": "book"
+}
