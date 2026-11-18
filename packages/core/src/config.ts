@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { createJiti } from 'jiti';
+import { fileURLToPath } from 'node:url';
 import type { ResolvedConfig, SitemaxxingConfig } from './types';
 
 export const defineConfig = (c: SitemaxxingConfig): SitemaxxingConfig => c;
@@ -30,7 +31,9 @@ export async function loadConfig(root: string): Promise<ResolvedConfig> {
   const p = configPath(root);
   let user: SitemaxxingConfig = { devUrl: DEFAULT_CONFIG.devUrl };
   if (p) {
-    const jiti = createJiti(import.meta.url, { interopDefault: true, moduleCache: false });
+    // `sitemaxxing` resolves to this module, so a config can be read before the package is installed.
+    const self = fileURLToPath(import.meta.url);
+    const jiti = createJiti(import.meta.url, { interopDefault: true, moduleCache: false, alias: { sitemaxxing: self, 'sitemaxxing/config': self } });
     const mod: any = await jiti.import(p);
     user = (mod?.default ?? mod) as SitemaxxingConfig;
   }

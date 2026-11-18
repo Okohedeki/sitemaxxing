@@ -56,3 +56,5 @@ export const REASON_CHIPS: ReasonChip[] = ['too busy', 'too plain', 'off-brand',
 
 /** Messages the overlay sends back to the hub (none are required for v1). */
 export type OverlayMessage = { type: 'overlay.ready'; url: string };
+
+export type { CopyChange, ProjectState, PassView, ScoreResult, ReasonChip, PassStatus, Variant, VersionView, Finding } from './types';

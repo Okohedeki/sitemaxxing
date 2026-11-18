@@ -10,18 +10,23 @@ export function git(root: string, args: string[], opts: { allowFail?: boolean } 
   return (r.stdout || '').trim();
 }
 
+/** True when `root` is itself the top level of a git work tree (not merely inside one). */
 export function isRepo(root: string): boolean {
-  const r = spawnSync('git', ['rev-parse', '--is-inside-work-tree'], { cwd: root, encoding: 'utf8' });
-  return r.status === 0 && r.stdout.trim() === 'true';
+  const r = spawnSync('git', ['rev-parse', '--show-toplevel'], { cwd: root, encoding: 'utf8' });
+  if (r.status !== 0) return false;
+  return path.resolve(r.stdout.trim()) === path.resolve(root);
 }
 
 export function headSha(root: string): string {
-  return git(root, ['rev-parse', 'HEAD'], { allowFail: true }) || '';
+  const r = spawnSync('git', ['rev-parse', '--verify', 'HEAD'], { cwd: root, encoding: 'utf8' });
+  return r.status === 0 ? r.stdout.trim() : '';
 }
 
 /** Repo-relative paths with uncommitted changes, ignoring the Sitemaxxing working dir. */
 export function dirtyFiles(root: string): string[] {
-  const out = git(root, ['status', '--porcelain', '--untracked-files=all'], { allowFail: true });
+  // Not through git(): its trim() would eat the leading status column of the first line.
+  const r = spawnSync('git', ['status', '--porcelain', '--untracked-files=all'], { cwd: root, encoding: 'utf8' });
+  const out = r.status === 0 ? r.stdout : '';
   return out
     .split('\n')
     .filter(Boolean)

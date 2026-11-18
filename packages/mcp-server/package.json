@@ -12,7 +12,9 @@
       "import": "./dist/index.js"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsup",
     "typecheck": "tsc -p tsconfig.json"
@@ -25,7 +27,8 @@
     "@sitemaxxing/passes": "workspace:*",
     "@sitemaxxing/rules": "workspace:*",
     "ws": "^8.18.0",
-    "zod": "^3.25.76"
+    "zod": "^3.25.76",
+    "playwright": "~1.58.0"
   },
   "devDependencies": {
     "@types/ws": "^8.5.13",

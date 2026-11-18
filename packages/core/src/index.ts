@@ -15,3 +15,4 @@ export * from './llm';
 export * as cssEdit from './edit/css';
 export * as jsxEdit from './edit/jsx';
 export * as jsonEdit from './edit/json';
+export * from './playground';

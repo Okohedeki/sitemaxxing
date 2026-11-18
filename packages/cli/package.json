@@ -13,10 +13,25 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./vite": {
+      "types": "./dist/vite.d.ts",
+      "import": "./dist/vite.js"
     }
   },
-  "files": ["dist", "bin"],
-  "keywords": ["design", "vite", "mcp", "landing-page", "ui", "overlay"],
+  "files": [
+    "dist",
+    "bin",
+    "control-room"
+  ],
+  "keywords": [
+    "design",
+    "vite",
+    "mcp",
+    "landing-page",
+    "ui",
+    "overlay"
+  ],
   "repository": {
     "type": "git",
     "url": "https://github.com/sitemaxxing/sitemaxxing"
@@ -30,10 +45,12 @@
     "@sitemaxxing/mcp-server": "workspace:*",
     "@sitemaxxing/passes": "workspace:*",
     "@sitemaxxing/vite-plugin": "workspace:*",
-    "cac": "^6.7.14"
+    "cac": "^6.7.14",
+    "ws": "^8.18.0"
   },
   "devDependencies": {
     "tsup": "^8.3.5",
-    "typescript": "^5.7.2"
+    "typescript": "^5.7.2",
+    "@types/ws": "^8.5.13"
   }
 }

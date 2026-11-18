@@ -2,7 +2,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { createHash } from 'node:crypto';
-import { spawn, execFileSync, type ChildProcess } from 'node:child_process';
+import { spawn, spawnSync, execFileSync, type ChildProcess } from 'node:child_process';
+import { createRequire } from 'node:module';
 import type { Browser, Page } from 'playwright';
 import { openDb, newId, now, json, type DB } from './db';
 import { loadConfig } from './config';
@@ -275,15 +276,23 @@ export class Engine {
   private async gotoDev(rt: Runtime, url = rt.project.devUrl): Promise<Page | null> {
     const page = await this.page(rt);
     if (!page) return null;
-    try {
-      await page.goto(url, { waitUntil: 'networkidle', timeout: 15_000 });
-      await page.evaluate(() => (window as any).__sitemaxxingHide?.());
-      await page.waitForTimeout(150);
-      return page;
-    } catch (e) {
-      this.log(`dev server not reachable at ${url}: ${(e as Error).message}`);
-      return null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        await page.goto(url, { waitUntil: 'networkidle', timeout: 15_000 });
+        await page.evaluate(() => (window as any).__sitemaxxingHide?.());
+        await page.waitForTimeout(150);
+        return page;
+      } catch (e) {
+        const msg = (e as Error).message;
+        if (/interrupted by another navigation/.test(msg) && attempt < 2) {
+          await page.waitForTimeout(400);
+          continue;
+        }
+        this.log(`dev server not reachable at ${url}: ${msg}`);
+        return null;
+      }
     }
+    return null;
   }
 
   private async refreshSnapshot(rt: Runtime): Promise<void> {
@@ -600,8 +609,16 @@ export class Engine {
     }
     for (let i = common; i < desired.length; i++) {
       const d = desired[i];
-      const pre = this.patchFor(rt, d.defId, d.variantId);
+      let pre = this.patchFor(rt, d.defId, d.variantId);
       if (!pre) throw new Error(`no patch for ${d.defId}/${d.variantId ?? 'default'}`);
+      if (!canApply(rt.project.rootPath, pre.text)) {
+        // Context drift: another applied pass touched neighbouring lines. The pass is
+        // deterministic, so re-proposing it against the current tree yields the same change
+        // with a diff that applies. Only a real failure marks the pass stale.
+        const def = rt.defs.find((x) => x.id === d.defId);
+        const fresh = def ? await this.precompute(rt, def, d.variantId, this.ctx(rt)) : null;
+        if (fresh) pre = fresh;
+      }
       try {
         applyToDisk(rt.project.rootPath, pre.text);
         rt.applied.push({ defId: d.defId, variantId: d.variantId, text: pre.text, files: pre.files });
@@ -846,6 +863,14 @@ export class Engine {
       this.deps.emit({ type: 'preview.ended', projectId: rt.project.id, ts: Date.now(), passId: row.id });
       return this.emitState(rt);
     });
+  }
+
+  /** Attaches an optional reason chip to a rejection (logged as its own decision row). */
+  addReason(projectId: string, passId: string, reasonChip: DecisionMeta['reasonChip']): void {
+    const rt = this.rt(projectId);
+    const def = this.defOf(rt, passId);
+    const row = this.row(rt, def.id);
+    this.logDecision(rt, def.id, 'reject', row?.chosen_variant_id ?? undefined, { reasonChip, shownAlongside: this.alongside(rt, def.id) });
   }
 
   async approveAll(projectId: string): Promise<ProjectState> {
@@ -1115,15 +1140,18 @@ export function linkNodeModules(from: string, to: string) {
 }
 
 export function spawnVite(cwd: string, port: number): ChildProcess {
-  const bin = path.join(cwd, 'node_modules', '.bin', process.platform === 'win32' ? 'vite.cmd' : 'vite');
-  const proc = spawn(bin, ['--port', String(port), '--strictPort', '--clearScreen', 'false'], { cwd, stdio: 'ignore', shell: process.platform === 'win32' });
-  return proc;
+  // Resolve Vite's entry through Node rather than the .bin shim: pnpm shims use relative paths
+  // that break behind the node_modules junctions used by playgrounds and version worktrees.
+  const req = createRequire(path.join(cwd, 'package.json'));
+  const pkg = req.resolve('vite/package.json');
+  const entry = path.join(path.dirname(pkg), JSON.parse(fs.readFileSync(pkg, 'utf8')).bin?.vite ?? 'bin/vite.js');
+  return spawn(process.execPath, [entry, '--port', String(port), '--strictPort', '--clearScreen', 'false'], { cwd, stdio: 'ignore' });
 }
 
 export function killTree(proc: ChildProcess) {
   if (!proc.pid) return;
   try {
-    if (process.platform === 'win32') spawn('taskkill', ['/pid', String(proc.pid), '/T', '/F'], { stdio: 'ignore' });
+    if (process.platform === 'win32') spawnSync('taskkill', ['/pid', String(proc.pid), '/T', '/F'], { stdio: 'ignore' });
     else proc.kill('SIGTERM');
   } catch {
     /* ignore */
