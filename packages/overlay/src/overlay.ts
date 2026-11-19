@@ -1,5 +1,5 @@
 /* Sitemaxxing overlay: injected into the target site by the Vite plugin during development.
-   It never ships to production. It draws a corner pill with the Mog score, outlines the elements
+   It never ships to production. It draws a corner pill with the Mog score, circles the elements
    a pass changed, types new copy in letter by letter, and forces open/hover states on request. */
 
 import type { HubEvent, CopyChange } from '@sitemaxxing/core/protocol';
@@ -23,20 +23,22 @@ import type { HubEvent, CopyChange } from '@sitemaxxing/core/protocol';
   const style = document.createElement('style');
   style.setAttribute('data-sitemaxxing-overlay', '');
   style.textContent = `
-.sm-flash { outline: 2px dashed #ff6b8b !important; outline-offset: 4px !important; }
-.sm-tag { position: absolute; z-index: 2147483646; font: 500 11px/1 ui-monospace, "JetBrains Mono", Menlo, monospace; background: #ff6b8b; color: #1a0a10; padding: 4px 7px; border-radius: 5px; pointer-events: none; white-space: nowrap; transition: opacity .3s; }
+.sm-ring { position: absolute; z-index: 2147483645; border: 2px solid #c23d28; border-radius: 46% 54% 48% 52% / 56% 44% 56% 44%; pointer-events: none; transform: rotate(-0.8deg); box-shadow: 0 0 0 1px rgba(251,248,242,.5); animation: sm-draw .5s cubic-bezier(.22,1,.36,1) both; }
+.sm-tag { position: absolute; z-index: 2147483646; font: italic 400 17px/1.2 "Newsreader", "Iowan Old Style", Georgia, serif; color: #a8321f; background: rgba(251,248,242,.94); padding: 3px 9px 4px; border-radius: 3px; box-shadow: 0 1px 0 rgba(30,26,21,.2), 0 8px 18px -10px rgba(30,26,21,.45); pointer-events: none; white-space: nowrap; animation: sm-note .35s .2s ease both; }
+@keyframes sm-draw { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+@keyframes sm-note { from { opacity: 0; transform: translateY(4px); } }
 .sm-caret::after { content: ""; display: inline-block; width: .06em; height: .9em; background: currentColor; margin-left: .04em; vertical-align: -.08em; animation: sm-blink .8s steps(1) infinite; }
 .sm-strike { text-decoration: line-through; opacity: .55; }
 @keyframes sm-blink { 50% { opacity: 0; } }
-#sm-pill { position: fixed; right: 14px; bottom: 14px; z-index: 2147483647; display: flex; align-items: center; gap: 10px; background: rgba(12,13,16,.86); color: #eef0f4; backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,.08); border-radius: 999px; padding: 6px 12px 6px 6px; font: 500 12px/1 "Manrope", system-ui, sans-serif; box-shadow: 0 8px 30px rgba(0,0,0,.35); cursor: pointer; user-select: none; }
-#sm-pill b { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: #ff6b8b; color: #1a0a10; font: 600 11px/1 ui-monospace, "JetBrains Mono", monospace; }
-#sm-pill span { color: #8c93a1; }
-#sm-pill span em { font-style: normal; color: #eef0f4; }
+#sm-pill { position: fixed; right: 14px; bottom: 14px; z-index: 2147483647; display: flex; align-items: center; gap: 10px; background: rgba(251,248,242,.94); color: #1e1a15; backdrop-filter: blur(10px); border: 1px solid rgba(30,26,21,.16); border-radius: 999px; padding: 6px 12px 6px 6px; font: 500 12px/1 system-ui, sans-serif; box-shadow: 0 1px 0 rgba(30,26,21,.2), 0 10px 26px -12px rgba(30,26,21,.45); cursor: pointer; user-select: none; }
+#sm-pill b { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: #1e1a15; color: #fbf8f2; font: 600 11px/1 ui-monospace, "JetBrains Mono", monospace; }
+#sm-pill span { color: #5f584d; }
+#sm-pill span em { font-style: normal; color: #1e1a15; }
 #sm-pill.sm-collapsed { padding: 6px; gap: 0; }
 #sm-pill.sm-collapsed span { display: none; }
-#sm-pill .sm-dot { width: 6px; height: 6px; border-radius: 50%; background: #3a404c; }
-#sm-pill .sm-dot.on { background: #ff6b8b; box-shadow: 0 0 0 3px rgba(255,107,139,.2); }
-@media (prefers-reduced-motion: reduce) { .sm-caret::after { animation: none; } .sm-tag { transition: none; } }
+#sm-pill .sm-dot { width: 6px; height: 6px; border-radius: 50%; background: rgba(30,26,21,.24); }
+#sm-pill .sm-dot.on { background: #c23d28; box-shadow: 0 0 0 3px rgba(194,61,40,.18); }
+@media (prefers-reduced-motion: reduce) { .sm-caret::after, .sm-ring, .sm-tag { animation: none; } }
 `;
   document.head.appendChild(style);
 
@@ -62,15 +64,22 @@ import type { HubEvent, CopyChange } from '@sitemaxxing/core/protocol';
   };
 
   // ---------- highlights ----------
+  // A change is circled like a proofreader would: a red ring around what changed and a short note
+  // beside it. The marks stay while the change is previewed and follow the layout as it settles.
   let tags: HTMLElement[] = [];
   let flashed: Element[] = [];
   let forced: Element[] = [];
   let timers: number[] = [];
+  let marks: Array<{ el: Element; ring: HTMLElement; tag: HTMLElement | null }> = [];
+  let follow = 0;
   const clearHighlights = () => {
-    for (const el of flashed) el.classList.remove('sm-flash');
+    for (const m of marks) m.ring.remove();
     for (const t of tags) t.remove();
     for (const el of forced) el.classList.remove('sm-force-open', 'sm-force-hover');
     for (const t of timers) clearTimeout(t);
+    if (follow) clearInterval(follow);
+    follow = 0;
+    marks = [];
     flashed = [];
     tags = [];
     forced = [];
@@ -95,30 +104,52 @@ import type { HubEvent, CopyChange } from '@sitemaxxing/core/protocol';
       tick();
     });
 
+  const place = (m: { el: Element; ring: HTMLElement; tag: HTMLElement | null }) => {
+    const r = m.el.getBoundingClientRect();
+    const pad = Math.min(14, Math.max(6, r.height * 0.12));
+    const docW = document.documentElement.clientWidth;
+    const left = Math.max(4, r.left + scrollX - pad);
+    const right = Math.min(docW + scrollX - 4, r.right + scrollX + pad);
+    m.ring.style.left = left + 'px';
+    m.ring.style.top = Math.max(4, r.top + scrollY - pad) + 'px';
+    m.ring.style.width = Math.max(24, right - left) + 'px';
+    m.ring.style.height = r.height + pad * 2 + 'px';
+    // An ellipse suits a word or a block; around a whole section it would cut corners off, so big
+    // targets get a softer rectangle that still reads as hand-marked.
+    const big = r.height > innerHeight * 0.45 || r.width > docW * 0.85;
+    m.ring.style.borderRadius = big ? '18px 22px 16px 24px' : '';
+    m.ring.style.transform = big ? 'rotate(-0.25deg)' : '';
+    if (m.tag) {
+      const w = m.tag.offsetWidth;
+      m.tag.style.left = Math.max(6, Math.min(docW + scrollX - w - 6, left + 10)) + 'px';
+      m.tag.style.top = Math.max(6, r.top + scrollY - pad - 30) + 'px';
+    }
+  };
+
   const flash = (els: Element[], label: string) => {
     const seen = new Set<Element>();
-    for (const el of els.slice(0, 4)) {
+    for (const el of els.slice(0, 3)) {
       if (seen.has(el) || el.closest('[data-sitemaxxing-overlay]')) continue;
       seen.add(el);
-      el.classList.add('sm-flash');
       flashed.push(el);
-      const r = el.getBoundingClientRect();
-      const tag = document.createElement('div');
-      tag.className = 'sm-tag';
-      tag.setAttribute('data-sitemaxxing-overlay', '');
-      tag.textContent = label;
-      tag.style.left = Math.max(6, r.left + scrollX) + 'px';
-      tag.style.top = Math.max(6, r.top + scrollY - 24) + 'px';
-      document.body.appendChild(tag);
-      tags.push(tag);
-      timers.push(
-        window.setTimeout(() => {
-          el.classList.remove('sm-flash');
-          tag.style.opacity = '0';
-          timers.push(window.setTimeout(() => tag.remove(), 300));
-        }, 1400),
-      );
+      const ring = document.createElement('div');
+      ring.className = 'sm-ring';
+      ring.setAttribute('data-sitemaxxing-overlay', '');
+      document.body.appendChild(ring);
+      let tag: HTMLElement | null = null;
+      if (!marks.length) {
+        tag = document.createElement('div');
+        tag.className = 'sm-tag';
+        tag.setAttribute('data-sitemaxxing-overlay', '');
+        tag.textContent = label;
+        document.body.appendChild(tag);
+        tags.push(tag);
+      }
+      const m = { el, ring, tag };
+      marks.push(m);
+      place(m);
     }
+    if (marks.length && !follow) follow = window.setInterval(() => marks.forEach(place), 200);
   };
 
   const force = (selector: string, state: 'open' | 'hover') => {

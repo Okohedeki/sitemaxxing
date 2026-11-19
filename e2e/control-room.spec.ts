@@ -166,7 +166,7 @@ test('Any URL: a pasted page becomes v1 and the story starts from it', async ({ 
   await expect(page.locator('#start-url')).toBeFocused();
   await expect(page.locator('.compare img')).toHaveCount(2);
   await page.locator('#start-url').fill('localhost:5174');
-  await page.getByRole('button', { name: 'Start' }).click();
+  await page.getByRole('button', { name: 'Start', exact: true }).click();
   await expect(page.locator('.recreate')).toBeVisible();
   await expect(page.locator('form.story')).toBeVisible({ timeout: 120_000 });
   await expect(page.locator('.drafted')).toContainText('Drafted from localhost:5174');

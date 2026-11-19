@@ -17,15 +17,16 @@ This file is managed by Changesets. Run `pnpm changeset` to add an entry.
 - Hero layout: seven compositions for the first screen, picked per brief like palettes and
   sections. Imagery no longer forces every photo into one full-bleed overlay.
 - New sections: lead figure, step path and inline ask, so Randomize always has another option.
-- A welcome screen: one focused URL field that reads back the address it understood and explains
-  an empty or malformed one inline, the four steps ahead, and a real before and after of a sample
-  that sweeps once and then follows your drag. Samples and recent projects are one click away.
-- The control room is restyled: one accent kept for the action, focus and progress; a display
-  serif for headlines; small muted section labels; regions separated by tone and space instead of
-  lines; one primary button per view with quieter secondary and link-style tertiary actions;
-  press feedback on every control and no animation on keyboard-driven rows; AA contrast for every
-  text colour. Each direction says why it is there, the score says what it measures and ignores,
-  saving ends on what was saved and how to step back, and the tab title follows the step.
+- The control room is redesigned as a proof: paper, ink and one proofreader's red, a book serif
+  for headlines. The welcome screen is a title page with one URL field, the four steps as a short
+  contents list, and a sample set as two stacked proof sheets (press them to see where it started).
+  In the workspace the page sits on a desk as a proof sheet, the steps are tabs in the top bar, and
+  the guide is an editor's note in the margin: what to change, why, the options as a short list,
+  then Keep, Skip or Show me others, with what is still to mark underneath.
+- On the page itself, a previewed change is circled in red with a short note beside it, and the
+  mark stays until the preview ends instead of flashing.
+- Every direction says why it is there, the score says what it measures and ignores, saving ends on
+  what was saved and how to step back, and the tab title follows the step.
 - Dev servers Sitemaxxing starts (playgrounds, version previews, rebuilt sites) each get their own
   Vite cache, so two running at once no longer reload each other into a blank page.
 - The side drawer no longer casts its shadow into the page while closed.

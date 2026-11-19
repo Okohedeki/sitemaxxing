@@ -377,30 +377,39 @@ function GroupRows({ title, children }: { title: string; children: React.ReactNo
 
 const STEP_NAMES = ['Start', 'Story', 'Direction', 'Refine', 'Save', 'Saved'];
 
-/** One decision at a time: the guide card holds the pass in focus and its actions. */
+const matters = (impact: number) => (impact >= 70 ? 'matters a lot' : impact >= 40 ? 'matters' : 'matters a little');
+
+/** One decision at a time: the editor's note in the margin holds the pass in focus and its actions. */
 function GuidedPanel(props: Parameters<typeof Queue>[0]) {
   const { state, guide } = props;
   const all = state ? guidedPasses(state) : [];
   const focus = guide.focus;
   const upcoming = all.filter((p) => p.id !== focus?.id && (p.baseStatus === 'proposed' || p.baseStatus === 'stale'));
   const decided = all.filter((p) => p.baseStatus === 'approved' || p.baseStatus === 'rejected');
+  const kept = decided.filter((p) => p.baseStatus === 'approved').length;
   const active = state?.viewingVersion ?? state?.currentVersion ?? 1;
-  const pct = guide.progress ? Math.round((guide.progress.done / Math.max(1, guide.progress.total)) * 100) : guide.step >= 4 ? 100 : 0;
   const run = (a: GuideAction) => props.onGuideAction(a);
+  // "Change 3 of 8 · Hero layout" reads as a kicker over a headline.
+  const [kicker, headline] = guide.title.includes(' · ') ? [guide.title.split(' · ')[0], guide.title.split(' · ').slice(1).join(' · ')] : [null, guide.title];
   return (
     <aside className="panel guided" aria-label="Guide">
       <div className="phead">
         <div className="row">
           <h2>{guide.step === 0 ? 'Start' : `Step ${Math.min(guide.step, 4)} of 4 · ${STEP_NAMES[guide.step]}`}</h2>
-          <button className="linkish" onClick={() => props.onGuided(false)}>
-            Show every change
-          </button>
+          {all.length ? (
+            <span className="counts">
+              {kept} kept · {decided.length - kept} skipped
+            </span>
+          ) : null}
         </div>
-        <div className="gbar" aria-hidden="true">
-          <i style={{ width: `${pct}%` }} />
-        </div>
+        {all.length && guide.step > 0 ? (
+          <div className="ticks" aria-hidden="true">
+            {all.map((p) => (
+              <i key={p.id} className={p.id === focus?.id ? 'on' : p.baseStatus === 'approved' ? 'kept' : p.baseStatus === 'rejected' ? 'cut' : ''} />
+            ))}
+          </div>
+        ) : null}
       </div>
-      {state?.brief && guide.step > 0 ? <StoryCard brief={state.brief} mood={state.mood ? describeMood(state.mood) : []} onEdit={props.onEditStory} /> : null}
       <div className="guide" aria-live="polite">
         {props.lastSkipped ? (
           <div className="askwhy">
@@ -416,7 +425,10 @@ function GuidedPanel(props: Parameters<typeof Queue>[0]) {
             </div>
           </div>
         ) : null}
-        <h3>{guide.title}</h3>
+        <h3>
+          {kicker ? <small>{kicker}</small> : null}
+          {headline}
+        </h3>
         <p className="gbody">{guide.body}</p>
         {focus ? (
           <ul className="list focus">
@@ -451,29 +463,37 @@ function GuidedPanel(props: Parameters<typeof Queue>[0]) {
         ) : null}
         {focus ? (
           <div className="kbd tight">
-            <b>Enter</b> keep · <b>S</b> skip · <b>D</b> other options{focus.variants.length ? ' · ' : ''}
+            <span>
+              <b>Enter</b> keep
+            </span>
+            <span>
+              <b>S</b> skip
+            </span>
+            <span>
+              <b>D</b> other options
+            </span>
             {focus.variants.length ? (
-              <>
+              <span>
                 <b>1</b>
                 <b>2</b>
                 <b>3</b> pick
-              </>
+              </span>
             ) : null}
           </div>
         ) : null}
       </div>
       <ul className="list minis" hidden={guide.step === 0}>
         {!state?.audited && state?.brief ? <li className="mini muted">Planning…</li> : null}
-        {upcoming.length ? <li className="group">Up next</li> : null}
+        {upcoming.length ? <li className="group">Still to mark</li> : null}
         {upcoming.map((p) => (
           <li key={p.id} className="mini" onClick={() => props.onSelect(p.id)} title="Look at this one now">
             <span>{p.name}</span>
-            <span className="fit" role="img" aria-label={`Matters ${p.impact} out of 100 for this story`} title={`How much this matters for this story: ${p.impact}/100`}>
-              <i style={{ width: `${Math.max(6, p.impact)}%` }} />
-            </span>
+            <small className="matters" title={`How much this matters for this story: ${p.impact}/100`}>
+              {matters(p.impact)}
+            </small>
           </li>
         ))}
-        {decided.length ? <li className="group">Decided</li> : null}
+        {decided.length ? <li className="group">Marked</li> : null}
         {decided.map((p) => (
           <li key={p.id} className={'mini ' + p.baseStatus}>
             <span>{p.name}</span>
@@ -484,8 +504,14 @@ function GuidedPanel(props: Parameters<typeof Queue>[0]) {
           </li>
         ))}
       </ul>
+      {state?.brief && guide.step > 0 ? <StoryCard brief={state.brief} mood={state.mood ? describeMood(state.mood) : []} onEdit={props.onEditStory} /> : null}
       <div className="pfoot">
-        <h4>Versions</h4>
+        <div className="row">
+          <h4>Versions</h4>
+          <button className="linkish" onClick={() => props.onGuided(false)}>
+            Show every change
+          </button>
+        </div>
         <div className="versions">
           {(state?.versions ?? []).map((v) => (
             <button key={v.number} aria-pressed={v.number === active} title={v.label} onClick={() => props.onVersion(v.number)}>

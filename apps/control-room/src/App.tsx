@@ -509,10 +509,16 @@ export function App() {
 
   return (
     <>
-      <TopBar state={recreate ? null : state} delta={delta} approvedCount={approvedCount} onCommit={commit} onHome={() => void goHome()} />
+      <TopBar
+        state={recreate ? null : state}
+        delta={delta}
+        approvedCount={approvedCount}
+        rail={<StepRail step={editingStory || (state && !state.brief) ? 1 : guide.step} mode={mode} />}
+        onCommit={commit}
+        onHome={() => void goHome()}
+      />
       <main className="main">
         <section className="stage" aria-label="Live preview">
-          <StepRail step={editingStory || (state && !state.brief) ? 1 : guide.step} mode={mode} />
           <div className="stagebar">
             <div className="seg" role="group" aria-label="Compare">
               <button aria-pressed={state?.view === 'current' && !state?.viewingVersion} onClick={() => setView('current')}>

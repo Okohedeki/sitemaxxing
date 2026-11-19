@@ -74,11 +74,8 @@ export function Stage({
     }
   })();
   return (
-    <div className="browser">
+    <div className="browser sheet">
       <div className="chrome">
-        <span />
-        <span />
-        <span />
         <em>
           {host}
           {state?.viewingVersion
@@ -89,6 +86,7 @@ export function Stage({
                 ? ' · dev server'
                 : ''}
         </em>
+        {state ? <span className="proofno">Proof {state.viewingVersion ?? state.currentVersion}</span> : null}
       </div>
       <div className="frame">
         {recreate ? <Recreate r={recreate} onClose={onCloseRecreate} /> : null}
@@ -96,11 +94,8 @@ export function Stage({
           <iframe title="Live site" src={url} />
         ) : (
           <div className="empty">
-            <b>Paste a page URL above and press Maxx it.</b>
-            <span>
-              Sitemaxxing rebuilds it as code, saves that as v1, and walks you through the glow-up
-              one decision at a time.
-            </span>
+            <b>Waiting for a page.</b>
+            <span>Sitemaxxing rebuilds it as code, saves that as v1, and walks you through the glow-up one decision at a time.</span>
           </div>
         )}
       </div>

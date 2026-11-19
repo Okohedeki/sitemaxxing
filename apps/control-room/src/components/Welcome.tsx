@@ -2,24 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import type { Project } from '../App';
 
 const SAMPLES: Record<string, string> = { fieldnote: 'Fieldnote', isvik: 'Isvik Expeditions' };
-const SWEPT = 'sm.welcome.swept';
-
-const remember = {
-  get: (k: string) => {
-    try {
-      return window.localStorage.getItem(k);
-    } catch {
-      return null;
-    }
-  },
-  set: (k: string) => {
-    try {
-      window.localStorage.setItem(k, '1');
-    } catch {
-      /* private mode: the sweep simply plays again */
-    }
-  },
-};
 
 /** What the person typed, read the way the hub will read it (bare hosts get https). */
 export function readUrl(input: string): string | null {
@@ -37,57 +19,48 @@ export function readUrl(input: string): string | null {
 }
 
 /**
- * A real before and after: the Isvik sample at v1 and after one guided session (v2). Two stacked
- * layers with a clip-path split. It sweeps once per visitor to explain itself, and the moment it
- * is touched the person's drag takes over.
+ * A real before and after, set as two proof sheets: the Isvik sample at v1 underneath and v2 on
+ * top. Pressing the plate (or the link under it) brings the other sheet to the front.
  */
 function Compare() {
-  const first = useRef(remember.get(SWEPT) === null);
-  const [x, setX] = useState(first.current ? 10 : 56);
-  const [driven, setDriven] = useState(false);
-  useEffect(() => {
-    if (!first.current) return;
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      setX(56);
-      remember.set(SWEPT);
-      return;
-    }
-    const t = window.setTimeout(() => {
-      setX((v) => (v === 10 ? 56 : v));
-      remember.set(SWEPT);
-    }, 450);
-    return () => window.clearTimeout(t);
-  }, []);
+  const [before, setBefore] = useState(false);
   return (
-    <figure className="compare">
-      <div className={'compare-frame' + (driven ? ' driven' : '')} style={{ ['--x' as string]: `${x}%` }}>
-        <img src="/welcome/before.jpg" width={1136} height={720} alt="The Isvik sample as it started: a centred headline, a pill badge, two buttons and a boxed picture" />
-        <img className="top" src="/welcome/after.jpg" width={1136} height={720} alt="The Isvik sample after one session: a large serif headline, one booking button and a wide picture" />
-        <i className="handle" aria-hidden="true" />
-        <span className="tag tag-left" aria-hidden="true">
-          After
+    <figure className={'compare' + (before ? ' show-before' : '')}>
+      <button
+        type="button"
+        className="plate"
+        onClick={() => setBefore((b) => !b)}
+        aria-pressed={before}
+        aria-label={before ? 'Show the sample after one session' : 'Show the sample as it started'}
+      >
+        <span className="sheet before">
+          <img src="/welcome/before.jpg" width={1136} height={720} alt="The Isvik sample as it started: a centred headline, a pill badge, two buttons and a boxed picture" />
         </span>
-        <span className="tag tag-right" aria-hidden="true">
-          Before
+        <span className="sheet after">
+          <img src="/welcome/after.jpg" width={1136} height={720} alt="The Isvik sample after one session: a large serif headline, one booking button and a wide picture" />
+          <i className="ring" aria-hidden="true" />
         </span>
-        <input
-          type="range"
-          min={0}
-          max={100}
-          value={x}
-          aria-label="Compare the sample after one session with how it started"
-          aria-valuetext={`${x}% after`}
-          onPointerDown={() => setDriven(true)}
-          onKeyDown={() => setDriven(true)}
-          onChange={(e) => setX(Number(e.target.value))}
-        />
-      </div>
+        <span className="ann" aria-hidden="true">
+          {before ? 'the first proof, as pasted' : 'one headline, set large'}
+        </span>
+      </button>
       <figcaption>
-        <b>Isvik Expeditions</b>, a sample. Drag to compare where it started with v2, after one session of 15 kept changes.
+        <b>Isvik Expeditions</b>, a sample. {before ? 'The page as it was pasted, before any change.' : 'v2 on top, after one session of 15 kept changes.'}{' '}
+        <button type="button" className="linkish" onClick={() => setBefore((b) => !b)}>
+          {before ? 'Show v2' : 'See where it started'}
+        </button>
       </figcaption>
     </figure>
   );
 }
+
+const ROMAN = ['i', 'ii', 'iii', 'iv'];
+const STEPS: Array<[string, string]> = [
+  ['Paste a page', 'a minute'],
+  ['Say what it is for', 'three questions'],
+  ['Pick a direction', 'three takes'],
+  ['Review each change, live', 'keep or skip'],
+];
 
 export function Welcome(props: {
   projects: Project[];
@@ -116,18 +89,17 @@ export function Welcome(props: {
   return (
     <div className="home">
       <header className="home-bar">
-        <span className="brand">
-          <Mark />
-          Sitemaxxing
-        </span>
+        <span className="brand">Sitemaxxing</span>
         <span className={'conn' + (props.connected ? ' on' : '')} aria-live="polite">
           {props.connected ? 'Ready' : 'Starting…'}
         </span>
       </header>
       <main className="home-main">
         <section className="home-copy">
-          <h1>Give your site a glow&#8209;up that is yours.</h1>
-          <p className="lede">Paste a page and Sitemaxxing rebuilds it as code you own. Your live site is never touched.</p>
+          <h1>
+            Give your site a glow&#8209;up that is <i>yours</i>.
+          </h1>
+          <p className="lede">Paste a page. Sitemaxxing sets it as an editable proof, then marks it up with you, one change at a time.</p>
           <form
             className="start"
             noValidate
@@ -169,22 +141,17 @@ export function Welcome(props: {
             </button>
           </form>
           <p id="start-note" className={'note' + (error ? ' err' : '')} aria-live="polite">
-            {error ?? (understood ? <>Opens {understood.replace(/\/$/, '')}</> : <>Any public page works, with or without https://</>)}
+            {error ?? (understood ? <>Opens {understood.replace(/\/$/, '')}</> : <>Your live site is never touched. Every version is a git commit.</>)}
           </p>
 
           <ol className="steps" aria-label="What happens next">
-            <li>
-              <b>1</b>Paste a page
-            </li>
-            <li>
-              <b>2</b>Say what it is for
-            </li>
-            <li>
-              <b>3</b>Pick a direction
-            </li>
-            <li>
-              <b>4</b>Review each change
-            </li>
+            {STEPS.map(([what, how], i) => (
+              <li key={what}>
+                <b aria-hidden="true">{ROMAN[i]}</b>
+                <span>{what}</span>
+                <small>{how}</small>
+              </li>
+            ))}
           </ol>
 
           <div className="alt">
@@ -250,14 +217,5 @@ export function Welcome(props: {
         <Compare />
       </main>
     </div>
-  );
-}
-
-export function Mark() {
-  return (
-    <svg viewBox="0 0 20 20" aria-hidden="true">
-      <circle cx="10" cy="10" r="9" fill="none" stroke="var(--accent)" strokeWidth="2" />
-      <path d="M6 12.5 10 6l4 6.5" fill="none" stroke="var(--ink)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
   );
 }
