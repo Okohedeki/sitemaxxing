@@ -62,7 +62,7 @@ describe('mcp server over streamable http', () => {
     const brief = await call('set_brief', { project_id: init.projectId, story: 'Fieldnote maps soil moisture from daily satellite passes so growers water only where it is dry.', audience: 'farm managers', goal: 'signups', feeling: ['precise', 'calm'], noise: 0.3, seed: 77 });
     expect(brief.brief.goal).toBe('signups');
     const audit = await call('audit_page', { project_id: init.projectId });
-    expect(audit.passes.length).toBe(16);
+    expect(audit.passes.length).toBe(17);
     expect(audit.passes.find((p: any) => p.name === 'Copy').why).toMatch(/^For sign-ups/);
     const copy = audit.passes.find((p: any) => p.name === 'Copy');
     expect((await call('preview_pass', { pass_id: copy.id })).ok).toBe(true);

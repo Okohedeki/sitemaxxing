@@ -27,9 +27,11 @@ const stop = () => {
 process.on('SIGINT', stop);
 process.on('SIGTERM', stop);
 
+// --fresh rebuilds the playgrounds from the samples (the end-to-end tests start from a clean page).
+const fresh = process.argv.includes('--fresh');
 const dirs = [];
 for (const s of SAMPLES) {
-  const dir = core.preparePlayground(path.join(root, 'apps', `sample-${s.name}`), path.join(root, '.playground', s.name), { devUrl: `http://localhost:${s.port}` });
+  const dir = core.preparePlayground(path.join(root, 'apps', `sample-${s.name}`), path.join(root, '.playground', s.name), { devUrl: `http://localhost:${s.port}`, fresh });
   dirs.push({ ...s, dir });
   children.push(core.spawnVite(dir, s.port));
 }

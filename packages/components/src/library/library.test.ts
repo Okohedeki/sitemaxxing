@@ -3,6 +3,8 @@ import { contrast, moodOf, rng, type Mood } from '@sitemaxxing/core';
 import { generateDirections, DIRECTION_REFS } from './directions';
 import { selectFonts, FONT_PAIRINGS } from './fonts';
 import { COMPONENTS, selectComponents } from './registry';
+import { HERO_LAYOUTS, heroLayoutCss, selectHeroLayouts } from './hero-layouts';
+import postcss from 'postcss';
 
 const mood = (feeling: string[], story = 'A shop.'): Mood => moodOf({ story, audience: '', feeling, avoid: [] });
 
@@ -70,5 +72,31 @@ describe('reference library', () => {
     expect(none).toEqual([]);
     const facts = selectComponents('proof', { mood: mood([]), goal: 'sales', noise: 0, rng: rng(1), has: (k) => k === 'facts' });
     expect(facts.every((p) => p.spec.requires?.includes('facts'))).toBe(true);
+  });
+  it('composes the hero differently for different stories', () => {
+    expect(HERO_LAYOUTS.length).toBeGreaterThanOrEqual(6);
+    const quiet = selectHeroLayouts({ mood: mood(['classic', 'calm', 'formal'], 'A law firm.'), goal: 'credibility', noise: 0, rng: rng(1), hasMedia: true });
+    const loud = selectHeroLayouts({ mood: mood(['bold', 'loud', 'playful'], 'A music festival.'), goal: 'awareness', noise: 0, rng: rng(1), hasMedia: true });
+    expect(quiet[0].ref.id).not.toBe(loud[0].ref.id);
+    expect(quiet.map((l) => l.slot)).toEqual(['fit', 'stretch', 'wildcard']);
+    // Across a spread of stories the Fit is not always the template split.
+    const fits = new Set(
+      [['calm'], ['bold'], ['warm'], ['formal'], ['playful'], ['classic'], ['dense'], ['dark']].map((f) => selectHeroLayouts({ mood: mood(f), goal: 'awareness', noise: 0.3, rng: rng(9), hasMedia: true })[0].ref.id),
+    );
+    expect(fits.size).toBeGreaterThanOrEqual(3);
+  });
+
+  it('never puts a picture layout on a text-only hero, and writes valid CSS', () => {
+    const parts = { hero: '.hero', copy: '.copy', headline: '.copy > .h1', media: '.media' };
+    for (let i = 0; i < 30; i++) {
+      const textOnly = selectHeroLayouts({ mood: mood([['bold'], ['calm'], ['warm']][i % 3]), goal: 'signups', noise: 1, rng: rng(i), hasMedia: false });
+      expect(textOnly.every((l) => !l.ref.needsMedia)).toBe(true);
+      for (const l of selectHeroLayouts({ mood: mood([['bold'], ['calm'], ['warm']][i % 3]), goal: 'signups', noise: 1, rng: rng(i), hasMedia: true })) {
+        const css = heroLayoutCss(l, parts);
+        expect(() => postcss.parse(css)).not.toThrow();
+        expect(css).toContain('@media (max-width: 760px)');
+        expect(css).not.toMatch(/gradient/);
+      }
+    }
   });
 });

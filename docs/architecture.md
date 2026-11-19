@@ -55,7 +55,7 @@ applies it in-process with fuzzy hunk matching. A pass is **deterministic**, so 
 applied pass shifts its context the engine re-proposes it against the current tree and applies
 the fresh diff. Only a real failure marks a pass stale, which shows **Regenerate** in the row.
 Rejecting a pass or switching its variant marks its dependents stale on purpose
-(`direction → font → font-size`, `declutter → alignment`, `imagery → hero-art`).
+(`direction → font → font-size`, `declutter → alignment`, `imagery → hero-art`; hero layout owns where the picture sits, imagery only how it is treated).
 
 ## Where state lives
 

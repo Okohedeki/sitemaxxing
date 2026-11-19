@@ -16,3 +16,4 @@ export * from './library/fonts';
 export * from './library/hero-field';
 export * from './library/sections';
 export * from './library/registry';
+export * from './library/hero-layouts';

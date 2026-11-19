@@ -55,7 +55,7 @@ export const heroArt = defineComponent({
     jsxEdit.addImport(file, 'HeroField', importPath(ctx, COMPONENT_DIR, 'HeroField'));
     files.push({ path: ctx.config.sources.app, before: src.app, after: jsxEdit.tidy(file.getFullText()) });
     const artSel = selFor(art, '.art');
-    let css = cssEdit.setDeclarations(src.styles, artSel, { position: artKind(ctx, art) === 'image' ? 'absolute' : 'relative', overflow: 'hidden' });
+    let css = cssEdit.setDeclarations(src.styles, artSel, { position: 'relative', overflow: 'hidden' });
     css = cssEdit.appendCss(
       css,
       `${spec.css ?? ''}

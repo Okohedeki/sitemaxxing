@@ -200,6 +200,22 @@ export class Engine {
       seeds: {},
       measureTimer: null,
     };
+    if (old) {
+      // Re-registering an open project (a second client, a reconnect) must not forget what is
+      // applied on disk, or its own previews would read as someone else's uncommitted edits.
+      await old.queue.catch(() => undefined);
+      Object.assign(rt, {
+        applied: old.applied,
+        extraFiles: old.extraFiles,
+        patches: old.patches,
+        variants: old.variants,
+        previewing: old.previewing,
+        lastPreviewAt: old.lastPreviewAt,
+        view: old.view,
+        audited: old.audited,
+      });
+      if (old.measureTimer) clearTimeout(old.measureTimer);
+    }
     this.loadBrief(rt);
     for (const r of db.prepare('SELECT def_id, seed FROM passes WHERE project_id = ?').all(id) as any[]) if (r.seed != null) rt.seeds[r.def_id] = Number(r.seed);
     this.projects.set(id, rt);

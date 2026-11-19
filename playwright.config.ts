@@ -13,7 +13,7 @@ export default defineConfig({
     trace: 'retain-on-failure',
   },
   webServer: {
-    command: 'node scripts/dev.mjs --no-build',
+    command: 'node scripts/dev.mjs --no-build --fresh',
     url: 'http://localhost:4747',
     reuseExistingServer: true,
     timeout: 180_000,

@@ -98,6 +98,7 @@ sitemaxxing export [path] --timelapse out.mp4   one frame per pass, labelled
 |---|---|
 | Directions | 12 palettes (Lab, Editorial, Signal, Glacier, Terracotta, Ink and gold, Risograph, Field, Clinic, Newsprint, Midnight lab, Pastel studio), each perturbed per seed |
 | Type pairings | 12 open-licensed pairings, from grotesk + mono to soft serif, book serif and wide display |
+| Hero layout | Split, picture first, editorial stack, poster, offset overlap, index columns, picture band; proportions vary with noise |
 | Hero art | Morphing shapes, dot globe, field wave, contour lines, orbits; density and speed vary with noise |
 | Navigation | Preview tiles, fullscreen reveal (circle, curtain, split), side drawer |
 | Proof | Metric strip, pull quote, fact ticker |
@@ -105,7 +106,7 @@ sitemaxxing export [path] --timelapse out.mp4   one frame per pass, labelled
 | Closing call to action | Closing band, sticky next step, split close |
 | Motion | Hero reveals (line rise, word stagger, blur in), preloaders (counter, curtain, stack), arrow buttons |
 
-Refining passes include declutter, spacing (scaled to the brief's density), copy, alignment, font,
+Refining passes include hero layout (it leaves a composition alone when it already suits the story), declutter, spacing (scaled to the brief's density), copy, alignment, font,
 font size (scaled to its energy), imagery, navigation, button feedback and the hero reveal. Section
 passes only appear when your copy file has the content they need: `facts`, `quote`, `features` or
 `cta`. Nothing is invented.

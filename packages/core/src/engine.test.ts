@@ -139,6 +139,16 @@ describe(`engine against sample-${SAMPLE}`, () => {
     expect(git(dir, ['status', '--porcelain'])).toBe('');
   });
 
+  it('keeps applied changes when a second client opens the same project', async () => {
+    const direction = engine.state(projectId).passes.find((p) => p.defId === 'direction')!;
+    await engine.decide(projectId, direction.id, 'approve');
+    expect(git(dir, ['status', '--porcelain'])).not.toBe('');
+    await engine.initProject(dir);
+    // The approved change is still ours, so planning again is not refused as a dirty tree.
+    await engine.audit(projectId);
+    expect(git(dir, ['status', '--porcelain'])).toBe('');
+  }, 60_000);
+
   it('marks downstream passes stale when direction is rejected', async () => {
     const s0 = engine.state(projectId);
     const direction = s0.passes.find((p) => p.defId === 'direction')!;

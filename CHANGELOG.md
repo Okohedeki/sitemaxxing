@@ -14,6 +14,10 @@ This file is managed by Changesets. Run `pnpm changeset` to add an entry.
 - Fit, Stretch and Wildcard picks per pass; seeded noise; Randomize per pass or for every open pass.
 - The Mog score targets follow the brief, and the ring re-measures the page after each change.
 - Previews write each file once, so the dev server never serves a stale palette.
+- Hero layout: seven compositions for the first screen, picked per brief like palettes and
+  sections. Imagery no longer forces every photo into one full-bleed overlay.
+- Opening a project a second time keeps the changes already applied on disk.
+- `scripts/dev.mjs --fresh` rebuilds the sample playgrounds; the end-to-end tests use it.
 
 ## 0.1.0
 
