@@ -249,9 +249,95 @@ export const SPLIT_CTA_CSS = `.sm-split { margin: clamp(48px, 8vw, 120px) clamp(
 .sm-split-btn { display: inline-flex; align-items: center; padding: 15px 24px; border-radius: 10px; background: var(--ink, #111); color: var(--bg, #fff); font-weight: 600; text-decoration: none; min-height: 44px; }
 @media (max-width: 720px) { .sm-split { grid-template-columns: 1fr; } }`;
 
+export const LEAD_FIGURE_TSX = `import type { Fact } from './section-types';
+
+/** One figure carries the claim at full size; the others sit beside it as footnotes. */
+export function LeadFigure({ items }: { items: Fact[] }) {
+  if (!items?.length) return null;
+  const [lead, ...rest] = items;
+  return (
+    <section className="sm-lead" aria-label="Key figures">
+      <div className="sm-lead-main">
+        <b>{lead.value}</b>
+        <span>{lead.label}</span>
+      </div>
+      {rest.length ? (
+        <ul className="sm-lead-notes">
+          {rest.slice(0, 3).map((m) => (
+            <li key={m.label}>
+              <b>{m.value}</b> {m.label}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </section>
+  );
+}
+`;
+
+export const LEAD_FIGURE_CSS = `.sm-lead { margin: clamp(48px, 8vw, 120px) clamp(20px, 5vw, 64px); display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: clamp(24px, 5vw, 80px); align-items: end; }
+.sm-lead-main b { display: block; font-family: var(--display, inherit); font-weight: 400; font-size: clamp(72px, 12vw, 184px); line-height: 0.86; letter-spacing: -0.05em; color: var(--ink, inherit); overflow-wrap: anywhere; }
+.sm-lead-main span { display: block; margin-top: 16px; font-family: var(--label, inherit); font-size: 13px; letter-spacing: 0.07em; text-transform: uppercase; color: var(--soft, #666); }
+.sm-lead-notes { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
+.sm-lead-notes li { padding-top: 12px; border-top: 1px solid var(--line, #ddd); color: var(--soft, #555); font-size: 15px; line-height: 1.45; }
+.sm-lead-notes b { color: var(--ink, inherit); font-weight: 600; }
+@media (max-width: 720px) { .sm-lead { grid-template-columns: 1fr; } }`;
+
+export const STEP_PATH_TSX = `import type { Feature } from './section-types';
+
+/** Features as steps along one line: what happens first, next and after. */
+export function StepPath({ items }: { items: Feature[] }) {
+  if (!items?.length) return null;
+  return (
+    <section className="sm-steps" aria-label="How it works">
+      <ol>
+        {items.slice(0, 5).map((f, i) => (
+          <li key={f.title}>
+            <span className="sm-step-n" aria-hidden="true">{i + 1}</span>
+            <h3>{f.title}</h3>
+            <p>{f.text}</p>
+          </li>
+        ))}
+      </ol>
+    </section>
+  );
+}
+`;
+
+export const STEP_PATH_CSS = `.sm-steps { margin: clamp(48px, 8vw, 112px) clamp(20px, 5vw, 64px); }
+.sm-steps ol { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: clamp(20px, 3vw, 40px); position: relative; }
+.sm-steps ol::before { content: ""; position: absolute; left: 0; right: 0; top: 15px; height: 1px; background: var(--line, #ddd); }
+.sm-steps li { position: relative; display: grid; gap: 10px; align-content: start; }
+.sm-step-n { width: 31px; height: 31px; border-radius: 50%; display: grid; place-items: center; background: var(--bg, #fff); border: 1px solid var(--acc, currentColor); color: var(--acc, currentColor); font-family: var(--label, inherit); font-size: 13px; position: relative; }
+.sm-steps h3 { margin: 6px 0 0; font-family: var(--display, inherit); font-weight: 500; font-size: clamp(19px, 1.8vw, 24px); letter-spacing: -0.015em; color: var(--ink, inherit); }
+.sm-steps p { margin: 0; color: var(--soft, #555); font-size: 15.5px; line-height: 1.55; max-width: 38ch; }
+@media (max-width: 720px) { .sm-steps ol::before { display: none; } }`;
+
+export const INLINE_ASK_TSX = `/** A quiet close: one sentence and a plain link to the next step, no box and no band. */
+export function InlineAsk({ title, cta, href = '#start' }: { title: string; cta: string; href?: string }) {
+  return (
+    <section className="sm-ask" aria-label="Next step">
+      <p>
+        {title} <a href={href}>{cta}<span aria-hidden="true"> →</span></a>
+      </p>
+    </section>
+  );
+}
+`;
+
+export const INLINE_ASK_CSS = `.sm-ask { margin: clamp(64px, 10vw, 144px) clamp(20px, 5vw, 64px) clamp(48px, 7vw, 96px); max-width: 30ch; }
+.sm-ask p { margin: 0; font-family: var(--display, inherit); font-size: clamp(28px, 3.6vw, 52px); line-height: 1.12; letter-spacing: -0.025em; color: var(--ink, inherit); text-wrap: balance; }
+.sm-ask a { color: var(--acc, currentColor); text-decoration: underline; text-decoration-thickness: 0.06em; text-underline-offset: 0.14em; white-space: nowrap; }
+.sm-ask a span { display: inline-block; transition: transform .2s cubic-bezier(.2, .7, .1, 1); }
+.sm-ask a:hover span, .sm-ask a:focus-visible span { transform: translateX(4px); }
+@media (prefers-reduced-motion: reduce) { .sm-ask a span { transition: none; } }`;
+
 const svg = (body: string) => `<svg viewBox="0 0 48 30"><rect width="48" height="30" fill="#f3f2ee"/>${body}</svg>`;
 
 export const SECTION_THUMBS: Record<string, string> = {
+  'lead-figure': svg('<rect x="4" y="7" width="22" height="13" fill="#141414"/><rect x="4" y="22" width="12" height="1.6" fill="#888"/><g stroke="#ccc" stroke-width=".5"><path d="M31 9h13M31 15h13M31 21h13"/></g><g fill="#888"><rect x="31" y="11" width="10" height="1.5"/><rect x="31" y="17" width="9" height="1.5"/></g>'),
+  'step-path': svg('<path d="M4 10h40" stroke="#ccc" stroke-width=".5"/><g fill="#f3f2ee" stroke="#c2412d" stroke-width=".7"><circle cx="7" cy="10" r="2.4"/><circle cx="21" cy="10" r="2.4"/><circle cx="35" cy="10" r="2.4"/></g><g fill="#141414"><rect x="4" y="16" width="9" height="2.2"/><rect x="18" y="16" width="10" height="2.2"/><rect x="32" y="16" width="8" height="2.2"/></g><g fill="#999"><rect x="4" y="20" width="11" height="1.4"/><rect x="18" y="20" width="11" height="1.4"/><rect x="32" y="20" width="11" height="1.4"/></g>'),
+  'inline-ask': svg('<g fill="#141414"><rect x="5" y="9" width="30" height="3.5"/><rect x="5" y="15" width="16" height="3.5"/></g><rect x="23" y="15" width="14" height="3.5" fill="#c2412d"/><rect x="23" y="19.4" width="14" height=".6" fill="#c2412d"/>'),
   'metric-strip': svg('<g fill="#141414"><rect x="4" y="9" width="10" height="6"/><rect x="19" y="9" width="10" height="6"/><rect x="34" y="9" width="10" height="6"/></g><g fill="#888"><rect x="4" y="18" width="8" height="2"/><rect x="19" y="18" width="8" height="2"/><rect x="34" y="18" width="8" height="2"/></g><path d="M4 6h40" stroke="#ccc" stroke-width=".5"/>'),
   'pull-quote': svg('<rect x="6" y="7" width="1.4" height="15" fill="#c2412d"/><g fill="#141414"><rect x="10" y="8" width="30" height="3"/><rect x="10" y="13" width="24" height="3"/></g><rect x="10" y="19" width="12" height="2" fill="#888"/>'),
   'fact-ticker': svg('<path d="M0 10h48M0 20h48" stroke="#ccc" stroke-width=".5"/><g fill="#141414"><rect x="-2" y="13" width="9" height="4"/><rect x="14" y="13" width="9" height="4"/><rect x="30" y="13" width="9" height="4"/><rect x="46" y="13" width="9" height="4"/></g>'),

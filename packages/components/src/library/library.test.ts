@@ -13,6 +13,8 @@ describe('reference library', () => {
     expect(DIRECTION_REFS.length).toBeGreaterThanOrEqual(10);
     expect(FONT_PAIRINGS.length).toBeGreaterThanOrEqual(10);
     for (const slot of ['hero-art', 'nav', 'preloader', 'reveal', 'proof', 'features', 'cta']) expect(COMPONENTS.filter((c) => c.slot === slot).length).toBeGreaterThanOrEqual(3);
+    // Section slots need more than three references, or a re-roll can only reshuffle the same cards.
+    for (const slot of ['proof', 'features', 'cta']) expect(COMPONENTS.filter((c) => c.slot === slot).length).toBeGreaterThanOrEqual(4);
   });
 
   it('picks different directions for different stories', () => {

@@ -16,6 +16,7 @@ This file is managed by Changesets. Run `pnpm changeset` to add an entry.
 - Previews write each file once, so the dev server never serves a stale palette.
 - Hero layout: seven compositions for the first screen, picked per brief like palettes and
   sections. Imagery no longer forces every photo into one full-bleed overlay.
+- New sections: lead figure, step path and inline ask, so Randomize always has another option.
 - Opening a project a second time keeps the changes already applied on disk.
 - `scripts/dev.mjs --fresh` rebuilds the sample playgrounds; the end-to-end tests use it.
 

@@ -101,9 +101,9 @@ sitemaxxing export [path] --timelapse out.mp4   one frame per pass, labelled
 | Hero layout | Split, picture first, editorial stack, poster, offset overlap, index columns, picture band; proportions vary with noise |
 | Hero art | Morphing shapes, dot globe, field wave, contour lines, orbits; density and speed vary with noise |
 | Navigation | Preview tiles, fullscreen reveal (circle, curtain, split), side drawer |
-| Proof | Metric strip, pull quote, fact ticker |
-| Features | Numbered rows, bento grid, spec sheet |
-| Closing call to action | Closing band, sticky next step, split close |
+| Proof | Metric strip, pull quote, fact ticker, lead figure |
+| Features | Numbered rows, bento grid, spec sheet, step path |
+| Closing call to action | Closing band, sticky next step, split close, inline ask |
 | Motion | Hero reveals (line rise, word stagger, blur in), preloaders (counter, curtain, stack), arrow buttons |
 
 Refining passes include hero layout (it leaves a composition alone when it already suits the story), declutter, spacing (scaled to the brief's density), copy, alignment, font,

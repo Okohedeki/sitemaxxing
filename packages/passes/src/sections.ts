@@ -117,6 +117,9 @@ export function sectionPass(spec: SectionPassSpec): PassDefinition {
         'closing-band': '.sm-closing',
         'sticky-bar': '.sm-sticky',
         'split-cta': '.sm-split',
+        'lead-figure': '.sm-lead',
+        'step-path': '.sm-steps',
+        'inline-ask': '.sm-ask',
       };
       return [id && cls[id] ? cls[id] : 'main > section:last-child'];
     },
