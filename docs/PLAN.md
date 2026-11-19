@@ -123,7 +123,7 @@ exports the default set in order.
 | Commit N to vX | `commit_version`: formats, commits, screenshots, scores, broadcasts `version.committed` |
 | Versions strip | `versions` from `list_passes`; clicking an old one calls `view_version`, which checks out that commit into a worktree on a second port and switches the iframe |
 | Current / With changes | `set_view`: reverses or reapplies the approved patches in the working tree |
-| Any URL path | Recreate overlay plays with a "Coming in Phase 3" note; nothing else runs |
+| Any URL path | `recreate_url` captures the page, writes it as a project from `apps/site-template`, commits v1, serves it and registers it; the overlay shows each step live |
 | Keyboard | Arrow keys, Space, A, R, 1/2/3, C in the control room |
 | Stale rows with Regenerate | Dependency graph in `queue.ts`; `regenerate_pass` re-runs `propose` against the current tree |
 

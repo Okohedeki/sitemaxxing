@@ -1,0 +1,24 @@
+/* Recreated from https://example.com/. Passes rewrite these. */
+:root {
+  --bg: #ffffff;
+  --ink: #16181d;
+  --soft: #5a5f6b;
+  --line: #e3e3e4;
+  --surface: #f7f7f7;
+  --acc: #2b59c3;
+  --dot: #2b59c3;
+  --display: system-ui, sans-serif;
+  --body: system-ui, sans-serif;
+  --label: system-ui, sans-serif;
+  --btn-bg: #2b59c3;
+  --btn-ink: #ffffff;
+  --btn-shadow: none;
+  --pill-bg: #e6ebf8;
+  --pill-ink: #2b59c3;
+  --pill-border: 1px solid transparent;
+  --radius: 8px;
+  --card-radius: 12px;
+  --media-radius: 12px;
+  --card-shadow: none;
+  --logo-bg: #2b59c3;
+}

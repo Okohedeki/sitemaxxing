@@ -1,0 +1,43 @@
+{
+  "brand": "Example",
+  "nav": [
+    {
+      "label": "About",
+      "href": "#about"
+    },
+    {
+      "label": "Work",
+      "href": "#work"
+    }
+  ],
+  "navCta": "Get in touch",
+  "pill": "",
+  "headline": "A page recreated from a URL lands here",
+  "highlight": "",
+  "subhead": "Sitemaxxing writes the copy, colours and fonts of the original page into these files.",
+  "cta": "Get in touch",
+  "secondaryCta": "",
+  "trust": "",
+  "featuresTitle": "What it does",
+  "features": [
+    {
+      "icon": "",
+      "title": "Reads the page",
+      "text": "Brand, navigation, first screen and sections."
+    },
+    {
+      "icon": "",
+      "title": "Writes it as code",
+      "text": "A small React project the passes can edit."
+    },
+    {
+      "icon": "",
+      "title": "Commits v1",
+      "text": "Every change after that is a reviewable version."
+    }
+  ],
+  "sections": [],
+  "facts": [],
+  "footer": "© Example",
+  "source": "https://example.com/"
+}

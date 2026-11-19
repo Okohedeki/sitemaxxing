@@ -26,6 +26,11 @@ Claude Code.
 1. **Story.** `set_brief` stores the owner's story, audience, goal, feeling, keep, avoid, noise and
    seed (`.sitemaxxing/brief.json` plus a `briefs` row, so the history is kept). The words are read
    into a mood on six axes (`packages/core/src/brief.ts`). Nothing is planned without a brief.
+   - **Any URL.** `recreate_url` (`packages/core/src/recreate.ts`) reads a public page in Playwright
+     and writes it as a Vite + React project from `apps/site-template` (whose installed dependencies
+     it links), with the page's copy in `content.json` and its colours, fonts and radii in
+     `tokens.css`. It commits that as v1, serves it on a free port and runs Intake on it. The hub
+     restarts its dev server when the project is opened again.
 2. **Intake.** `init_project` loads the config, makes sure the repo has a commit, opens SQLite,
    snapshots the dev URL with Playwright and scores it. Version 1 is HEAD at that moment.
 3. **Plan.** `audit_page` runs every pass's `detect`, then the planner

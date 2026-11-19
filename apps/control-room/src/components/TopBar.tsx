@@ -45,7 +45,7 @@ export function TopBar(props: {
         <label htmlFor="url" style={{ position: 'absolute', left: -9999 }}>
           {props.mode === 'url' ? 'Site URL' : 'Repository path'}
         </label>
-        <input id="url" list="projects" value={props.field} onChange={(e) => props.onField(e.target.value)} spellCheck={false} placeholder={props.mode === 'url' ? 'https://…' : '/path/to/your/repo'} />
+        <input id="url" list="projects" value={props.field} onChange={(e) => props.onField(e.target.value)} spellCheck={false} placeholder={props.mode === 'url' ? 'Paste a page URL, e.g. example.com' : '/path/to/your/repo'} />
         <datalist id="projects">
           {props.projects.map((p) => (
             <option key={p.id} value={p.rootPath}>

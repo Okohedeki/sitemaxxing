@@ -1,0 +1,40 @@
+{
+  "name": "site-template",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@fontsource-variable/archivo": "^5.3.0",
+    "@fontsource-variable/bricolage-grotesque": "^5.3.0",
+    "@fontsource-variable/fraunces": "^5.3.0",
+    "@fontsource-variable/instrument-sans": "^5.1.0",
+    "@fontsource-variable/literata": "^5.3.0",
+    "@fontsource-variable/newsreader": "^5.1.0",
+    "@fontsource-variable/space-grotesk": "^5.3.0",
+    "@fontsource-variable/syne": "^5.3.0",
+    "@fontsource/dm-serif-display": "^5.3.0",
+    "@fontsource/ibm-plex-mono": "^5.3.0",
+    "@fontsource/ibm-plex-sans": "^5.3.0",
+    "@fontsource/ibm-plex-serif": "^5.3.0",
+    "@fontsource/instrument-serif": "^5.3.0",
+    "@fontsource/jetbrains-mono": "^5.1.1",
+    "@fontsource/poppins": "^5.1.0",
+    "@fontsource/space-mono": "^5.3.0",
+    "@fontsource/unbounded": "^5.1.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@sitemaxxing/vite-plugin": "workspace:*",
+    "@types/react": "^18.3.17",
+    "@types/react-dom": "^18.3.5",
+    "@vitejs/plugin-react": "^4.3.4",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.5"
+  }
+}

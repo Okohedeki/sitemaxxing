@@ -3,7 +3,8 @@ import type { HubEvent, ProjectState, PassView, ReasonChip } from '@sitemaxxing/
 import { HubClient, hubUrl } from './hub';
 import { TopBar } from './components/TopBar';
 import { StepRail } from './components/StepRail';
-import { Stage } from './components/Stage';
+import { Stage, type RecreateState } from './components/Stage';
+import { guideOf, type GuideAction } from './guide';
 import { Queue } from './components/Queue';
 import type { StoryDraft } from './components/StoryForm';
 
@@ -13,7 +14,26 @@ export interface Project {
   devUrl: string;
   rootPath: string;
   loaded: boolean;
+  /** The page a recreated project came from. */
+  source: string | null;
 }
+
+const store = {
+  get: (k: string) => {
+    try {
+      return window.localStorage.getItem(k);
+    } catch {
+      return null;
+    }
+  },
+  set: (k: string, v: string) => {
+    try {
+      window.localStorage.setItem(k, v);
+    } catch {
+      /* private mode */
+    }
+  },
+};
 
 const reduced = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const wait = (ms: number) => new Promise((r) => setTimeout(r, reduced() ? Math.min(ms, 200) : ms));
@@ -23,12 +43,20 @@ export function App() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectId, setProjectId] = useState<string | null>(null);
   const [state, setState] = useState<ProjectState | null>(null);
-  const [mode, setMode] = useState<'url' | 'repo'>('repo');
+  const [mode, setMode] = useState<'url' | 'repo'>('url');
   const [field, setField] = useState('');
   const [live, setLive] = useState<{ text: string; on: boolean }>({ text: 'Connecting to the hub…', on: false });
   const [toast, setToast] = useState<{ text: string; err?: boolean } | null>(null);
   const [playing, setPlaying] = useState(false);
-  const [recreating, setRecreating] = useState(false);
+  const [recreate, setRecreate] = useState<RecreateState | null>(null);
+  const [guided, setGuidedState] = useState(() => store.get('sm.guided') !== 'off');
+  const setGuided = useCallback((on: boolean) => {
+    setGuidedState(on);
+    store.set('sm.guided', on ? 'on' : 'off');
+  }, []);
+  const [lastSkipped, setLastSkipped] = useState<string | null>(null);
+  /** Once the person picks Any URL or My repo, a project loading in the background never flips it. */
+  const modeTouched = useRef(false);
   const [selected, setSelected] = useState<string | null>(null);
   const [connected, setConnected] = useState(false);
   const [delta, setDelta] = useState<{ n: number; key: number } | null>(null);
@@ -52,6 +80,10 @@ export function App() {
       if (e.type === 'hello') {
         setConnected(true);
         setProjects(e.projects as Project[]);
+        return;
+      }
+      if (e.type === 'recreate.step') {
+        if (e.what) setRecreate((r) => (r && !r.error ? { ...r, current: e.what } : r));
         return;
       }
       if (e.type === 'busy' && e.projectId === '') {
@@ -103,18 +135,21 @@ export function App() {
   // Pick the first project once the hub says hello.
   useEffect(() => {
     if (projectId || !projects.length) return;
-    const first = projects[0];
-    setField(first.rootPath);
-    void loadProject(first.id);
+    const last = store.get('sm.project');
+    void loadProject((projects.find((p) => p.id === last) ?? projects[0]).id, { auto: true });
   }, [projects]);
 
   const loadProject = useCallback(
-    async (id: string) => {
+    async (id: string, opts: { auto?: boolean } = {}) => {
       setProjectId(id);
+      store.set('sm.project', id);
       try {
         const s = await hub.rpc<ProjectState>('project.load', { project_id: id });
         adopt(s);
-        setField(s.project.rootPath);
+        if (!(opts.auto && modeTouched.current)) {
+          setMode(s.source ? 'url' : 'repo');
+          setField(s.source ?? s.project.rootPath);
+        }
         if (!s.brief) say('Start with the story: what this is, who it is for, and what a visitor should do.');
         else if (!s.audited) {
           say('Planning from the story…', true);
@@ -145,8 +180,35 @@ export function App() {
   // ---------- actions ----------
   const maxxIt = useCallback(async () => {
     if (mode === 'url') {
-      setRecreating(true);
-      say(`Recreating ${field || 'the site'} as code…`, true);
+      if (!field.trim()) return showToast('Paste a page URL first', true);
+      // A page already rebuilt opens where it was left; nothing is captured twice.
+      const host = (u: string) => {
+        try {
+          return new URL(/^[a-z]+:\/\//i.test(u) ? u : `https://${u}`).href.replace(/\/$/, '');
+        } catch {
+          return u;
+        }
+      };
+      const known = projects.find((p) => p.source && host(p.source) === host(field.trim()));
+      if (known) {
+        setSelected(null);
+        await loadProject(known.id);
+        return;
+      }
+      setRecreate({ url: field.trim(), current: 'Opening the page' });
+      say(`Rebuilding ${field.trim()} as code…`, true);
+      try {
+        const r = await hub.rpc<{ projectId: string; url: string }>('recreate_url', { url: field.trim() });
+        setProjects(await hub.rpc<Project[]>('projects.list'));
+        setSelected(null);
+        setEditingStory(false);
+        await loadProject(r.projectId);
+        setRecreate(null);
+        say('v1 is saved. Now tell the story: what this is, who it is for, and what a visitor should do.');
+      } catch (e) {
+        setRecreate((x) => ({ url: x?.url ?? field, current: null, error: (e as Error).message }));
+        say('Ready');
+      }
       return;
     }
     const existing = projects.find((p) => p.rootPath === field || p.name === field);
@@ -169,7 +231,7 @@ export function App() {
       showToast((e as Error).message, true);
       say('Ready');
     }
-  }, [mode, field, projects, hub, say, showToast]);
+  }, [mode, field, projects, hub, say, showToast, loadProject]);
 
   const passById = useCallback((id: string) => state?.passes.find((p) => p.id === id), [state]);
 
@@ -212,6 +274,8 @@ export function App() {
       const s = await call<ProjectState>('decide_pass', { pass_id: passId, action, variant_id: variantId, dwell_ms: dwell(passId) });
       if (!s) return;
       const np = s.passes.find((x) => x.id === passId)!;
+      if (action === 'reject') setLastSkipped(np.baseStatus === 'rejected' ? passId : null);
+      else if (action !== 'pick') setLastSkipped(null);
       const v = np.variants.find((x) => x.id === np.chosenVariantId);
       if (action === 'pick') say(`Picked <b>${v?.label ?? variantId}</b> for ${np.name}`, true);
       else if (action === 'regenerate') say(`${np.name} regenerated`);
@@ -222,6 +286,7 @@ export function App() {
 
   const setReason = useCallback(
     async (passId: string, chip: ReasonChip) => {
+      window.setTimeout(() => setLastSkipped((x) => (x === passId ? null : x)), 1400);
       const p = passById(passId);
       const next = p?.reason === chip ? null : chip;
       const s = await call<ProjectState>('reject_reason', { pass_id: passId, reason_chip: next });
@@ -335,12 +400,58 @@ export function App() {
     [state, call, say],
   );
 
+  // ---------- guide ----------
+  const guide = useMemo(() => guideOf(state, selected, !!recreate && !recreate.error), [state, selected, recreate]);
+  const focusId = guide.focus?.id ?? null;
+
+  // The page always shows the change in focus, so every decision is made looking at it.
+  useEffect(() => {
+    if (!guided || playingRef.current || !state?.audited || state.viewingVersion) return;
+    const t = window.setTimeout(() => void preview(focusId), 120);
+    return () => window.clearTimeout(t);
+  }, [guided, focusId, state?.audited]);
+
+  // A change made stale by an earlier decision is rebuilt on the spot, so the guide never stops
+  // to ask for a chore.
+  const regenerated = useRef(new Set<string>());
+  useEffect(() => {
+    const f = guide.focus;
+    if (!guided || !f || f.baseStatus !== 'stale' || state?.busy || regenerated.current.has(f.id + f.seed)) return;
+    regenerated.current.add(f.id + f.seed);
+    void decide(f.id, 'regenerate');
+  }, [guided, guide.focus, state?.busy]);
+
+  const guideAction = useCallback(
+    async (a: GuideAction) => {
+      const f = guide.focus;
+      if (a === 'keep' && f) await decide(f.id, 'approve');
+      else if (a === 'skip' && f) await decide(f.id, 'reject');
+      else if (a === 'regenerate' && f) await decide(f.id, 'regenerate');
+      else if (a === 'reroll' && f) await reroll(f.id);
+      else if (a === 'commit') await commit();
+      else if (a === 'randomize') await reroll();
+      else if (a === 'story') setEditingStory(true);
+      if (a === 'keep' || a === 'skip') setSelected(null);
+    },
+    [guide.focus, decide, reroll, commit],
+  );
+
   // ---------- keyboard ----------
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (!state) return;
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+      if (guided && !editingStory) {
+        const f = guide.focus;
+        if (e.key === 'Enter' && guide.primary && tag !== 'BUTTON') {
+          e.preventDefault();
+          void guideAction(guide.primary.action);
+        } else if ((e.key === 's' || e.key === 'S') && f) void guideAction('skip');
+        else if ((e.key === 'd' || e.key === 'D') && f) void guideAction('reroll');
+        else if (/^[1-5]$/.test(e.key) && f?.variants[Number(e.key) - 1]) void decide(f.id, 'pick', f.variants[Number(e.key) - 1].id);
+        return;
+      }
       const rows = state.passes.filter((p) => p.status !== 'skipped');
       const idx = rows.findIndex((p) => p.id === selected);
       if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
@@ -369,7 +480,7 @@ export function App() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [state, selected, passById, preview, decide, commit, reroll]);
+  }, [state, selected, passById, preview, decide, commit, reroll, guided, editingStory, guide, guideAction]);
 
   const approvedCount = state?.passes.filter((p) => p.status === 'approved').length ?? 0;
 
@@ -378,9 +489,10 @@ export function App() {
       <TopBar
         mode={mode}
         onMode={(m) => {
+          modeTouched.current = true;
           setMode(m);
-          setField(m === 'url' ? 'https://example.com' : (state?.project.rootPath ?? projects[0]?.rootPath ?? ''));
-          if (m === 'repo') setRecreating(false);
+          setField(m === 'url' ? (state?.source ?? '') : state && !state.source ? state.project.rootPath : (projects.find((p) => !p.rootPath.includes('sites'))?.rootPath ?? ''));
+          if (m === 'repo') setRecreate(null);
         }}
         field={field}
         onField={setField}
@@ -394,7 +506,7 @@ export function App() {
       />
       <main className="main">
         <section className="stage" aria-label="Live preview">
-          <StepRail state={state} recreating={recreating} mode={mode} />
+          <StepRail step={editingStory || (state && !state.brief) ? 1 : guide.step} mode={mode} />
           <div className="stagebar">
             <div className="seg" role="group" aria-label="Compare">
               <button aria-pressed={state?.view === 'current' && !state?.viewingVersion} onClick={() => setView('current')}>
@@ -409,7 +521,7 @@ export function App() {
               <span dangerouslySetInnerHTML={{ __html: state?.busy ? `${state.busy}…` : live.text }} />
             </div>
           </div>
-          <Stage state={state} mode={mode} field={field} recreating={recreating} onRecreated={() => setRecreating(false)} />
+          <Stage state={recreate && !recreate.error ? null : state} recreate={recreate} onCloseRecreate={() => setRecreate(null)} />
         </section>
         <Queue
           state={state}
@@ -438,6 +550,11 @@ export function App() {
           onCancelStory={state?.brief ? () => setEditingStory(false) : undefined}
           onSaveStory={saveStory}
           rpc={(m, p) => hub.rpc(m, p)}
+          guide={guide}
+          guided={guided}
+          onGuided={setGuided}
+          onGuideAction={(a) => void guideAction(a)}
+          lastSkipped={lastSkipped ? (passById(lastSkipped) ?? null) : null}
         />
       </main>
       <div className={'toast' + (toast ? ' show' : '') + (toast?.err ? ' err' : '')} role="status">

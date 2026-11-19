@@ -337,4 +337,8 @@ export interface ProjectState {
   busy: string | null;
   brief: Brief | null;
   mood: Mood | null;
+  /** The page a recreated project was made from, or null for a repo. */
+  source: string | null;
+  /** A first draft of the story read from the page, until the owner tells it. */
+  suggestedBrief: Partial<Brief> | null;
 }

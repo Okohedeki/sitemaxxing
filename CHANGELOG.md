@@ -17,6 +17,14 @@ This file is managed by Changesets. Run `pnpm changeset` to add an entry.
 - Hero layout: seven compositions for the first screen, picked per brief like palettes and
   sections. Imagery no longer forces every photo into one full-bleed overlay.
 - New sections: lead figure, step path and inline ask, so Randomize always has another option.
+- Any URL: paste a public page and it is rebuilt as an editable Vite + React project, committed as
+  v1, served and opened, with a first draft of the story read from the page. Pages behind a bot
+  check are refused with a clear message.
+- Guided control room: one decision at a time (direction, then each change, already previewed),
+  with Keep / Skip / Show me others, a "why skip?" question that leans the next options, and a
+  Save step. The full queue is one click away.
+- The hub records what it has applied on disk and takes it back on the next start, so a killed
+  process no longer leaves a project looking like it has someone else's uncommitted edits.
 - Reason chips steer: saying why a pass was rejected leans its next roll (calmer, bolder, closer
   to the brief, more classic), and the rest of the page a little. The row shows the lean.
 - Opening a project a second time keeps the changes already applied on disk.

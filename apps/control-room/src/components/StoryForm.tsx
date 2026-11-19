@@ -14,7 +14,7 @@ export interface StoryDraft {
   noise: number;
 }
 
-export function draftFrom(brief: Brief | null): StoryDraft {
+export function draftFrom(brief: Partial<Brief> | null): StoryDraft {
   return {
     story: brief?.story ?? '',
     audience: brief?.audience ?? '',
@@ -27,8 +27,23 @@ export function draftFrom(brief: Brief | null): StoryDraft {
 }
 
 /** Step 1. Nothing is planned until the owner says what this is, who it is for and what it must do. */
-export function StoryForm({ brief, busy, onSubmit, onCancel }: { brief: Brief | null; busy: boolean; onSubmit: (d: StoryDraft) => void; onCancel?: () => void }) {
-  const [d, setD] = useState<StoryDraft>(() => draftFrom(brief));
+export function StoryForm({
+  brief,
+  suggested,
+  source,
+  busy,
+  onSubmit,
+  onCancel,
+}: {
+  brief: Brief | null;
+  suggested?: Partial<Brief> | null;
+  source?: string | null;
+  busy: boolean;
+  onSubmit: (d: StoryDraft) => void;
+  onCancel?: () => void;
+}) {
+  const [d, setD] = useState<StoryDraft>(() => draftFrom(brief ?? suggested ?? null));
+  const drafted = !brief && !!suggested?.story;
   const [custom, setCustom] = useState('');
   const set = <K extends keyof StoryDraft>(k: K, v: StoryDraft[K]) => setD((x) => ({ ...x, [k]: v }));
   const feeling = useMemo(() => [...new Set([...d.feeling, ...custom.split(',').map((s) => s.trim().toLowerCase()).filter(Boolean)])], [d.feeling, custom]);
@@ -46,8 +61,14 @@ export function StoryForm({ brief, busy, onSubmit, onCancel }: { brief: Brief | 
       }}
     >
       <div className="story-head">
+        <small className="stepno">Step 1 of 4 · Story</small>
         <h2>Start with the story</h2>
         <p>Sitemaxxing plans the changes from this. Two sites with different stories should not end up looking alike.</p>
+        {drafted ? (
+          <p className="drafted">
+            Drafted from {source ? new URL(source).host : 'the page'}. Put it in your own words and say who it is for; that is what makes the plan yours.
+          </p>
+        ) : null}
       </div>
 
       <label className="field">

@@ -18,6 +18,7 @@ export * as jsonEdit from './edit/json';
 export * from './playground';
 export * from './brief';
 export * from './taste';
+export * from './recreate';
 export * from './planner';
 export * from './random';
 export * from './color';

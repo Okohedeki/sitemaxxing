@@ -36,8 +36,27 @@ git history, so commits never touch this repo), and starts everything:
 | 5173 | Fieldnote, a sloppy SaaS landing page |
 | 5174 | Isvik Expeditions, a sloppy travel landing page |
 
-Open http://localhost:4747 and tell the story. Then hover a row to preview it, pick a Fit, Stretch or
-Wildcard, approve, and press Commit.
+Open http://localhost:4747. Paste any public page under **Any URL**, or pick a sample under
+**My repo**, and the guide takes it from there, one decision at a time:
+
+1. **Paste a page.** Sitemaxxing opens it in a headless browser, reads the brand, navigation, first
+   screen, sections, facts, a quote and the footer, plus the computed colours, fonts and corner
+   radius, and writes them as a small Vite + React project with its own git history. That commit is
+   **v1**. The copy is the page's own and images still load from the original site; nothing on the
+   live site changes. Pages that show a bot check to automated visitors cannot be read, and
+   Sitemaxxing says so rather than trying to get past it. Pasting the same page again reopens it.
+2. **Story.** A first draft is read from the page (its description, a likely goal from its call to
+   action). Put it in your own words and say who it is for.
+3. **Pick a direction.** Three takes on the story, each previewed on the page as you hover.
+4. **Refine.** One change at a time, already showing on the page: **Keep it** (Enter), **Skip it**
+   (S) or **Show me others** (D). Skipping asks why, and the answer leans the next options.
+5. **Save.** Commit the kept changes as the next version.
+
+**Show every change** switches to the full queue (hover rows, approve and reject in any order);
+**Guide me** switches back.
+
+Rebuilt pages live in `.playground/sites/` under `pnpm dev` and in `~/.sitemaxxing/sites/` under
+`sitemaxxing dev`. Each is an ordinary project: open it in an editor, run `npm run dev`, or push it.
 
 ### On your own Vite + React site
 
@@ -57,7 +76,7 @@ Non-Vite sites add one line in development only:
 claude mcp add sitemaxxing --transport http http://localhost:3333/mcp
 ```
 
-Then: `set_brief` → `audit_page` → `preview_pass` → `decide_pass` (or `reroll_pass`) → `commit_version`. Agents that edit code
+Start from a page with `recreate_url`, or from a repo with `init_project`. Then: `set_brief` → `audit_page` → `preview_pass` → `decide_pass` (or `reroll_pass`) → `commit_version`. Agents that edit code
 directly can call `report_pass` to highlight what they changed in the overlay.
 
 ### CLI

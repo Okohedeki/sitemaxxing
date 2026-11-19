@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { PassView, ProjectState, ReasonChip } from '@sitemaxxing/core/protocol';
 import { REASON_CHIPS, describeMood } from '@sitemaxxing/core/protocol';
 import { StoryCard, StoryForm, type StoryDraft } from './StoryForm';
+import { guidedPasses, type Guide, type GuideAction } from '../guide';
 
 const icons = {
   eye: (
@@ -71,6 +72,8 @@ function Row(props: {
   onReason: (chip: ReasonChip) => void;
   onReroll: () => void;
   rpc: (method: string, params: Record<string, unknown>) => Promise<unknown>;
+  /** Shown inside the guide card: no number, title or action column of its own. */
+  guided?: boolean;
 }) {
   const { p } = props;
   const [why, setWhy] = useState<RuleCard[] | null>(null);
@@ -90,12 +93,13 @@ function Row(props: {
     <li
       id={'row-' + p.id}
       className={['item', enter ? 'enter' : '', p.baseStatus === 'rejected' ? 'rejected' : '', p.status === 'previewing' ? 'previewing' : '', p.status === 'skipped' ? 'skipped' : '', props.selected ? 'selected' : ''].join(' ')}
-      onMouseEnter={() => !locked && props.onHover(p.id)}
-      onMouseLeave={() => !locked && props.onHover(null)}
+      onMouseEnter={() => !locked && !props.guided && props.onHover(p.id)}
+      onMouseLeave={() => !locked && !props.guided && props.onHover(null)}
       onClick={props.onSelect}
     >
-      <span className="num">{String(props.index + 1).padStart(2, '0')}</span>
+      {props.guided ? null : <span className="num">{String(props.index + 1).padStart(2, '0')}</span>}
       <div>
+        {props.guided ? null : (
         <h3>
           <span className="t">{p.name}</span>
           <span className={'chip ' + cls}>{label}</span>
@@ -116,8 +120,9 @@ function Row(props: {
             </button>
           ) : null}
         </h3>
+        )}
         <p>{p.status === 'skipped' ? `Skipped: ${p.skipReason ?? 'already fine'}` : (p.summary ?? p.description)}</p>
-        {p.status !== 'skipped' && p.rationale ? <p className="rationale">{p.rationale}</p> : null}
+        {p.status !== 'skipped' && p.rationale && !props.guided ? <p className="rationale">{p.rationale}</p> : null}
         {p.status === 'stale' ? (
           <div className="reasons">
             <button className="btn small" onClick={(e) => (e.stopPropagation(), props.onDecide('regenerate'))}>
@@ -163,7 +168,7 @@ function Row(props: {
             ))}
           </div>
         ) : null}
-        {p.baseStatus === 'rejected' ? (
+        {p.baseStatus === 'rejected' && !props.guided ? (
           <div className="reasons" aria-label="Why not?">
             {REASON_CHIPS.map((c) => (
               <button key={c} aria-pressed={p.reason === c} onClick={(e) => (e.stopPropagation(), props.onReason(c))}>
@@ -172,7 +177,7 @@ function Row(props: {
             ))}
           </div>
         ) : null}
-        {p.reason && p.lean.length && !locked ? (
+        {p.reason && p.lean.length && !locked && !props.guided ? (
           <div className="lean">
             <span>
               Next roll leans <b>{p.lean.join(', ')}</b>
@@ -202,7 +207,13 @@ function Row(props: {
             ))}
           </div>
         ) : null}
+        {props.guided && p.ruleCards.length ? (
+          <button className="why" onClick={(e) => (e.stopPropagation(), void loadWhy())}>
+            {why ? 'hide the why' : 'why this?'}
+          </button>
+        ) : null}
       </div>
+      {props.guided ? null : (
       <div className="acts">
         <button className="ib dice" title="Re-roll: new options for this pass (D)" aria-label={`Re-roll ${p.name}`} disabled={locked} onClick={(e) => (e.stopPropagation(), props.onReroll())}>
           {icons.dice}
@@ -217,6 +228,7 @@ function Row(props: {
           {icons.no}
         </button>
       </div>
+      )}
     </li>
   );
 }
@@ -241,15 +253,21 @@ export function Queue(props: {
   onCancelStory?: () => void;
   onSaveStory: (d: StoryDraft) => void;
   rpc: (method: string, params: Record<string, unknown>) => Promise<unknown>;
+  guide: Guide;
+  guided: boolean;
+  onGuided: (on: boolean) => void;
+  onGuideAction: (a: GuideAction) => void;
+  lastSkipped: PassView | null;
 }) {
   const { state } = props;
   if (state && props.editingStory) {
     return (
       <aside className="panel" aria-label="Story">
-        <StoryForm brief={state.brief} busy={!!state.busy} onSubmit={props.onSaveStory} onCancel={props.onCancelStory} />
+        <StoryForm brief={state.brief} suggested={state.suggestedBrief} source={state.source} busy={!!state.busy} onSubmit={props.onSaveStory} onCancel={props.onCancelStory} />
       </aside>
     );
   }
+  if (props.guided) return <GuidedPanel {...props} />;
   const passes = state?.passes ?? [];
   const open = passes.filter((p) => p.status !== 'skipped');
   const groups: Array<[string, PassView[]]> = [
@@ -281,6 +299,9 @@ export function Queue(props: {
             </button>
           </div>
           <div style={{ display: 'flex', gap: 6 }}>
+            <button className="btn" onClick={() => props.onGuided(true)} title="One decision at a time">
+              Guide me
+            </button>
             <button className="btn" onClick={props.onApproveAll} disabled={!state?.audited}>
               Approve all
             </button>
@@ -343,5 +364,128 @@ function GroupRows({ title, children }: { title: string; children: React.ReactNo
       <li className="group">{title}</li>
       {children}
     </>
+  );
+}
+
+const STEP_NAMES = ['Start', 'Story', 'Direction', 'Refine', 'Save', 'Saved'];
+
+/** One decision at a time: the guide card holds the pass in focus and its actions. */
+function GuidedPanel(props: Parameters<typeof Queue>[0]) {
+  const { state, guide } = props;
+  const all = state ? guidedPasses(state) : [];
+  const focus = guide.focus;
+  const upcoming = all.filter((p) => p.id !== focus?.id && (p.baseStatus === 'proposed' || p.baseStatus === 'stale'));
+  const decided = all.filter((p) => p.baseStatus === 'approved' || p.baseStatus === 'rejected');
+  const active = state?.viewingVersion ?? state?.currentVersion ?? 1;
+  const pct = guide.progress ? Math.round((guide.progress.done / Math.max(1, guide.progress.total)) * 100) : guide.step >= 4 ? 100 : 0;
+  const run = (a: GuideAction) => props.onGuideAction(a);
+  return (
+    <aside className="panel guided" aria-label="Guide">
+      <div className="phead">
+        <div className="row">
+          <h2>{guide.step === 0 ? 'Start' : `Step ${Math.min(guide.step, 4)} of 4 · ${STEP_NAMES[guide.step]}`}</h2>
+          <button className="linkish" onClick={() => props.onGuided(false)}>
+            Show every change
+          </button>
+        </div>
+        <div className="gbar" aria-hidden="true">
+          <i style={{ width: `${pct}%` }} />
+        </div>
+      </div>
+      {state?.brief && guide.step > 0 ? <StoryCard brief={state.brief} mood={state.mood ? describeMood(state.mood) : []} onEdit={props.onEditStory} /> : null}
+      <div className="guide" aria-live="polite">
+        {props.lastSkipped ? (
+          <div className="askwhy">
+            <span>
+              Why skip <b>{props.lastSkipped.name}</b>? The next options lean the other way.
+            </span>
+            <div className="reasons">
+              {REASON_CHIPS.map((c) => (
+                <button key={c} aria-pressed={props.lastSkipped!.reason === c} onClick={() => props.onReason(props.lastSkipped!.id, c)}>
+                  {c}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
+        <h3>{guide.title}</h3>
+        <p className="gbody">{guide.body}</p>
+        {focus ? (
+          <ul className="list focus">
+            <Row
+              p={focus}
+              index={0}
+              current={state?.currentVersion ?? 1}
+              selected
+              guided
+              onSelect={() => undefined}
+              onHover={props.onHover}
+              onHoverVariant={props.onHoverVariant}
+              onPreviewClick={() => props.onPreviewClick(focus.id)}
+              onDecide={(a, v) => props.onDecide(focus.id, a, v)}
+              onReason={(c) => props.onReason(focus.id, c)}
+              onReroll={() => props.onReroll(focus.id)}
+              rpc={props.rpc}
+            />
+          </ul>
+        ) : null}
+        {guide.primary ? (
+          <div className="gacts">
+            <button className="btn primary" disabled={!!state?.busy} onClick={() => run(guide.primary!.action)}>
+              {guide.primary.label}
+            </button>
+            {(guide.secondary ?? []).map((b) => (
+              <button key={b.label} className="btn" disabled={!!state?.busy} onClick={() => run(b.action)}>
+                {b.label}
+              </button>
+            ))}
+          </div>
+        ) : null}
+        {focus ? (
+          <div className="kbd tight">
+            <b>Enter</b> keep · <b>S</b> skip · <b>D</b> other options{focus.variants.length ? ' · ' : ''}
+            {focus.variants.length ? (
+              <>
+                <b>1</b>
+                <b>2</b>
+                <b>3</b> pick
+              </>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+      <ul className="list minis" hidden={guide.step === 0}>
+        {!state?.audited && state?.brief ? <li className="mini muted">Planning…</li> : null}
+        {upcoming.length ? <li className="group">Up next</li> : null}
+        {upcoming.map((p) => (
+          <li key={p.id} className="mini" onClick={() => props.onSelect(p.id)} title="Look at this one now">
+            <span>{p.name}</span>
+            <span className="fit" title={`How much this matters for this story: ${p.impact}/100`}>
+              <i style={{ width: `${Math.max(6, p.impact)}%` }} />
+            </span>
+          </li>
+        ))}
+        {decided.length ? <li className="group">Decided</li> : null}
+        {decided.map((p) => (
+          <li key={p.id} className={'mini ' + p.baseStatus}>
+            <span>{p.name}</span>
+            <span className={'chip ' + p.baseStatus}>{p.baseStatus === 'approved' ? 'Kept' : 'Skipped'}</span>
+            <button className="linkish" onClick={() => props.onDecide(p.id, p.baseStatus === 'approved' ? 'approve' : 'reject')} title="Put it back in the queue">
+              undo
+            </button>
+          </li>
+        ))}
+      </ul>
+      <div className="pfoot">
+        <h4>Versions</h4>
+        <div className="versions">
+          {(state?.versions ?? []).map((v) => (
+            <button key={v.number} aria-pressed={v.number === active} title={v.label} onClick={() => props.onVersion(v.number)}>
+              v{v.number} · {v.score}
+            </button>
+          ))}
+        </div>
+      </div>
+    </aside>
   );
 }

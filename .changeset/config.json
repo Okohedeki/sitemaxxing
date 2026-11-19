@@ -7,5 +7,5 @@
   "access": "public",
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
-  "ignore": ["sample-fieldnote", "sample-isvik", "control-room"]
+  "ignore": ["sample-fieldnote", "sample-isvik", "site-template", "control-room"]
 }

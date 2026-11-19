@@ -30,7 +30,9 @@ export type HubEvent =
   | { type: 'state'; projectId: string; ts: number; state: ProjectState }
   | { type: 'busy'; projectId: string; ts: number; what: string | null }
   | { type: 'hello'; projectId: ''; ts: number; projects: Array<{ id: string; name: string; devUrl: string }> }
-  | { type: 'error'; projectId: string; ts: number; message: string };
+  | { type: 'error'; projectId: string; ts: number; message: string }
+  /** Progress while a URL is recreated as code; `what` is null when it finishes or fails. */
+  | { type: 'recreate.step'; projectId: ''; ts: number; url: string; what: string | null };
 
 export type HubEventType = HubEvent['type'];
 

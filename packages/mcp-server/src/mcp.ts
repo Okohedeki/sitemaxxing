@@ -37,6 +37,19 @@ export async function createMcpServer(engine: Engine) {
     return text(r);
   });
   server.registerTool(
+    'recreate_url',
+    {
+      description:
+        'Start from any public page: captures it, writes it as an editable React project with the copy, colours and fonts of the page, commits that as v1, serves it and registers it. Returns the project id and the baseline Mog score. Then tell the story with set_brief.',
+      inputSchema: { url: z.string() },
+    },
+    async ({ url }) => {
+      const r = await engine.recreate(url);
+      lastProject = r.projectId;
+      return text({ ...r, suggested_brief: engine.state(r.projectId).suggestedBrief });
+    },
+  );
+  server.registerTool(
     'set_brief',
     {
       description:

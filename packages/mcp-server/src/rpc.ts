@@ -19,6 +19,7 @@ export function rpcHandlers(engine: Engine): Record<string, Handler> {
       await ensureLoaded(pid(p));
       return engine.state(pid(p));
     },
+    recreate_url: async (p) => engine.recreate(String(p.url ?? '')),
     init_project: async (p) => engine.initProject(String(p.path), p.dev_url ? String(p.dev_url) : undefined),
     audit_page: async (p) => {
       await ensureLoaded(pid(p));

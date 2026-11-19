@@ -108,7 +108,9 @@ cli
       const candidates = [path.join(here, '..', 'control-room'), path.join(here, '..', '..', '..', 'apps', 'control-room', 'dist')];
       return candidates.find((c) => fs.existsSync(path.join(c, 'index.html')));
     })();
-    const hub = await startHub({ port: Number(opts.port), controlRoomDir, controlRoomPort: Number(opts.controlRoomPort), registryFile: registryFile() });
+    const template = [path.join(here, '..', 'site-template'), path.join(here, '..', '..', '..', 'apps', 'site-template')].find((c) => fs.existsSync(path.join(c, 'node_modules')));
+    const sites = template ? { dir: path.join(os.homedir(), '.sitemaxxing', 'sites'), template } : undefined;
+    const hub = await startHub({ port: Number(opts.port), controlRoomDir, controlRoomPort: Number(opts.controlRoomPort), registryFile: registryFile(), sites });
     if (fs.existsSync(path.join(root, 'package.json'))) {
       try {
         const r = await hub.engine.initProject(root);

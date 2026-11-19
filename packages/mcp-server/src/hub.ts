@@ -20,6 +20,8 @@ export interface HubOptions {
   controlRoomDir?: string;
   controlRoomPort?: number;
   versionPortBase?: number;
+  /** Folder for sites recreated from a URL, and the template app they start from. */
+  sites?: { dir: string; template: string };
 }
 
 export interface Hub {
@@ -60,6 +62,7 @@ export async function startHub(opts: HubOptions = {}): Promise<Hub> {
     registryFile: opts.registryFile,
     log,
     versionPortBase: opts.versionPortBase,
+    sites: opts.sites,
   });
 
   const overlayFile = overlayPath();

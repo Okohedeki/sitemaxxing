@@ -16,6 +16,8 @@ import { readTokens } from './tokens';
 import { createLLM } from './llm';
 import { downstreamOf } from './registry';
 import { normalizeBrief, moodOf } from './brief';
+import { captureSite, normalizeUrl, siteDirFor, siteFiles } from './recreate';
+import net from 'node:net';
 import { applyLean, describeLean, isNeutral, leanFor } from './taste';
 import { plan, type Detection } from './planner';
 import { hashSeed, newSeed } from './random';
@@ -53,7 +55,15 @@ export interface EngineDeps {
   log?: (msg: string) => void;
   /** Base port for read-only version servers. */
   versionPortBase?: number;
+  /**
+   * Where sites recreated from a URL are written, and the template app whose files and installed
+   * dependencies they start from. Without it, recreating from a URL is unavailable.
+   */
+  sites?: { dir: string; template: string };
 }
+
+/** Marks a project folder as recreated from a URL. */
+const RECREATED = path.join('.sitemaxxing', 'recreated.json');
 
 interface AppliedPatch {
   defId: string;
@@ -129,9 +139,12 @@ export class Engine {
     fs.writeFileSync(this.registryPath(), JSON.stringify(rows, null, 2));
   }
 
-  listProjects(): Array<{ id: string; name: string; devUrl: string; rootPath: string; loaded: boolean }> {
-    const loaded = [...this.projects.values()].map((r) => ({ id: r.project.id, name: r.project.name, devUrl: r.project.devUrl, rootPath: r.project.rootPath, loaded: true }));
-    const reg = this.readRegistry().filter((r) => !this.projects.has(r.id) && fs.existsSync(r.rootPath)).map((r) => ({ ...r, loaded: false }));
+  listProjects(): Array<{ id: string; name: string; devUrl: string; rootPath: string; loaded: boolean; source: string | null }> {
+    const source = (root: string) => json.parse<{ url?: string } | null>(readIf(path.join(root, RECREATED)), null)?.url ?? null;
+    const loaded = [...this.projects.values()].map((r) => ({ id: r.project.id, name: r.project.name, devUrl: r.project.devUrl, rootPath: r.project.rootPath, loaded: true, source: source(r.project.rootPath) }));
+    const reg = this.readRegistry()
+      .filter((r) => !this.projects.has(r.id) && fs.existsSync(r.rootPath))
+      .map((r) => ({ ...r, loaded: false, source: source(r.rootPath) }));
     return [...loaded, ...reg];
   }
 
@@ -161,7 +174,7 @@ export class Engine {
     const project: Project = {
       id,
       name,
-      mode: 'repo',
+      mode: fs.existsSync(path.join(root, RECREATED)) ? 'url' : 'repo',
       rootPath: root,
       devUrl: config.devUrl,
       category: config.category,
@@ -170,7 +183,7 @@ export class Engine {
     db.prepare(
       `INSERT INTO projects(id,name,mode,root_path,dev_url,category,created_at) VALUES(?,?,?,?,?,?,?)
        ON CONFLICT(id) DO UPDATE SET name=excluded.name, dev_url=excluded.dev_url, category=excluded.category, root_path=excluded.root_path`,
-    ).run(id, name, 'repo', root, config.devUrl, config.category ?? null, project.createdAt);
+    ).run(id, name, project.mode, root, config.devUrl, config.category ?? null, project.createdAt);
 
     const old = this.projects.get(id);
     if (old?.versionServer) this.stopVersionServer(old);
@@ -217,7 +230,7 @@ export class Engine {
         audited: old.audited,
       });
       if (old.measureTimer) clearTimeout(old.measureTimer);
-    }
+    } else this.restoreApplied(rt);
     this.loadBrief(rt);
     for (const r of db.prepare('SELECT def_id, seed FROM passes WHERE project_id = ?').all(id) as any[]) if (r.seed != null) rt.seeds[r.def_id] = Number(r.seed);
     this.projects.set(id, rt);
@@ -262,7 +275,68 @@ export class Engine {
   async loadRegistered(id: string): Promise<void> {
     const r = this.readRegistry().find((x) => x.id === id);
     if (!r) throw new Error(`unknown project ${id}`);
+    // A recreated site has no dev server of its own running; start it again on its port.
+    if (fs.existsSync(path.join(r.rootPath, RECREATED)) && !(await waitForUrl(r.devUrl, 600))) await this.serveSite(r.rootPath, r.devUrl);
     await this.initProject(r.rootPath, r.devUrl);
+  }
+
+  private siteServers = new Map<string, ChildProcess>();
+
+  private async serveSite(dir: string, devUrl: string): Promise<void> {
+    const port = Number(new URL(devUrl).port);
+    const old = this.siteServers.get(dir);
+    if (old) killTree(old);
+    const proc = spawnVite(dir, port);
+    this.siteServers.set(dir, proc);
+    if (!(await waitForUrl(devUrl, 40_000))) throw new Error(`the recreated site did not start on ${devUrl}`);
+  }
+
+  /**
+   * Any URL: captures a public page, writes it as a small React project with the page's own copy,
+   * colours and fonts, commits that as v1, serves it, and opens it as a project. The story is left
+   * for the owner, with a first draft read from the page.
+   */
+  async recreate(input: string): Promise<{ projectId: string; url: string; rootPath: string; baseline: number | null }> {
+    const sites = this.deps.sites;
+    if (!sites) throw new Error('Recreating from a URL needs a sites folder; start Sitemaxxing with `sitemaxxing dev`.');
+    const url = normalizeUrl(input);
+    const step = (what: string | null) => this.deps.emit({ type: 'recreate.step', projectId: '', ts: Date.now(), url, what });
+    try {
+      const browser = await this.deps.browser();
+      const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 });
+      const page = await context.newPage();
+      let cap;
+      try {
+        cap = await captureSite(page, url, step);
+      } catch (e) {
+        throw new Error(`Could not read ${url}: ${(e as Error).message.split('\n')[0]}`);
+      } finally {
+        await context.close().catch(() => undefined);
+      }
+      step('Writing it as code');
+      fs.mkdirSync(sites.dir, { recursive: true });
+      const dir = siteDirFor(sites.dir, url);
+      const port = await freePort();
+      const devUrl = `http://localhost:${port}`;
+      copyTemplate(sites.template, dir);
+      const modulesDir = path.join(sites.template, 'node_modules');
+      for (const [rel, text] of Object.entries(siteFiles(cap, { devUrl, modulesDir }))) {
+        fs.mkdirSync(path.dirname(path.join(dir, rel)), { recursive: true });
+        fs.writeFileSync(path.join(dir, rel), text);
+      }
+      fs.writeFileSync(path.join(dir, RECREATED), JSON.stringify({ url, capturedAt: now() }, null, 2) + '\n');
+      linkNodeModules(sites.template, dir);
+      gitx.git(dir, ['init', '-q', '-b', 'main']);
+      gitx.git(dir, ['add', '-A']);
+      gitx.git(dir, ['-c', 'user.name=Sitemaxxing', '-c', 'user.email=sitemaxxing@localhost', 'commit', '-q', '-m', `v1: recreated from ${url}`, '--no-verify']);
+      step('Starting its dev server');
+      await this.serveSite(dir, devUrl);
+      step('Measuring v1');
+      const r = await this.initProject(dir, devUrl);
+      return { projectId: r.projectId, url, rootPath: dir, baseline: r.baseline };
+    } finally {
+      step(null);
+    }
   }
 
   private rt(projectId: string): Runtime {
@@ -675,6 +749,8 @@ export class Engine {
       busy: rt.busy,
       brief: rt.brief,
       mood: rt.mood,
+      source: rt.project.mode === 'url' ? (json.parse<{ url?: string } | null>(readIf(path.join(rt.project.rootPath, RECREATED)), null)?.url ?? null) : null,
+      suggestedBrief: rt.brief ? null : json.parse<Partial<Brief> | null>(readIf(path.join(rt.dir, 'suggested-brief.json')), null),
     };
   }
 
@@ -788,8 +864,42 @@ export class Engine {
       }
     } finally {
       this.touchLater(rt, stage.flush());
+      this.persistApplied(rt);
     }
     if (rt.audited && !this.measureSuspended) this.scheduleMeasure(rt);
+  }
+
+  /**
+   * What is applied on disk, kept next to the database. If the hub stops without cleaning up (a
+   * killed process, a crash), the next start can take back exactly its own edits.
+   */
+  private persistApplied(rt: Runtime) {
+    try {
+      fs.writeFileSync(path.join(rt.dir, 'applied.json'), JSON.stringify({ applied: rt.applied, extraFiles: [...rt.extraFiles] }));
+    } catch (e) {
+      this.log(`could not record applied patches: ${(e as Error).message}`);
+    }
+  }
+
+  /** Reverses patches a previous run left applied, so the tree is back at HEAD plus copy edits. */
+  private restoreApplied(rt: Runtime) {
+    const file = path.join(rt.dir, 'applied.json');
+    const saved = json.parse<{ applied: AppliedPatch[]; extraFiles: string[] } | null>(readIf(file), null);
+    if (!saved) return;
+    for (const f of saved.extraFiles ?? []) rt.extraFiles.add(f);
+    if (saved.applied?.length) {
+      const stage = new Staging(rt.project.rootPath);
+      for (const a of [...saved.applied].reverse()) {
+        try {
+          applyStaged(stage, a.text, { reverse: true });
+        } catch (e) {
+          this.log(`could not take back ${a.defId} from an earlier run: ${(e as Error).message}`);
+        }
+      }
+      stage.flush();
+      this.log(`took back ${saved.applied.length} change(s) an earlier run left applied`);
+    }
+    this.persistApplied(rt);
   }
 
   /**
@@ -1157,6 +1267,7 @@ export class Engine {
       cur[parts.at(-1)!] = text;
       fs.writeFileSync(file, JSON.stringify(data, null, 2) + '\n');
       rt.extraFiles.add(toPosix(rt.config.content));
+      this.persistApplied(rt);
       this.deps.emit({ type: 'copy.changed', projectId: rt.project.id, ts: Date.now(), key, old, new: text, selector: `[data-copy="${key}"]` });
       return { old, new: text };
     });
@@ -1237,6 +1348,7 @@ export class Engine {
       for (const a of approved) this.setStatus(rt, a.defId, 'committed');
       rt.applied = [];
       rt.extraFiles.clear();
+      this.persistApplied(rt);
       this.logDecision(rt, null, 'commit', undefined, { shownAlongside: approved.map((a) => this.passRowId(rt, a.defId)) });
       for (const r of rt.db.prepare(`SELECT def_id FROM passes WHERE project_id = ? AND status IN ('rejected','stale')`).all(rt.project.id) as any[]) {
         rt.db.prepare(`UPDATE passes SET status = 'proposed' WHERE id = ?`).run(this.passRowId(rt, r.def_id));
@@ -1377,6 +1489,8 @@ export class Engine {
   }
 
   async close(): Promise<void> {
+    for (const proc of this.siteServers.values()) killTree(proc);
+    this.siteServers.clear();
     for (const rt of this.projects.values()) {
       this.stopVersionServer(rt);
       try {
@@ -1402,6 +1516,40 @@ function safeHighlight(def: PassDefinition, ctx: PassContext, variantId?: string
     return def.highlight(ctx, variantId);
   } catch {
     return [];
+  }
+}
+
+function readIf(file: string): string | null {
+  try {
+    return fs.readFileSync(file, 'utf8');
+  } catch {
+    return null;
+  }
+}
+
+/** A port nothing is listening on right now. */
+export function freePort(): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const srv = net.createServer();
+    srv.unref();
+    srv.on('error', reject);
+    srv.listen(0, () => {
+      const port = (srv.address() as net.AddressInfo).port;
+      srv.close(() => resolve(port));
+    });
+  });
+}
+
+const TEMPLATE_SKIP = new Set(['node_modules', 'dist', '.sitemaxxing', '.git', 'src/App.tsx', 'src/content.json', 'src/tokens.css', 'src/fonts.ts', 'index.html', 'README.md']);
+
+/** Copies the template app's shared files (package.json, Vite config, entry, base styles). */
+function copyTemplate(from: string, to: string, rel = '') {
+  fs.mkdirSync(path.join(to, rel), { recursive: true });
+  for (const e of fs.readdirSync(path.join(from, rel), { withFileTypes: true })) {
+    const r = rel ? `${rel}/${e.name}` : e.name;
+    if (TEMPLATE_SKIP.has(r) || e.isSymbolicLink()) continue;
+    if (e.isDirectory()) copyTemplate(from, to, r);
+    else fs.copyFileSync(path.join(from, r), path.join(to, r));
   }
 }
 

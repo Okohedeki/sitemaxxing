@@ -6,12 +6,21 @@ import { test, expect, type Page } from '@playwright/test';
  */
 
 async function waitForAudit(page: Page) {
-  await expect(page.locator('.item:not(.skipped) h3')).not.toHaveCount(0, { timeout: 120_000 });
+  await expect(page.locator('.item:not(.skipped) h3, .guide .gacts')).not.toHaveCount(0, { timeout: 120_000 });
   await expect(page.locator('.live')).not.toContainText('…', { timeout: 120_000 });
 }
 
 /** Tells the story (fresh projects open on the Story step; existing ones re-plan via Edit). */
-async function tellStory(page: Page) {
+async function tellStory(page: Page, opts: { guided?: boolean } = {}) {
+  // These tests drive the full queue; the guided path has its own test below.
+  await page.addInitScript((g) => {
+    try {
+      localStorage.setItem('sm.guided', g ? 'on' : 'off');
+      localStorage.removeItem('sm.project');
+    } catch {
+      /* ignore */
+    }
+  }, !!opts.guided);
   await page.goto('/');
   const form = page.locator('form.story');
   await expect(form.or(page.locator('.storycard'))).toBeVisible({ timeout: 60_000 });
@@ -116,4 +125,48 @@ test('reduced motion disables the typewriter and animations', async ({ browser }
   const dur = await page.evaluate(() => getComputedStyle(document.querySelector('.dot.on') ?? document.body).animationDuration);
   expect(['0s', '']).toContain(dur);
   await ctx.close();
+});
+
+test('guided: one decision at a time, with a question when something is skipped', async ({ page }) => {
+  await tellStory(page, { guided: true });
+  const guide = page.locator('.guide');
+  await expect(page.locator('.panel.guided h2')).toContainText(/Step [23] of 4/);
+  // Keep whatever is in focus until the refine step, then skip one change.
+  for (let i = 0; i < 3 && !(await guide.locator('h3').textContent())?.startsWith('Change'); i++) {
+    await guide.getByRole('button', { name: /^Keep/ }).click();
+    await expect(page.locator('.live')).not.toContainText('…', { timeout: 60_000 });
+  }
+  await expect(guide.locator('h3')).toContainText(/Change \d+ of \d+/);
+  const first = await guide.locator('h3').textContent();
+  await guide.getByRole('button', { name: 'Skip it' }).click();
+  await expect(guide.locator('.askwhy')).toBeVisible();
+  await guide.locator('.askwhy').getByRole('button', { name: 'too busy' }).click();
+  await expect(guide.locator('h3')).not.toHaveText(first ?? '', { timeout: 60_000 });
+  await expect(page.locator('.mini.rejected')).not.toHaveCount(0);
+  // The full queue is one click away and back.
+  await page.getByRole('button', { name: 'Show every change' }).click();
+  await expect(page.locator('.item:not(.skipped) h3').first()).toBeVisible();
+  await page.getByRole('button', { name: 'Guide me' }).click();
+  await expect(page.locator('.panel.guided')).toBeVisible();
+});
+
+test('Any URL: a pasted page becomes v1 and the story starts from it', async ({ page }) => {
+  await page.addInitScript(() => {
+    try {
+      localStorage.setItem('sm.guided', 'on');
+    } catch {
+      /* ignore */
+    }
+  });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Any URL' }).click();
+  await page.locator('#url').fill('localhost:5174');
+  await page.getByRole('button', { name: 'Maxx it' }).click();
+  await expect(page.locator('.recreate')).toBeVisible();
+  await expect(page.locator('form.story')).toBeVisible({ timeout: 120_000 });
+  await expect(page.locator('.drafted')).toContainText('Drafted from localhost:5174');
+  await expect(page.locator('.chrome em')).toContainText('rebuilt as code');
+  // The stage now serves the rebuilt copy, not the original.
+  await expect(page.frameLocator('.frame iframe').locator('h1[data-copy="headline"]')).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator('.recreate')).toHaveCount(0);
 });

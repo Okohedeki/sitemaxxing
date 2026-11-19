@@ -12,6 +12,7 @@ import type { HubEvent } from './protocol';
 const ROOT = path.resolve(__dirname, '..', '..', '..');
 const SAMPLE = process.env.SITEMAXXING_TEST_SAMPLE ?? 'fieldnote';
 const PORT = SAMPLE === 'isvik' ? 5198 : 5199;
+const sitesDir = () => path.join(ROOT, '.playground', `test-sites-${process.pid}`);
 
 describe(`engine against sample-${SAMPLE}`, () => {
   let browser: Browser;
@@ -34,6 +35,7 @@ describe(`engine against sample-${SAMPLE}`, () => {
       emit: (e) => events.push(e),
       registryFile: path.join(os.tmpdir(), `sitemaxxing-test-${Date.now()}.json`),
       log: (m) => console.log('[engine]', m),
+      sites: { dir: path.join(ROOT, '.playground', `test-sites-${process.pid}`), template: path.join(ROOT, 'apps', 'site-template') },
     });
   }, 90_000);
 
@@ -42,6 +44,12 @@ describe(`engine against sample-${SAMPLE}`, () => {
     await browser?.close();
     if (vite) killTree(vite);
     if (process.env.SITEMAXXING_KEEP) return;
+    try {
+      for (const d of fs.existsSync(sitesDir()) ? fs.readdirSync(sitesDir()) : []) removeTree(path.join(sitesDir(), d));
+      fs.rmSync(sitesDir(), { recursive: true, force: true });
+    } catch {
+      /* best effort */
+    }
     try {
       removeTree(dir);
     } catch {
@@ -205,4 +213,34 @@ describe(`engine against sample-${SAMPLE}`, () => {
     expect(await waitForUrl(url!, 20_000)).toBe(true);
     await engine.viewVersion(projectId, null);
   }, 60_000);
+
+  it('recreates a page from its URL as v1, with a story drafted from it', async () => {
+    const r = await engine.recreate(`localhost:${PORT}`);
+    expect(r.baseline).not.toBeNull();
+    expect(git(r.rootPath, ['rev-list', '--count', 'HEAD'])).toBe('1');
+    expect(git(r.rootPath, ['log', '-1', '--format=%s'])).toMatch(/^v1: recreated from http:\/\/localhost/);
+    const app = fs.readFileSync(path.join(r.rootPath, 'src', 'App.tsx'), 'utf8');
+    expect(app).toContain('data-copy="headline"');
+    const content = JSON.parse(fs.readFileSync(path.join(r.rootPath, 'src', 'content.json'), 'utf8'));
+    expect(content.headline.length).toBeGreaterThan(10);
+    const state = engine.state(r.projectId);
+    expect(state.project.mode).toBe('url');
+    expect(state.source).toMatch(/^http:\/\/localhost/);
+    expect(state.suggestedBrief?.story?.length).toBeGreaterThan(12);
+    expect(engine.listProjects().find((p) => p.id === r.projectId)?.source).toBe(state.source);
+  }, 120_000);
+
+  it('takes back its own edits after a hard stop', async () => {
+    const site = engine.listProjects().find((p) => p.source)!;
+    await engine.setBrief(site.id, { ...engine.state(site.id).suggestedBrief, audience: 'testers' } as any);
+    const planned = await engine.audit(site.id);
+    const direction = planned.passes.find((p) => p.defId === 'direction' && p.status === 'proposed')!;
+    await engine.decide(site.id, direction.id, 'approve');
+    expect(git(site.rootPath, ['status', '--porcelain'])).not.toBe('');
+    // A second engine stands in for a hub that was killed and started again.
+    const again = new Engine({ passes, rules, scorer: scorePage as any, browser: async () => browser, emit: () => undefined, registryFile: path.join(os.tmpdir(), `sitemaxxing-test-b-${Date.now()}.json`) });
+    await again.initProject(site.rootPath, site.devUrl);
+    expect(git(site.rootPath, ['status', '--porcelain'])).toBe('');
+    await again.close();
+  }, 120_000);
 });
