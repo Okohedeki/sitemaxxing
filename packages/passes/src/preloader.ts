@@ -1,13 +1,16 @@
 import { SyntaxKind } from 'ts-morph';
-import { defineComponent, cssEdit, jsxEdit, type Finding, type PatchFile, type Variant } from '@sitemaxxing/core';
-import { COMPONENT_DIR, PRELOADER_CSS, PRELOADER_THUMBS, PRELOADER_TSX } from '@sitemaxxing/components';
+import { defineComponent, cssEdit, jsxEdit, rngFor, type Finding, type PassContext, type PatchFile, type Variant } from '@sitemaxxing/core';
+import { COMPONENT_DIR, PRELOADER_CSS, PRELOADER_TSX, selectComponents, componentIdOf } from '@sitemaxxing/components';
+
+const picks = (ctx: PassContext) => selectComponents('preloader', { mood: ctx.mood, goal: ctx.brief.goal, noise: ctx.brief.noise, rng: rngFor(ctx, 'preloader') });
 import { importPath, readSources } from './shared';
 
 export const preloader = defineComponent({
   id: 'preloader',
   name: 'Preloader',
   order: 12,
-  points: 3,
+  serves: ['mood'],
+  moodBias: { energy: 0.6, formality: -0.3 },
   ruleCards: ['emil-good-vs-great', 'vercel-motion'],
   description: 'A branded load-in that plays once: counter wipe, split curtain, or image stack',
   replay: true,
@@ -18,12 +21,12 @@ export const preloader = defineComponent({
     findings.push({ message: 'no load-in; the page simply appears' });
     return { applies: true, findings };
   },
-  async variants() {
-    const labels: Record<string, string> = { counter: 'Counter wipe', curtain: 'Split curtain', stack: 'Image stack' };
-    return (['counter', 'curtain', 'stack'] as const).map((id): Variant => ({ id, label: labels[id], thumbnail: PRELOADER_THUMBS[id], attributes: { motion: id, duration: 2100 }, source: 'library' }));
+  async variants(ctx) {
+    return picks(ctx).map((p): Variant => ({ id: p.id, label: p.label, thumbnail: p.spec.thumb, attributes: { ...p.attributes, duration: 2100 }, source: 'library' }));
   },
-  async propose(ctx, variantId = 'counter') {
-    const v = ['counter', 'curtain', 'stack'].includes(variantId) ? variantId : 'counter';
+  async propose(ctx, chosen) {
+    const id = componentIdOf(chosen) ?? componentIdOf(picks(ctx)[0]?.id) ?? 'counter';
+    const v = ['counter', 'curtain', 'stack'].includes(id) ? id : 'counter';
     const src = readSources(ctx);
     const files: PatchFile[] = [];
     const path = `${COMPONENT_DIR}/Preloader.tsx`;

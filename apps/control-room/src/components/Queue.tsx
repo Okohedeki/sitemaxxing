@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { PassView, ProjectState, ReasonChip } from '@sitemaxxing/core/protocol';
-import { REASON_CHIPS } from '@sitemaxxing/core/protocol';
+import { REASON_CHIPS, describeMood } from '@sitemaxxing/core/protocol';
+import { StoryCard, StoryForm, type StoryDraft } from './StoryForm';
 
 const icons = {
   eye: (
@@ -19,6 +20,14 @@ const icons = {
       <path d="M4 4l8 8M12 4l-8 8" />
     </svg>
   ),
+  dice: (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
+      <rect x="2.5" y="2.5" width="11" height="11" rx="2.5" />
+      <circle cx="5.6" cy="5.6" r=".9" fill="currentColor" stroke="none" />
+      <circle cx="8" cy="8" r=".9" fill="currentColor" stroke="none" />
+      <circle cx="10.4" cy="10.4" r=".9" fill="currentColor" stroke="none" />
+    </svg>
+  ),
 };
 
 interface RuleCard {
@@ -29,7 +38,9 @@ interface RuleCard {
 }
 
 function chipFor(p: PassView, current: number): [string, string] {
-  switch (p.status) {
+  // A decision outranks a hover: an approved or rejected row stays labelled while it is previewed.
+  const status = p.status === 'previewing' && ['approved', 'rejected'].includes(p.baseStatus) ? p.baseStatus : p.status;
+  switch (status) {
     case 'previewing':
       return ['previewing', 'Previewing'];
     case 'approved':
@@ -59,6 +70,7 @@ function Row(props: {
   onPreviewClick: () => void;
   onDecide: (action: 'approve' | 'reject' | 'pick' | 'regenerate', variantId?: string) => void;
   onReason: (chip: ReasonChip) => void;
+  onReroll: () => void;
   rpc: (method: string, params: Record<string, unknown>) => Promise<unknown>;
 }) {
   const { p } = props;
@@ -88,7 +100,11 @@ function Row(props: {
         <h3>
           <span className="t">{p.name}</span>
           <span className={'chip ' + cls}>{label}</span>
-          {p.status !== 'skipped' ? <span className="pts">+{p.points}</span> : null}
+          {p.status !== 'skipped' ? (
+            <span className="fit" title={`How much this matters for this story: ${p.impact}/100`}>
+              <i style={{ width: `${Math.max(6, p.impact)}%` }} />
+            </span>
+          ) : null}
           {p.ruleCards.length ? (
             <button
               className="why"
@@ -102,6 +118,7 @@ function Row(props: {
           ) : null}
         </h3>
         <p>{p.status === 'skipped' ? `Skipped: ${p.skipReason ?? 'already fine'}` : (p.summary ?? p.description)}</p>
+        {p.status !== 'skipped' && p.rationale ? <p className="rationale">{p.rationale}</p> : null}
         {p.status === 'stale' ? (
           <div className="reasons">
             <button className="btn small" onClick={(e) => (e.stopPropagation(), props.onDecide('regenerate'))}>
@@ -135,7 +152,14 @@ function Row(props: {
                 }}
               >
                 <span dangerouslySetInnerHTML={{ __html: v.thumbnail }} />
-                <span>{v.label}</span>
+                {v.label.includes(' · ') ? (
+                  <>
+                    <small className={'slot slot-' + String(v.attributes?.slot ?? '')}>{v.label.split(' · ')[0]}</small>
+                    <span>{v.label.split(' · ').slice(1).join(' · ')}</span>
+                  </>
+                ) : (
+                  <span>{v.label}</span>
+                )}
               </button>
             ))}
           </div>
@@ -171,6 +195,9 @@ function Row(props: {
         ) : null}
       </div>
       <div className="acts">
+        <button className="ib dice" title="Re-roll: new options for this pass (D)" aria-label={`Re-roll ${p.name}`} disabled={locked} onClick={(e) => (e.stopPropagation(), props.onReroll())}>
+          {icons.dice}
+        </button>
         <button className="ib pv" title="Preview" aria-label={`Preview ${p.name}`} disabled={locked} onClick={(e) => (e.stopPropagation(), props.onPreviewClick())}>
           {icons.eye}
         </button>
@@ -200,14 +227,28 @@ export function Queue(props: {
   onApproveAll: () => void;
   onReset: () => void;
   onVersion: (n: number) => void;
+  onReroll: (passId?: string) => void;
+  editingStory: boolean;
+  onEditStory: () => void;
+  onCancelStory?: () => void;
+  onSaveStory: (d: StoryDraft) => void;
   rpc: (method: string, params: Record<string, unknown>) => Promise<unknown>;
 }) {
   const { state } = props;
+  if (state && props.editingStory) {
+    return (
+      <aside className="panel" aria-label="Story">
+        <StoryForm brief={state.brief} busy={!!state.busy} onSubmit={props.onSaveStory} onCancel={props.onCancelStory} />
+      </aside>
+    );
+  }
   const passes = state?.passes ?? [];
+  const open = passes.filter((p) => p.status !== 'skipped');
   const groups: Array<[string, PassView[]]> = [
-    ['Step 2 · Pick a direction', passes.filter((p) => p.kind === 'direction')],
-    ['Step 3 · Refine', passes.filter((p) => p.kind === 'refine')],
-    ['Step 3 · Components', passes.filter((p) => p.kind === 'component')],
+    ['Step 2 · Pick a direction', open.filter((p) => p.kind === 'direction')],
+    ['Step 3 · Refine', open.filter((p) => p.kind === 'refine')],
+    ['Step 3 · Components and sections', open.filter((p) => p.kind === 'component')],
+    ['Left out for this story', passes.filter((p) => p.status === 'skipped')],
   ];
   const approved = passes.filter((p) => p.status === 'approved').length;
   const rejected = passes.filter((p) => p.status === 'rejected').length;
@@ -223,9 +264,14 @@ export function Queue(props: {
           </span>
         </div>
         <div className="row">
-          <button className="btn" onClick={props.onPlay} disabled={!state?.audited}>
-            {props.playing ? 'Stop' : 'Play all live'}
-          </button>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <button className="btn" onClick={props.onPlay} disabled={!state?.audited}>
+              {props.playing ? 'Stop' : 'Play all live'}
+            </button>
+            <button className="btn dicebtn" onClick={() => props.onReroll()} disabled={!state?.audited || !!state?.busy} title="New options for every open pass; approved ones stay">
+              {icons.dice} Randomize
+            </button>
+          </div>
           <div style={{ display: 'flex', gap: 6 }}>
             <button className="btn" onClick={props.onApproveAll} disabled={!state?.audited}>
               Approve all
@@ -236,6 +282,7 @@ export function Queue(props: {
           </div>
         </div>
       </div>
+      {state?.brief ? <StoryCard brief={state.brief} mood={state.mood ? describeMood(state.mood) : []} onEdit={props.onEditStory} /> : null}
       <ul className="list">
         {!state?.audited ? <li className="item skipped">{state ? 'Auditing…' : 'Waiting for a project…'}</li> : null}
         {groups.map(([title, items]) =>
@@ -255,6 +302,7 @@ export function Queue(props: {
                   onPreviewClick={() => props.onPreviewClick(p.id)}
                   onDecide={(a, v) => props.onDecide(p.id, a, v)}
                   onReason={(c) => props.onReason(p.id, c)}
+                  onReroll={() => props.onReroll(p.id)}
                   rpc={props.rpc}
                 />
               ))}
@@ -276,7 +324,7 @@ export function Queue(props: {
         <b>↑</b>
         <b>↓</b> rows · <b>Space</b> preview · <b>A</b> approve · <b>R</b> reject · <b>1</b>
         <b>2</b>
-        <b>3</b> variant · <b>C</b> commit
+        <b>3</b> variant · <b>D</b> re-roll · <b>C</b> commit
       </div>
     </aside>
   );

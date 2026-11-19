@@ -22,7 +22,7 @@ export const imagery = definePass({
   name: 'Imagery',
   kind: 'refine',
   order: 7,
-  points: 7,
+  serves: ['mood', 'character'],
   ruleCards: ['lindgaard-2006', 'refactoring-ui-images', 'vercel-accessibility'],
   description: 'One strong image or art element given real weight; text set on it behind a contrast overlay',
   async detect(ctx) {

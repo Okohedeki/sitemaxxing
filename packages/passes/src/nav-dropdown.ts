@@ -1,5 +1,5 @@
-import { definePass, cssEdit, jsxEdit, type Finding, type PatchFile, type Variant } from '@sitemaxxing/core';
-import { COMPONENT_DIR, NAV_DRAWER_CSS, NAV_DRAWER_TSX, NAV_THUMBS, NAV_TILES_CSS, NAV_TILES_TSX, NAV_TYPES_TSX, REVEAL_NAV_CSS, REVEAL_NAV_TSX } from '@sitemaxxing/components';
+import { definePass, cssEdit, jsxEdit, rngFor, type Finding, type PassContext, type PatchFile, type Variant } from '@sitemaxxing/core';
+import { COMPONENT_DIR, selectComponents, componentIdOf, NAV_DRAWER_CSS, NAV_DRAWER_TSX, NAV_TILES_CSS, NAV_TILES_TSX, NAV_TYPES_TSX, REVEAL_NAV_CSS, REVEAL_NAV_TSX } from '@sitemaxxing/components';
 import { descendants, importPath, jsxFor, literalLinks, navLinks, navOf, readSources, selFor, toJsxArray } from './shared';
 
 const DROPDOWN_RE = /className=["'][^"']*\b(dd|dropdown|has-dd|submenu|menu-list)\b/;
@@ -16,12 +16,16 @@ const VARIANTS: Array<{ id: string; label: string; attributes: Record<string, st
   { id: 'drawer', label: 'Side drawer', attributes: { shape: 'drawer', motion: 'slide' } },
 ];
 
+function navPicks(ctx: PassContext, app: string) {
+  return selectComponents('nav', { mood: ctx.mood, goal: ctx.brief.goal, noise: ctx.brief.noise, rng: rngFor(ctx, 'nav-dropdown'), filter: (c) => c.id !== 'tiles' || hasDropdown(app) });
+}
+
 export const navDropdown = definePass({
   id: 'nav-dropdown',
   name: 'Navigation',
   kind: 'refine',
   order: 8,
-  points: 6,
+  serves: ['clarity', 'polish'],
   ruleCards: ['rauno-interaction', 'laws-of-ux-jakob', 'laws-of-ux-hicks'],
   description: 'Replace the plain dropdown or overloaded nav: preview tiles, a fullscreen reveal, or a side drawer',
   forceState: { selector: '.reveal-nav, .nav-drawer, .nav-tiles', state: 'open' },
@@ -37,9 +41,10 @@ export const navDropdown = definePass({
   },
   async variants(ctx) {
     const src = readSources(ctx);
-    return VARIANTS.filter((v) => v.id !== 'tiles' || hasDropdown(src.app)).map((v): Variant => ({ id: v.id, label: v.label, thumbnail: NAV_THUMBS[v.id], attributes: v.attributes, source: 'library' }));
+    return navPicks(ctx, src.app).map((p): Variant => ({ id: p.id, label: p.label, thumbnail: p.spec.thumb, attributes: { ...p.attributes, ...(VARIANTS.find((v) => v.id === p.spec.id)?.attributes ?? {}) }, source: 'library' }));
   },
-  async propose(ctx, variantId = 'fullscreen-circle') {
+  async propose(ctx, chosen) {
+    const variantId = componentIdOf(chosen) ?? componentIdOf(navPicks(ctx, readSources(ctx).app)[0]?.id) ?? 'drawer';
     const src = readSources(ctx);
     const files: PatchFile[] = [];
     const { file } = jsxEdit.parseTsx(src.app);
@@ -90,7 +95,8 @@ export const navDropdown = definePass({
     files.push({ path: ctx.config.sources.styles, before: src.styles, after: css });
     return { summary, files: files.filter((f) => f.before !== f.after) };
   },
-  highlight(ctx, variantId) {
+  highlight(ctx, chosen) {
+    const variantId = componentIdOf(chosen);
     if (variantId === 'tiles') return ['.nav-tiles'];
     if (variantId === 'drawer') return ['.nav-drawer'];
     return ['.reveal-nav'].concat(selFor(navOf(ctx.dom), 'nav'));

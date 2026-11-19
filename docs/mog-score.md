@@ -10,7 +10,7 @@ styles of the rendered DOM.
 
 | Metric | How it is measured | Target | Weight |
 |---|---|---|---|
-| Colorfulness | Hasler–Süsstrunk colourfulness of the screenshot, downsampled 4× | fine below 15, zero at 75 | 0.15 |
+| Colorfulness | Hasler–Süsstrunk colourfulness of the screenshot, downsampled 4×, leaving out imagery that covers a quarter of the view or more (a hero photo is content, not the page's colour) | fine below 15, zero at 75 | 0.15 |
 | Visual complexity | Sobel edge density plus the count of connected "busy" cells on a coarse grid | low within limits | 0.10 |
 | Type contrast | h1 font size ÷ body font size | ≥ 2.75 (ramp from 2.1) | 0.15 |
 | Copy slop | hits from `slop-words.json` plus emoji in h1–h3 and buttons above the fold | 0 (−0.2 per hit) | 0.25 |
@@ -22,10 +22,22 @@ Each metric becomes a sub-score from 0 to 1, the weighted sum is multiplied by 1
 metrics with a sub-score under 0.6 become the notes shown in the score tooltip. Weights and
 targets live in `packages/mog-score/src/weights.json`.
 
+## Targets follow the brief
+
+The default targets describe a calm, light page. Applied to everyone they would reward one look,
+so `targetsFor(mood)` bends them to the brief:
+
+- a bold, dark or playful brief may be more colourful before it loses points;
+- a dense or energetic brief may carry more edges and regions;
+- a dense or formal brief reads well with a gentler headline-to-body ratio.
+
+The score ring re-measures the real page a moment after each preview or decision, so the number
+is what is on screen, not an estimate.
+
 ## Calibration
 
 On the two sample sites, the sloppy baselines score 31 (Fieldnote) and 39 (Isvik); with every
-pass approved they score 94 and 91. The end-to-end test in `packages/core/src/engine.test.ts`
+proposed pass approved for their test briefs they score in the high 80s to mid 90s. The end-to-end test in `packages/core/src/engine.test.ts`
 asserts those ranges so a change to the passes or the weights that breaks them fails CI.
 
 ## What it is not

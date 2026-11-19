@@ -49,7 +49,7 @@ describe('mcp server over streamable http', () => {
   it('lists the tools from the brief', async () => {
     const { tools } = await client.listTools();
     const names = tools.map((t) => t.name);
-    for (const n of ['init_project', 'audit_page', 'list_passes', 'preview_pass', 'end_preview', 'decide_pass', 'regenerate_pass', 'set_copy', 'report_pass', 'commit_version', 'get_score', 'search_rules', 'rank_for_me', 'get_trend', 'taste_card']) {
+    for (const n of ['init_project', 'audit_page', 'list_passes', 'preview_pass', 'end_preview', 'decide_pass', 'regenerate_pass', 'set_copy', 'report_pass', 'commit_version', 'get_score', 'search_rules', 'set_brief', 'reroll_pass', 'rank_for_me', 'get_trend', 'taste_card']) {
       expect(names).toContain(n);
     }
   });
@@ -57,16 +57,24 @@ describe('mcp server over streamable http', () => {
   it('runs audit → preview → decide → commit end to end', async () => {
     const init = await call('init_project', { path: dir, dev_url: `http://localhost:${PORT}` });
     expect(init.projectId).toBeTruthy();
+    const refused = await call('audit_page', { project_id: init.projectId });
+    expect(String(refused)).toMatch(/story/i);
+    const brief = await call('set_brief', { project_id: init.projectId, story: 'Fieldnote maps soil moisture from daily satellite passes so growers water only where it is dry.', audience: 'farm managers', goal: 'signups', feeling: ['precise', 'calm'], noise: 0.3, seed: 77 });
+    expect(brief.brief.goal).toBe('signups');
     const audit = await call('audit_page', { project_id: init.projectId });
-    expect(audit.passes.length).toBe(13);
+    expect(audit.passes.length).toBe(16);
+    expect(audit.passes.find((p: any) => p.name === 'Copy').why).toMatch(/^For sign-ups/);
     const copy = audit.passes.find((p: any) => p.name === 'Copy');
     expect((await call('preview_pass', { pass_id: copy.id })).ok).toBe(true);
     expect((await call('end_preview', {})).ok).toBe(true);
     const decided = await call('decide_pass', { pass_id: copy.id, action: 'approve' });
     expect(decided.status).toBe('approved');
     const direction = audit.passes.find((p: any) => p.name === 'Visual direction');
-    const picked = await call('decide_pass', { pass_id: direction.id, action: 'pick', variant_id: 'signal' });
-    expect(picked.variant).toBe('signal');
+    const stretch = direction.variants[1];
+    const picked = await call('decide_pass', { pass_id: direction.id, action: 'pick', variant_id: stretch });
+    expect(picked.variant).toBe(stretch);
+    const rerolled = await call('reroll_pass', { pass_id: audit.passes.find((p: any) => p.name === 'Font').id });
+    expect(rerolled[0].status).toBe('proposed');
     await call('decide_pass', { pass_id: direction.id, action: 'approve' });
     const committed = await call('commit_version', { project_id: init.projectId });
     expect(committed.version).toBe(2);

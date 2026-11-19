@@ -8,7 +8,8 @@ export const arrowButton = definePass({
   name: 'Arrow shift button',
   kind: 'refine',
   order: 9,
-  points: 4,
+  serves: ['action', 'polish'],
+  moodBias: { energy: 0.3 },
   ruleCards: ['emil-great-animations', 'vercel-interactions', 'laws-of-ux-fitts'],
   description: 'Hover feedback on the primary action: the arrow nudges, or sits in a disc and turns',
   forceState: { selector: '[data-copy="cta"], .ctas .btn:first-child, .btn', state: 'hover' },
@@ -25,8 +26,10 @@ export const arrowButton = definePass({
     const applies = findings.some((f) => f.severity === 'warn');
     return { applies, findings, reason: applies ? undefined : 'button already has feedback' };
   },
-  async variants() {
-    return (['nudge', 'disc'] as const).map((id): Variant => ({ id, label: id === 'nudge' ? 'Arrow nudge' : 'Disc rotate', thumbnail: ARROW_THUMBS[id], attributes: { motion: id, duration: id === 'nudge' ? 200 : 220 }, source: 'library' }));
+  async variants(ctx) {
+    // A bolder brief leads with the disc; a calmer one with the quiet nudge.
+    const order = ctx.mood.energy > 0.15 ? (['disc', 'nudge'] as const) : (['nudge', 'disc'] as const);
+    return order.map((id, i): Variant => ({ id, label: `${i === 0 ? 'Fit' : 'Stretch'} · ${id === 'nudge' ? 'Arrow nudge' : 'Disc rotate'}`, thumbnail: ARROW_THUMBS[id], attributes: { slot: i === 0 ? 'fit' : 'stretch', motion: id, duration: id === 'nudge' ? 200 : 220 }, source: 'library' }));
   },
   async propose(ctx, variantId = 'nudge') {
     const v = variantId === 'disc' ? 'disc' : 'nudge';

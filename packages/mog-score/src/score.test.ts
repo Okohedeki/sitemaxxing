@@ -29,6 +29,8 @@ describe('mog score', () => {
     const img = solid(64, 40, [250, 250, 250]);
     for (let y = 0; y < 40; y++) for (let x = 20; x < 44; x++) img.data.set([220, 40, 60, 255], (y * 64 + x) * 4);
     expect(colorfulness(img)).toBeGreaterThan(20);
+    // Masking the coloured block (an image) leaves only the neutral page.
+    expect(colorfulness(img, [{ x: 20, y: 0, w: 24, h: 40 }])).toBeLessThan(2);
     expect(edgeDensity(img)).toBeGreaterThan(0);
   });
 });

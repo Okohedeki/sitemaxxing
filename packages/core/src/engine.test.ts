@@ -59,18 +59,71 @@ describe(`engine against sample-${SAMPLE}`, () => {
     expect(r.baseline!).toBeLessThanOrEqual(40);
   });
 
-  it('audits and proposes every built-in pass', async () => {
+  const BRIEFS = {
+    fieldnote: {
+      story: 'Fieldnote maps soil moisture from daily satellite passes so growers water only where the ground is dry.',
+      audience: 'farm managers',
+      goal: 'signups',
+      feeling: ['precise', 'calm', 'trustworthy'],
+      noise: 0.35,
+      seed: 1234,
+    },
+    isvik: {
+      story: 'Isvik runs small-ship expeditions to Svalbard and Antarctica, led by naturalists, with twelve guests per landing.',
+      audience: 'curious travellers',
+      goal: 'bookings',
+      feeling: ['rugged', 'quiet', 'warm'],
+      noise: 0.35,
+      seed: 4321,
+    },
+  } as const;
+
+  it('refuses to plan before the story is told', async () => {
+    await expect(engine.audit(projectId)).rejects.toThrow(/story/i);
+  });
+
+  it('plans from the brief: every pass is proposed with a reason or skipped with one', async () => {
+    await engine.setBrief(projectId, BRIEFS[SAMPLE as 'fieldnote' | 'isvik'] as any);
     const state = await engine.audit(projectId);
-    for (const p of state.passes) console.log(`${p.status.padEnd(9)} ${p.defId.padEnd(14)} ${p.skipReason ?? p.summary ?? ''}`);
+    for (const p of state.passes) console.log(`${p.status.padEnd(9)} ${String(p.impact).padStart(3)} ${p.defId.padEnd(14)} ${p.skipReason ?? p.summary ?? ''}`);
+    expect(state.brief?.goal).toBe(BRIEFS[SAMPLE as 'fieldnote'].goal);
+    for (const p of state.passes) {
+      if (p.status === 'proposed') expect(p.rationale.length).toBeGreaterThan(10);
+      else expect(p.status === 'skipped' && (p.skipReason ?? '').length > 3).toBe(true);
+    }
     const proposed = state.passes.filter((p) => p.status === 'proposed').map((p) => p.defId);
-    expect(proposed).toEqual(passes.map((p) => p.id));
+    for (const must of ['direction', 'declutter', 'copy', 'font', 'font-size']) expect(proposed).toContain(must);
+    expect(proposed.some((id) => ['proof', 'features', 'closing-cta'].includes(id))).toBe(true);
     const copyPass = state.passes.find((p) => p.defId === 'copy')!;
     expect(copyPass.copyDiff?.length).toBeGreaterThan(0);
+    const direction = state.passes.find((p) => p.defId === 'direction')!;
+    expect(direction.variants.map((v) => v.attributes?.slot)).toEqual(['fit', 'stretch', 'wildcard']);
+  });
+
+  it('re-rolls component passes into a different set of options', async () => {
+    for (const id of ['font', 'features', 'closing-cta']) {
+      const before = engine.state(projectId).passes.find((p) => p.defId === id)!;
+      if (before.status !== 'proposed') continue;
+      const after = (await engine.reroll(projectId, before.id)).passes.find((p) => p.defId === id)!;
+      const sig = (p: typeof before) => JSON.stringify(p.variants.map((v) => [v.id, v.attributes]));
+      expect(sig(after)).not.toBe(sig(before));
+    }
+  });
+
+  it('re-rolls a pass into different proposals and logs the seed', async () => {
+    const before = engine.state(projectId).passes.find((p) => p.defId === 'direction')!;
+    const after = (await engine.reroll(projectId, before.id)).passes.find((p) => p.defId === 'direction')!;
+    expect(after.seed).not.toBe(before.seed);
+    const sig = (p: typeof before) => p.variants.map((v) => `${v.id}:${v.attributes?.accentHue}:${v.attributes?.paperLightness}`).join('|');
+    expect(sig(after)).not.toBe(sig(before));
+    const rerolls = engine.decisions(projectId).filter((r) => r.action === 'regenerate');
+    expect(JSON.parse(rerolls.at(-1)!.meta).seed).toBe(after.seed);
   });
 
   it('previews every pass and variant in under a second', async () => {
     const state = engine.state(projectId);
     for (const p of state.passes) {
+      if (p.status === 'skipped') continue;
       const variants = p.variants.length ? p.variants.map((v) => v.id) : [undefined];
       for (const v of variants) {
         const t0 = Date.now();
@@ -112,7 +165,7 @@ describe(`engine against sample-${SAMPLE}`, () => {
     expect(git(dir, ['status', '--porcelain'])).toBe('');
     const state = engine.state(projectId);
     expect(state.versions.length).toBe(2);
-    expect(state.passes.every((p) => p.status === 'committed')).toBe(true);
+    expect(state.passes.every((p) => p.status === 'committed' || p.status === 'skipped')).toBe(true);
     expect(fs.existsSync(path.join(dir, '.sitemaxxing', 'screenshots', 'v2', 'timelapse'))).toBe(true);
     expect(r.score).toBeGreaterThanOrEqual(85);
   });
@@ -127,6 +180,9 @@ describe(`engine against sample-${SAMPLE}`, () => {
     expect(rows.some((r) => r.reason_chip === 'too plain')).toBe(true);
     expect(rows.filter((r) => r.action === 'preview').every((r) => typeof r.dwell_ms === 'number')).toBe(true);
     expect(rows.every((r) => JSON.parse(r.shown_alongside) instanceof Array)).toBe(true);
+    const meta = JSON.parse(rows.find((r) => r.action === 'approve').meta);
+    expect(meta.goal).toBe(BRIEFS[SAMPLE as 'fieldnote'].goal);
+    expect(typeof meta.seed).toBe('number');
   });
 
   it('serves an older version read-only', async () => {

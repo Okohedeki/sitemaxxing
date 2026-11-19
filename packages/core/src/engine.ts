@@ -9,12 +9,15 @@ import { openDb, newId, now, json, type DB } from './db';
 import { loadConfig } from './config';
 import { makeFileSystem, toPosix } from './fsx';
 import * as gitx from './git';
-import { applyToDisk, canApply, filesTouched, toUnifiedDiff, writePatchFile, patchFileName, PatchApplyError } from './patches';
+import { applyStaged, canApply, filesTouched, toUnifiedDiff, writePatchFile, patchFileName, PatchApplyError, Staging } from './patches';
 import { takeSnapshot, emptySnapshot } from './snapshot';
 import { detectSections } from './sections';
 import { readTokens } from './tokens';
 import { createLLM } from './llm';
 import { downstreamOf } from './registry';
+import { normalizeBrief, moodOf } from './brief';
+import { plan, type Detection } from './planner';
+import { hashSeed, newSeed } from './random';
 import type { HubEvent, DecisionMeta } from './protocol';
 import type {
   CopyChange,
@@ -34,12 +37,14 @@ import type {
   Variant,
   VersionView,
   LLM,
+  Brief,
+  Mood,
 } from './types';
 
 export interface EngineDeps {
   passes: PassDefinition[];
   rules: { search(q: string): RuleCard[]; byId(id: string): RuleCard | undefined; all(): RuleCard[] };
-  scorer: (page: Page, dom: SnapshotDOM) => Promise<ScoreResult>;
+  scorer: (page: Page, dom: SnapshotDOM, opts?: { mood?: Mood }) => Promise<ScoreResult>;
   browser: () => Promise<Browser>;
   emit: (e: HubEvent) => void;
   registryFile?: string;
@@ -87,7 +92,15 @@ interface Runtime {
   audited: boolean;
   extraFiles: Set<string>;
   queue: Promise<unknown>;
+  brief: Brief | null;
+  mood: Mood | null;
+  /** Per-pass generation seeds; Randomize replaces them. */
+  seeds: Record<string, number>;
+  measureTimer: ReturnType<typeof setTimeout> | null;
 }
+
+/** Used only to build contexts for highlights before a story exists. */
+const PLACEHOLDER_BRIEF: Brief = { story: '', audience: '', goal: 'signups', feeling: [], keep: {}, avoid: [], noise: 0, seed: 1 };
 
 const pkey = (defId: string, variantId?: string) => `${defId}__${variantId ?? 'default'}`;
 
@@ -182,7 +195,13 @@ export class Engine {
       audited: false,
       extraFiles: new Set(),
       queue: Promise.resolve(),
+      brief: null,
+      mood: null,
+      seeds: {},
+      measureTimer: null,
     };
+    this.loadBrief(rt);
+    for (const r of db.prepare('SELECT def_id, seed FROM passes WHERE project_id = ?').all(id) as any[]) if (r.seed != null) rt.seeds[r.def_id] = Number(r.seed);
     this.projects.set(id, rt);
     const reg = this.readRegistry().filter((r) => r.id !== id);
     reg.unshift({ id, name, rootPath: root, devUrl: config.devUrl });
@@ -304,7 +323,7 @@ export class Engine {
     const page = await this.gotoDev(rt);
     if (!page) return null;
     const dom = await takeSnapshot(page);
-    const score = await this.deps.scorer(page, dom);
+    const score = await this.deps.scorer(page, dom, { mood: rt.mood ?? undefined });
     rt.score = score;
     return score;
   }
@@ -354,7 +373,55 @@ export class Engine {
       content,
       choices,
       applied: rt.applied.map((a) => a.defId),
+      brief: rt.brief ?? PLACEHOLDER_BRIEF,
+      mood: rt.mood ?? moodOf(PLACEHOLDER_BRIEF),
+      seeds: Object.fromEntries(rt.defs.map((d) => [d.id, this.seedFor(rt, d.id)])),
     };
+  }
+
+  private seedFor(rt: Runtime, defId: string): number {
+    return rt.seeds[defId] ?? hashSeed((rt.brief ?? PLACEHOLDER_BRIEF).seed, defId);
+  }
+
+  // ---------- brief ----------
+
+  private loadBrief(rt: Runtime) {
+    const row = rt.db.prepare('SELECT brief FROM briefs WHERE project_id = ? ORDER BY created_at DESC LIMIT 1').get(rt.project.id) as any;
+    let brief: Brief | null = null;
+    if (row) brief = json.parse<Brief | null>(row.brief, null);
+    else {
+      const file = path.join(rt.dir, 'brief.json');
+      const fromFile = fs.existsSync(file) ? json.parse<Partial<Brief> | null>(fs.readFileSync(file, 'utf8'), null) : null;
+      const seedBrief = fromFile ?? rt.config.brief ?? null;
+      if (seedBrief?.story && seedBrief.story.trim().length >= 12) brief = normalizeBrief(seedBrief);
+    }
+    rt.brief = brief;
+    rt.mood = brief ? moodOf(brief) : null;
+  }
+
+  getBrief(projectId: string): { brief: Brief | null; mood: Mood | null } {
+    const rt = this.rt(projectId);
+    return { brief: rt.brief, mood: rt.mood };
+  }
+
+  /** Stores the owner's story. A changed story or seed resets the generation seeds. */
+  async setBrief(projectId: string, input: Partial<Brief>): Promise<ProjectState> {
+    return this.run(projectId, null, async (rt) => {
+      const prev = rt.brief;
+      const brief = normalizeBrief({ ...(prev ?? {}), ...input, seed: input.seed ?? prev?.seed });
+      const mood = moodOf(brief);
+      rt.db.prepare('INSERT INTO briefs(id,project_id,brief,mood,created_at) VALUES(?,?,?,?,?)').run(newId(), rt.project.id, json.str(brief), json.str(mood), now());
+      fs.writeFileSync(path.join(rt.dir, 'brief.json'), JSON.stringify(brief, null, 2) + '\n');
+      const changed = !prev || prev.seed !== brief.seed || prev.story !== brief.story || prev.goal !== brief.goal || prev.feeling.join() !== brief.feeling.join() || prev.noise !== brief.noise;
+      rt.brief = brief;
+      rt.mood = mood;
+      if (changed) {
+        rt.seeds = {};
+        rt.db.prepare(`UPDATE passes SET seed = NULL WHERE project_id = ? AND status != 'committed'`).run(rt.project.id);
+        rt.audited = false;
+      }
+      return this.emitState(rt);
+    });
   }
 
   private passRowId(rt: Runtime, defId: string) {
@@ -387,8 +454,21 @@ export class Engine {
   // ---------- audit ----------
 
   async audit(projectId: string): Promise<ProjectState> {
-    return this.run(projectId, 'Auditing', async (rt) => {
+    return this.run(projectId, 'Planning', async (rt) => {
+      if (!rt.brief || !rt.mood) throw new Error('Tell the story first: set a brief (what this is, who it is for, the goal, how it should feel) before planning.');
       this.assertClean(rt);
+      this.measureSuspended = true;
+      try {
+        return await this.auditInner(rt);
+      } finally {
+        this.measureSuspended = false;
+      }
+    });
+  }
+
+  private async auditInner(rt: Runtime): Promise<ProjectState> {
+    {
+      if (!rt.brief || !rt.mood) throw new Error('no brief');
       await this.setApplied(rt, []);
       rt.previewing = null;
       rt.view = 'changes';
@@ -403,36 +483,52 @@ export class Engine {
       );
       const ctx = this.ctx(rt);
       const upsert = rt.db.prepare(
-        `INSERT INTO passes(id,project_id,def_id,kind,name,section_id,"order",depends_on,points,status,chosen_variant_id,skip_reason,findings,summary,copy_diff)
-         VALUES(@id,@project_id,@def_id,@kind,@name,@section_id,@order,@depends_on,@points,@status,@chosen_variant_id,@skip_reason,@findings,@summary,@copy_diff)
+        `INSERT INTO passes(id,project_id,def_id,kind,name,section_id,"order",depends_on,points,status,chosen_variant_id,skip_reason,findings,summary,copy_diff,rationale,seed)
+         VALUES(@id,@project_id,@def_id,@kind,@name,@section_id,@order,@depends_on,@points,@status,@chosen_variant_id,@skip_reason,@findings,@summary,@copy_diff,@rationale,@seed)
          ON CONFLICT(id) DO UPDATE SET status=excluded.status, chosen_variant_id=excluded.chosen_variant_id, skip_reason=excluded.skip_reason,
-           findings=excluded.findings, summary=excluded.summary, copy_diff=excluded.copy_diff, points=excluded.points, "order"=excluded."order"`,
+           findings=excluded.findings, summary=excluded.summary, copy_diff=excluded.copy_diff, points=excluded.points, "order"=excluded."order",
+           rationale=excluded.rationale, seed=excluded.seed`,
       );
+      // 1. Detect on every pass, 2. plan for this brief, 3. generate variants only for what matters.
+      const detections = new Map<string, Detection>();
       for (const def of rt.defs) {
-        const id = this.passRowId(rt, def.id);
         if (committed.has(def.id)) continue;
-        let det: { applies: boolean; findings: Finding[]; reason?: string };
         try {
-          det = await def.detect(ctx);
+          detections.set(def.id, await def.detect(ctx));
         } catch (e) {
-          det = { applies: false, findings: [], reason: `detect failed: ${(e as Error).message}` };
+          detections.set(def.id, { applies: false, findings: [], reason: `detect failed: ${(e as Error).message}` });
         }
-        const variants = det.applies ? ((await def.variants?.(ctx)) ?? []) : [];
+      }
+      const items = plan(rt.defs.filter((d) => !committed.has(d.id)), detections, rt.brief, rt.mood);
+      for (const item of items) {
+        const def = rt.defs.find((d) => d.id === item.defId)!;
+        const id = this.passRowId(rt, def.id);
+        const det = detections.get(def.id)!;
+        const seed = this.seedFor(rt, def.id);
+        rt.seeds[def.id] = seed;
+        const variants = item.include ? ((await def.variants?.(ctx)) ?? []) : [];
         rt.variants.set(def.id, variants);
         rt.db.prepare('DELETE FROM variants WHERE pass_id = ?').run(id);
         const prevChoice = (this.row(rt, def.id)?.chosen_variant_id as string | undefined) ?? undefined;
         const chosen = variants.length ? (variants.some((v) => v.id === prevChoice) ? prevChoice : variants[0].id) : null;
-        let summary = det.applies ? def.description : null;
+        let summary = item.include ? def.description : null;
         let copyDiff: CopyChange[] | null = null;
-        if (det.applies) {
+        let include = item.include;
+        if (include) {
           const targets = variants.length ? variants.map((v) => v.id) : [undefined];
+          let any = false;
           for (const vid of targets) {
             const pre = await this.precompute(rt, def, vid, ctx);
+            any = any || !!pre;
             if (pre && vid === (chosen ?? undefined)) {
               summary = pre.summary || summary;
               copyDiff = pre.copyDiff ?? null;
               if (pre.notes?.length) det.findings.push(...pre.notes.map((n) => ({ message: n, severity: 'info' as const })));
             }
+          }
+          if (!any) {
+            include = false;
+            item.skipReason = 'could not build a change for this page';
           }
           for (const v of variants) {
             rt.db
@@ -447,21 +543,23 @@ export class Engine {
           kind: def.kind,
           name: def.name,
           section_id: null,
-          order: def.order,
+          order: item.order,
           depends_on: json.str(def.dependsOn ?? []),
-          points: def.points,
-          status: det.applies ? 'proposed' : 'skipped',
+          points: item.impact,
+          status: include ? 'proposed' : 'skipped',
           chosen_variant_id: chosen,
-          skip_reason: det.applies ? null : (det.reason ?? 'already fine'),
+          skip_reason: include ? null : (item.skipReason ?? 'already fine'),
           findings: json.str(det.findings),
           summary,
           copy_diff: copyDiff ? json.str(copyDiff) : null,
+          rationale: item.rationale,
+          seed,
         });
       }
       rt.audited = true;
       this.deps.emit({ type: 'audit.done', projectId: rt.project.id, ts: Date.now(), score: rt.score?.score ?? 0 });
       return this.emitState(rt);
-    });
+    }
   }
 
   private async precompute(rt: Runtime, def: PassDefinition, variantId: string | undefined, ctx: PassContext): Promise<PrecomputedPatch | null> {
@@ -499,7 +597,9 @@ export class Engine {
         name: r.name,
         kind: r.kind,
         order: r.order,
-        points: r.points,
+        impact: r.points ?? 0,
+        rationale: r.rationale ?? '',
+        seed: r.seed ?? 0,
         status: rt.previewing?.defId === r.def_id ? 'previewing' : r.status,
         baseStatus: r.status,
         description: def?.description ?? '',
@@ -516,12 +616,10 @@ export class Engine {
         highlight: def && ctx ? safeHighlight(def, ctx, r.chosen_variant_id ?? undefined) : [],
       };
     });
-    const committedPoints = 0;
-    const estimate = this.estimate(rt, passes) + committedPoints;
     return {
       project: rt.project,
       baseline: versions[0]?.score ?? 0,
-      score: rt.score ? { ...rt.score, score: estimate } : null,
+      score: rt.score,
       passes,
       versions,
       currentVersion: current,
@@ -531,18 +629,28 @@ export class Engine {
       versionUrl: rt.versionServer?.url ?? null,
       audited: rt.audited,
       busy: rt.busy,
+      brief: rt.brief,
+      mood: rt.mood,
     };
   }
 
-  /** Estimated score: the current version's measured score plus the points of what is applied. */
-  private estimate(rt: Runtime, passes: PassView[]): number {
-    const versions = this.versions(rt);
-    const base = versions.at(-1)?.score ?? 0;
-    if (rt.view === 'current') return Math.round(base);
-    const applied = new Set(rt.applied.map((a) => a.defId));
-    let n = base;
-    for (const p of passes) if (applied.has(p.defId) && p.status !== 'committed') n += p.points;
-    return Math.min(99, Math.round(n));
+  /**
+   * Re-measures the real page shortly after the tree changes, so the score ring reflects what is
+   * on screen rather than a table of expected gains. Debounced so hover previews stay fast.
+   */
+  private scheduleMeasure(rt: Runtime) {
+    if (rt.measureTimer) clearTimeout(rt.measureTimer);
+    rt.measureTimer = setTimeout(() => {
+      rt.measureTimer = null;
+      this.run(rt.project.id, null, async () => {
+        if (rt.viewingVersion) return;
+        const before = rt.score?.score ?? null;
+        const score = await this.measure(rt);
+        if (!score) return;
+        this.deps.emit({ type: 'score.updated', projectId: rt.project.id, ts: Date.now(), score: score.score, delta: before === null ? 0 : Math.round(score.score - before), metrics: score.metrics });
+        this.emitState(rt);
+      }).catch((e) => this.log(`measure failed: ${(e as Error).message}`));
+    }, 900);
   }
 
   private variantRows(rt: Runtime, passId: string): Variant[] {
@@ -599,39 +707,79 @@ export class Engine {
   private async setApplied(rt: Runtime, desired: Array<{ defId: string; variantId?: string }>): Promise<void> {
     let common = 0;
     while (common < rt.applied.length && common < desired.length && rt.applied[common].defId === desired[common].defId && rt.applied[common].variantId === desired[common].variantId) common++;
-    for (let i = rt.applied.length - 1; i >= common; i--) {
-      const a = rt.applied[i];
-      try {
-        applyToDisk(rt.project.rootPath, a.text, { reverse: true });
-      } catch (e) {
-        this.log(`reverse failed for ${a.defId}: ${(e as Error).message}`);
-      }
-      rt.applied.pop();
-    }
-    for (let i = common; i < desired.length; i++) {
-      const d = desired[i];
-      let pre = this.patchFor(rt, d.defId, d.variantId);
-      if (!pre) throw new Error(`no patch for ${d.defId}/${d.variantId ?? 'default'}`);
-      if (!canApply(rt.project.rootPath, pre.text)) {
-        // Context drift: another applied pass touched neighbouring lines. The pass is
-        // deterministic, so re-proposing it against the current tree yields the same change
-        // with a diff that applies. Only a real failure marks the pass stale.
-        const def = rt.defs.find((x) => x.id === d.defId);
-        const fresh = def ? await this.precompute(rt, def, d.variantId, this.ctx(rt)) : null;
-        if (fresh) pre = fresh;
-      }
-      try {
-        applyToDisk(rt.project.rootPath, pre.text);
-        rt.applied.push({ defId: d.defId, variantId: d.variantId, text: pre.text, files: pre.files });
-      } catch (e) {
-        if (e instanceof PatchApplyError) {
-          this.markStale(rt, [d.defId]);
-          throw new Error(`${d.defId} no longer applies cleanly (${e.file}); regenerate it.`);
+    const stage = new Staging(rt.project.rootPath);
+    try {
+      for (let i = rt.applied.length - 1; i >= common; i--) {
+        const a = rt.applied[i];
+        try {
+          applyStaged(stage, a.text, { reverse: true });
+        } catch (e) {
+          this.log(`reverse failed for ${a.defId}: ${(e as Error).message}`);
         }
-        throw e;
+        rt.applied.pop();
       }
+      for (let i = common; i < desired.length; i++) {
+        const d = desired[i];
+        let pre = this.patchFor(rt, d.defId, d.variantId);
+        if (!pre) throw new Error(`no patch for ${d.defId}/${d.variantId ?? 'default'}`);
+        if (!canApply(stage, pre.text)) {
+          // Context drift: another applied pass touched neighbouring lines. The pass is
+          // deterministic, so re-proposing it against the current tree yields the same change
+          // with a diff that applies. Passes read from disk, so flush the staged tree first.
+          stage.flush();
+          const def = rt.defs.find((x) => x.id === d.defId);
+          const fresh = def ? await this.precompute(rt, def, d.variantId, this.ctx(rt)) : null;
+          if (fresh) pre = fresh;
+        }
+        try {
+          applyStaged(stage, pre.text);
+          rt.applied.push({ defId: d.defId, variantId: d.variantId, text: pre.text, files: pre.files });
+        } catch (e) {
+          if (e instanceof PatchApplyError) {
+            this.markStale(rt, [d.defId]);
+            throw new Error(`${d.defId} no longer applies cleanly (${e.file}); regenerate it.`);
+          }
+          throw e;
+        }
+      }
+    } finally {
+      this.touchLater(rt, stage.flush());
     }
+    if (rt.audited && !this.measureSuspended) this.scheduleMeasure(rt);
   }
+
+  /**
+   * Dev-server watchers can coalesce writes that land a few milliseconds apart and keep serving the
+   * earlier content. Once writes go quiet, bump the mtime of everything written so a final change
+   * event always arrives with the final content.
+   */
+  private pendingTouch = new Map<string, Set<string>>();
+  private touchTimer: ReturnType<typeof setTimeout> | null = null;
+  private touchLater(rt: Runtime, files: string[]) {
+    if (!files.length) return;
+    const set = this.pendingTouch.get(rt.project.rootPath) ?? new Set<string>();
+    files.forEach((f) => set.add(f));
+    this.pendingTouch.set(rt.project.rootPath, set);
+    if (this.touchTimer) clearTimeout(this.touchTimer);
+    this.touchTimer = setTimeout(() => {
+      this.touchTimer = null;
+      const now = new Date();
+      for (const [root, rels] of this.pendingTouch) {
+        for (const rel of rels) {
+          const abs = path.join(root, rel);
+          try {
+            if (fs.existsSync(abs)) fs.utimesSync(abs, now, now);
+          } catch {
+            /* best effort */
+          }
+        }
+      }
+      this.pendingTouch.clear();
+    }, 180);
+  }
+
+  /** Commit and audit measure on their own; they suspend the debounced re-measure. */
+  private measureSuspended = false;
 
   private approvedOrdered(rt: Runtime): Array<{ defId: string; variantId?: string }> {
     return (rt.db.prepare(`SELECT def_id, chosen_variant_id FROM passes WHERE project_id = ? AND status = 'approved' ORDER BY "order"`).all(rt.project.id) as any[]).map((r) => ({
@@ -745,8 +893,17 @@ export class Engine {
   // ---------- decisions ----------
 
   private logDecision(rt: Runtime, defId: string | null, action: DecisionAction, variantId: string | undefined, meta: DecisionMeta) {
+    const variant = defId && variantId ? (rt.variants.get(defId) ?? []).find((v) => v.id === variantId) : undefined;
+    const extra = {
+      seed: defId ? this.seedFor(rt, defId) : rt.brief?.seed,
+      goal: rt.brief?.goal,
+      noise: rt.brief?.noise,
+      mood: rt.mood,
+      attributes: variant?.attributes,
+      ...(meta.extra ?? {}),
+    };
     rt.db
-      .prepare('INSERT INTO decisions(id,user_id,project_id,pass_id,variant_id,action,shown_alongside,reason_chip,dwell_ms,created_at) VALUES(?,?,?,?,?,?,?,?,?,?)')
+      .prepare('INSERT INTO decisions(id,user_id,project_id,pass_id,variant_id,action,shown_alongside,reason_chip,dwell_ms,created_at,meta) VALUES(?,?,?,?,?,?,?,?,?,?,?)')
       .run(
         newId(),
         'local',
@@ -758,6 +915,7 @@ export class Engine {
         meta.reasonChip ?? null,
         meta.dwellMs ?? (defId && rt.lastPreviewAt[defId] ? Date.now() - rt.lastPreviewAt[defId] : null),
         now(),
+        json.str(extra),
       );
   }
 
@@ -874,6 +1032,65 @@ export class Engine {
     this.logDecision(rt, def.id, 'reject', row?.chosen_variant_id ?? undefined, { reasonChip, shownAlongside: this.alongside(rt, def.id) });
   }
 
+  /**
+   * Randomize. Gives one pass (or every open pass) a new seed and regenerates its variants, so the
+   * same brief surfaces different references and parameters. Approved and committed passes stay.
+   */
+  async reroll(projectId: string, passId?: string): Promise<ProjectState> {
+    return this.run(projectId, passId ? 'Re-rolling' : 'Randomizing', async (rt) => {
+      if (!rt.brief) throw new Error('Tell the story first.');
+      this.assertClean(rt);
+      const rows = (rt.db.prepare('SELECT * FROM passes WHERE project_id = ?').all(rt.project.id) as any[]).filter((r) =>
+        passId ? r.id === passId || r.def_id === passId : ['proposed', 'rejected', 'stale'].includes(r.status),
+      );
+      if (rt.previewing && rows.some((r) => r.def_id === rt.previewing!.defId)) {
+        this.closePreviewDecision(rt);
+        rt.previewing = null;
+      }
+      const wasApproved = rows.filter((r) => r.status === 'approved').map((r) => r.def_id);
+      for (const r of rows) if (r.status === 'approved') rt.db.prepare(`UPDATE passes SET status = 'proposed' WHERE id = ?`).run(r.id);
+      await this.setApplied(rt, this.desired(rt));
+      const ctx0 = this.ctx(rt);
+      for (const r of rows) {
+        if (['committed', 'skipped'].includes(r.status)) continue;
+        const def = rt.defs.find((d) => d.id === r.def_id);
+        if (!def) continue;
+        // A re-roll must show something new. Low noise keeps the Fit steady, so try fresh seeds
+        // until the set of options differs; a pass whose options do not depend on the seed says so.
+        const signature = (vs: Variant[]) => JSON.stringify(vs.map((v) => [v.id, v.attributes ?? {}]));
+        const old = signature(rt.variants.get(def.id) ?? this.variantRows(rt, r.id));
+        let seed = newSeed();
+        let ctx = { ...ctx0, seeds: { ...ctx0.seeds, [def.id]: seed } };
+        let variants = (await def.variants?.(ctx)) ?? [];
+        for (let attempt = 0; attempt < 12 && variants.length && signature(variants) === old; attempt++) {
+          seed = newSeed();
+          ctx = { ...ctx0, seeds: { ...ctx0.seeds, [def.id]: seed } };
+          variants = (await def.variants?.(ctx)) ?? [];
+        }
+        if (passId && variants.length && signature(variants) === old) this.deps.emit({ type: 'error', projectId: rt.project.id, ts: Date.now(), message: `${def.name} has no other options for this brief; raise the noise to reach further.` });
+        rt.seeds[def.id] = seed;
+        for (const k of [...rt.patches.keys()]) if (k.startsWith(`${def.id}__`)) rt.patches.delete(k);
+        rt.variants.set(def.id, variants);
+        rt.db.prepare('DELETE FROM variants WHERE pass_id = ?').run(r.id);
+        for (const v of variants) {
+          rt.db
+            .prepare('INSERT INTO variants(id,pass_id,label,patch_path,thumbnail_svg,source,attributes) VALUES(?,?,?,?,?,?,?)')
+            .run(`${r.id}:${v.id}`, r.id, v.label, path.join('.sitemaxxing', 'patches', patchFileName(def.id, v.id)), v.thumbnail, v.source ?? 'library', json.str(v.attributes ?? {}));
+        }
+        const chosen = variants[0]?.id ?? null;
+        let ok = false;
+        for (const vid of variants.length ? variants.map((v) => v.id) : [undefined]) ok = (await this.precompute(rt, def, vid, ctx)) !== null || ok;
+        const pre = this.patchFor(rt, def.id, chosen ?? undefined);
+        rt.db
+          .prepare(`UPDATE passes SET seed = ?, chosen_variant_id = ?, status = ?, summary = ?, copy_diff = ? WHERE id = ?`)
+          .run(seed, chosen, ok ? 'proposed' : 'stale', pre?.summary ?? def.description, pre?.copyDiff ? json.str(pre.copyDiff) : null, r.id);
+        this.logDecision(rt, def.id, 'regenerate', chosen ?? undefined, { extra: { reroll: true, seed } });
+      }
+      if (wasApproved.length) this.markStale(rt, wasApproved.flatMap((id) => downstreamOf(id, rt.defs)).filter((id) => this.row(rt, id)?.status === 'approved'));
+      return this.emitState(rt);
+    });
+  }
+
   async approveAll(projectId: string): Promise<ProjectState> {
     const st = this.state(projectId);
     for (const p of st.passes) if (p.status === 'proposed') await this.decide(projectId, p.id, 'approve');
@@ -908,6 +1125,18 @@ export class Engine {
 
   async commit(projectId: string): Promise<{ version: number; sha: string; score: number }> {
     return this.run(projectId, 'Committing', async (rt) => {
+      this.measureSuspended = true;
+      if (rt.measureTimer) clearTimeout(rt.measureTimer);
+      try {
+        return await this.commitInner(rt);
+      } finally {
+        this.measureSuspended = false;
+      }
+    });
+  }
+
+  private async commitInner(rt: Runtime): Promise<{ version: number; sha: string; score: number }> {
+    {
       if (rt.viewingVersion) await this.viewVersionInner(rt, null);
       this.assertClean(rt);
       if (rt.previewing) {
@@ -990,7 +1219,7 @@ export class Engine {
       }
       this.emitState(rt);
       return { version: number, sha, score: score?.score ?? 0 };
-    });
+    }
   }
 
   private async labelledShot(page: Page, file: string, label: string) {

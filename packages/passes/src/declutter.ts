@@ -10,7 +10,7 @@ export const declutter = definePass({
   name: 'Declutter',
   kind: 'refine',
   order: 1,
-  points: 8,
+  serves: ['clarity', 'action'],
   ruleCards: ['tuch-2012', 'laws-of-ux-hicks', 'refactoring-ui-hierarchy'],
   description: 'One primary action per view: cut extra nav links, the sign-in button, the second CTA and the trust row',
   async detect(ctx) {

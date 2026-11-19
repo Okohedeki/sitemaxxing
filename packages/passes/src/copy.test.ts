@@ -21,6 +21,17 @@ describe('rule-based copy rewrite (offline fallback)', () => {
     expect(out.pill).not.toContain('✨');
   });
 
+  it('builds the headline from the story when one is given', () => {
+    const out = ruleBasedRewrite(
+      { headline: 'Unlock Effortless Growth', subhead: 'Leverage seamless tools.', cta: 'Get Started Free 🚀' },
+      [{ value: '3', label: 'Regions' }],
+      { story: 'Pebble tracks parcels across three regions, so shops answer where is my order in one click.', cta: 'Create an account' },
+    );
+    expect(out.headline).toBe('Pebble tracks parcels across three regions.');
+    expect(out.subhead).toContain('Shops answer where is my order in one click.');
+    expect(out.cta).toBe('Create an account');
+  });
+
   it('keeps a clean headline when there is nothing to fix', () => {
     const out = ruleBasedRewrite({ headline: 'Maps for every field.', subhead: 'Daily soil maps.', cta: 'See a map' }, []);
     expect(out.headline).toBe('Maps for every field.');

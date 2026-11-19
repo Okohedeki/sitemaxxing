@@ -1,6 +1,6 @@
 import type { PassContext, PatchFile, SnapNode, SnapshotDOM } from '@sitemaxxing/core';
 import { jsxEdit } from '@sitemaxxing/core';
-import type { SourceFile } from 'ts-morph';
+import { SyntaxKind, type SourceFile } from 'ts-morph';
 
 export const px = (v: string | undefined): number => parseFloat(v ?? '') || 0;
 
@@ -184,4 +184,32 @@ export function contrastRatio(fg: [number, number, number], bg: [number, number,
   const a = lum(fg) + 0.05;
   const b = lum(bg) + 0.05;
   return a > b ? a / b : b / a;
+}
+
+/** The identifier the app file imports its copy file as (`import content from './content.json'`). */
+export function contentIdentifier(file: SourceFile, contentPath: string): string | undefined {
+  const base = contentPath.split('/').pop()!;
+  const decl = file.getImportDeclarations().find((d) => d.getModuleSpecifierValue().endsWith(base));
+  return decl?.getDefaultImport()?.getText();
+}
+
+/** The outermost JSX element in the file: the app's root. */
+export function rootElement(file: SourceFile) {
+  const all = jsxEdit.allJsx(file).filter((e) => e.getKind() === SyntaxKind.JsxElement);
+  return all.find((e) => !all.some((o) => o !== e && o.getStart() <= e.getStart() && o.getEnd() >= e.getEnd()));
+}
+
+/** Inserts JSX text just before the closing tag of `el` (a JsxElement). */
+export function appendChild(file: SourceFile, el: ReturnType<typeof rootElement>, jsx: string) {
+  if (!el) return false;
+  const close = (el as any).getClosingElement?.();
+  if (!close) return false;
+  file.insertText(close.getStart(), `\n${jsx}\n`);
+  return true;
+}
+
+export function insertAfterNode(file: SourceFile, node: { getEnd(): number } | undefined, jsx: string) {
+  if (!node) return false;
+  file.insertText(node.getEnd(), `\n${jsx}`);
+  return true;
 }

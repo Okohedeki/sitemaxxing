@@ -28,5 +28,6 @@
     { "value": "Daily", "label": "Satellite revisits" },
     { "value": "38", "label": "Countries mapped" }
   ],
+  "quote": { "text": "We stopped watering the north block on a schedule. The map told us it was wet for three weeks.", "by": "An almond grower in the Central Valley", "role": "Pilot customer" },
   "footer": "Fieldnote Inc. · Davis, California · hello@fieldnote.example"
 }

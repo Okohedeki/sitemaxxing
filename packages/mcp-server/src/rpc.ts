@@ -37,6 +37,15 @@ export function rpcHandlers(engine: Engine): Record<string, Handler> {
       return { ok: true };
     },
     regenerate_pass: async (p) => engine.decide(pid(p), String(p.pass_id), 'regenerate'),
+    set_brief: async (p) => {
+      await ensureLoaded(pid(p));
+      return engine.setBrief(pid(p), p.brief ?? p);
+    },
+    get_brief: async (p) => {
+      await ensureLoaded(pid(p));
+      return engine.getBrief(pid(p));
+    },
+    reroll_pass: async (p) => engine.reroll(pid(p), p.pass_id ? String(p.pass_id) : undefined),
     approve_all: async (p) => engine.approveAll(pid(p)),
     set_view: async (p) => engine.setView(pid(p), p.view === 'current' ? 'current' : 'changes'),
     view_version: async (p) => engine.viewVersion(pid(p), p.number ? Number(p.number) : null),

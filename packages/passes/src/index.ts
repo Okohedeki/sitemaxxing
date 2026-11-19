@@ -12,11 +12,13 @@ import { arrowButton } from './arrow-button';
 import { revealHero } from './reveal-hero';
 import { heroArt } from './hero-art';
 import { preloader } from './preloader';
+import { proof, features, closingCta } from './sections';
 
 /** The built-in set, coarse to fine. */
-export const passes: PassDefinition[] = [direction, declutter, spacing, copy, alignment, font, fontSize, imagery, navDropdown, arrowButton, revealHero, heroArt, preloader];
+export const passes: PassDefinition[] = [direction, declutter, spacing, copy, alignment, font, fontSize, imagery, navDropdown, arrowButton, revealHero, heroArt, preloader, proof, features, closingCta];
 
-export { direction, declutter, spacing, copy, alignment, font, fontSize, imagery, navDropdown, arrowButton, revealHero, heroArt, preloader };
+export { direction, declutter, spacing, copy, alignment, font, fontSize, imagery, navDropdown, arrowButton, revealHero, heroArt, preloader, proof, features, closingCta };
+export { sectionPass } from './sections';
 export { ruleBasedRewrite } from './copy';
 export * as shared from './shared';
 export default { passes };

@@ -50,6 +50,8 @@ export interface DecisionMeta {
   dwellMs?: number;
   shownAlongside?: string[];
   reasonChip?: ReasonChip;
+  /** Anything else worth learning from (seed, re-roll, attributes). Stored in decisions.meta. */
+  extra?: Record<string, unknown>;
 }
 
 export const REASON_CHIPS: ReasonChip[] = ['too busy', 'too plain', 'off-brand', 'too trendy'];
@@ -57,4 +59,5 @@ export const REASON_CHIPS: ReasonChip[] = ['too busy', 'too plain', 'off-brand',
 /** Messages the overlay sends back to the hub (none are required for v1). */
 export type OverlayMessage = { type: 'overlay.ready'; url: string };
 
-export type { CopyChange, ProjectState, PassView, ScoreResult, ReasonChip, PassStatus, Variant, VersionView, Finding } from './types';
+export type { CopyChange, ProjectState, PassView, ScoreResult, ReasonChip, PassStatus, Variant, VersionView, Finding, Brief, Goal, Mood } from './types';
+export { GOALS, GOAL_IDS, describeMood, moodOf, DEFAULT_NOISE } from './brief';

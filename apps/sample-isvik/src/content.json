@@ -26,5 +26,11 @@
     { "value": "Svalbard & Antarctica", "label": "Two polar regions" },
     { "value": "Naturalists", "label": "Lead every voyage" }
   ],
+  "features": [
+    { "title": "Small ships", "text": "Ice-class vessels with room for forty-eight guests, so landings happen where big ships cannot go." },
+    { "title": "Naturalist guides", "text": "Every landing is led by a biologist or glaciologist who has worked the route for years." },
+    { "title": "Unforgettable Moments", "text": "Breathtaking experiences crafted for travelers who seek the extraordinary." }
+  ],
+  "quote": { "text": "We stood on the ice at midnight with nine other people and nothing else for a hundred miles.", "by": "A guest on the Svalbard voyage", "role": "July sailing" },
   "footer": "Isvik Expeditions · Tromsø, Norway · hello@isvik.example"
 }

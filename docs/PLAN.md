@@ -138,3 +138,20 @@ exports the default set in order.
 - `ffmpeg` must be on PATH for `export --timelapse`; the labels are burned into the frames by
   the overlay before capture, so no `drawtext` font setup is needed.
 - Reduced motion is read from the OS by both the overlay and the control room.
+
+## Revision: story first, no house style
+
+The first build ran a fixed list of passes with fixed points and three fixed looks per change.
+That pushes every site toward the same result, so the plan was revised:
+
+- **Brief required.** A story, audience, goal, feeling, keep, avoid and noise must be set before
+  anything is planned (`brief.ts`, Story step in the control room, `set_brief` over MCP).
+- **Planner instead of points.** Passes declare what they serve; the planner weighs that against
+  the goal and the mood, proposes what matters with a reason, and sets the rest aside
+  (`planner.ts`).
+- **Reference library.** Directions, type pairings and components are curated references on mood
+  axes; passes ask for a Fit, a Stretch and a Wildcard (`packages/components/src/library`). New
+  high-value sections: proof, features and closing call to action, rendered only from real content.
+- **Noise and Randomize.** All generation is seeded (`random.ts`); noise widens the Wildcard and
+  perturbs palettes and params; Randomize re-rolls seeds per pass or for every open pass.
+- **Brief-aware Mog score.** Targets bend to the mood, and the ring is re-measured on the page.

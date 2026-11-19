@@ -17,6 +17,45 @@ export type ReasonChip = 'too busy' | 'too plain' | 'off-brand' | 'too trendy';
 
 export type VariantSource = 'rule' | 'library' | 'generated' | 'plugin';
 
+/** The one thing a visitor should do. Drives which passes matter and how they are written. */
+export type Goal = 'signups' | 'sales' | 'bookings' | 'leads' | 'credibility' | 'awareness';
+
+/** What a pass improves. The planner weighs these against the goal. */
+export type Serve = 'clarity' | 'action' | 'trust' | 'character' | 'mood' | 'polish';
+
+/**
+ * Where a brief sits on six axes, each from -1 to 1. Derived from the story and feeling words.
+ * energy: calm → bold; warmth: cool → warm; formality: playful → serious;
+ * classic: contemporary → classic; density: airy → dense; dark: light → dark.
+ */
+export interface Mood {
+  energy: number;
+  warmth: number;
+  formality: number;
+  classic: number;
+  density: number;
+  dark: number;
+}
+
+/** The owner's story. Required before an audit: nothing is planned without it. */
+export interface Brief {
+  /** What this is and why it exists, in the owner's words. */
+  story: string;
+  /** Who it is for. */
+  audience: string;
+  goal: Goal;
+  /** How it should feel: a few words such as calm, bold, warm, precise, playful, rugged. */
+  feeling: string[];
+  /** What must not change. */
+  keep: { colors?: boolean; fonts?: boolean; copy?: boolean };
+  /** Free-text things to avoid ("no dark mode", "nothing that moves"). */
+  avoid: string[];
+  /** 0 = stay close to the safest reading of the brief, 1 = wander far for inspiration. */
+  noise: number;
+  /** Generation seed. Randomize changes it; the same seed reproduces the same proposals. */
+  seed: number;
+}
+
 export interface SitemaxxingConfig {
   devUrl: string;
   /** Path to the copy file (JSON) relative to the repo root. */
@@ -28,12 +67,15 @@ export interface SitemaxxingConfig {
   /** Source files the passes may edit, relative to the repo root. */
   sources?: { app?: string; styles?: string; tokens?: string; fonts?: string };
   category?: string;
+  /** Optional starting brief (the control room's Story step can edit it). */
+  brief?: Partial<Brief>;
 }
 
-export interface ResolvedConfig extends Required<Omit<SitemaxxingConfig, 'llm' | 'sources' | 'category'>> {
+export interface ResolvedConfig extends Required<Omit<SitemaxxingConfig, 'llm' | 'sources' | 'category' | 'brief'>> {
   llm: { provider?: 'anthropic' | 'openai' | 'local'; model?: string; baseUrl?: string };
   sources: { app: string; styles: string; tokens: string; fonts: string };
   category?: string;
+  brief?: Partial<Brief>;
 }
 
 export interface Project {
@@ -173,6 +215,11 @@ export interface PassContext {
   choices: Record<string, string>;
   /** Pass def ids currently applied in the working tree. */
   applied: string[];
+  /** The owner's story; every pass should read it. */
+  brief: Brief;
+  mood: Mood;
+  /** Per-pass generation seed (pass def id -> seed). Use `rngFor(ctx, passId)`. */
+  seeds: Record<string, number>;
 }
 
 export interface RuleCard {
@@ -195,8 +242,12 @@ export interface PassDefinition {
   name: string;
   kind: PassKind;
   order: number;
-  /** Expected Mog gain, shown as +N. */
-  points: number;
+  /** What this pass improves; the planner weighs it against the brief's goal. */
+  serves: Serve[];
+  /** Moods this pass suits (positive) or fights (negative); e.g. motion passes lean energetic. */
+  moodBias?: Partial<Mood>;
+  /** @deprecated v0.1 fixed gain. Ignored by the planner; impact is computed per brief. */
+  points?: number;
   dependsOn?: string[];
   ruleCards: string[];
   /** One-line description shown in the queue row. */
@@ -237,7 +288,11 @@ export interface PassView {
   name: string;
   kind: PassKind;
   order: number;
-  points: number;
+  /** 0–100: how much this pass matters for this brief and this page. */
+  impact: number;
+  /** One line on why it matters for this goal. */
+  rationale: string;
+  seed: number;
   status: PassStatus;
   /** The stored status, unaffected by a transient preview. */
   baseStatus: PassStatus;
@@ -276,4 +331,6 @@ export interface ProjectState {
   versionUrl: string | null;
   audited: boolean;
   busy: string | null;
+  brief: Brief | null;
+  mood: Mood | null;
 }

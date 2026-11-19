@@ -1,4 +1,4 @@
-import { definePass, jsxEdit, jsonEdit, cssEdit, type CopyChange, type Finding, type PassContext, type PatchFile } from '@sitemaxxing/core';
+import { definePass, jsonEdit, rngFor, GOALS, type CopyChange, type Finding, type PassContext, type PatchFile } from '@sitemaxxing/core';
 import { SLOP_WORDS, SLOP_PHRASES, adjectiveRuns, slopHits, stripEmoji, EMOJI_RE } from '@sitemaxxing/rules';
 import { cleanText, copyColumnOf, ctaOf, descendants, h1Of, heroOf, readSources, selFor, wordCount } from './shared';
 
@@ -56,7 +56,21 @@ function sentenceCase(s: string): string {
 }
 
 /** Deterministic rewrite used offline: strip slop and emoji, then build claims from facts. */
-export function ruleBasedRewrite(inp: CopyInputs, facts: Fact[]): CopyInputs {
+/**
+ * Splits the owner's story into a headline-sized main clause and the rest. The story is their own
+ * words, so it is the most specific material available offline.
+ */
+export function storyClauses(story: string): { head?: string; rest?: string } {
+  const first = (story.split(/(?<=[.!?])\s+/)[0] ?? '').replace(/[.!?]+$/, '').trim();
+  if (!first) return {};
+  const m = first.match(/^(.*?)(?:,\s+|\s+(?:so|so that|which|that|because|while|for)\s+|\s+[—–-]\s+)(.*)$/i);
+  const head = (m ? m[1] : first).trim();
+  const rest = m ? m[2].trim().replace(/^(so that|so|which|that|because|while|and)\s+/i, '') : '';
+  if (wordCount(head) > 9 || wordCount(head) < 3) return { rest: first };
+  return { head, rest: rest || undefined };
+}
+
+export function ruleBasedRewrite(inp: CopyInputs, facts: Fact[], opts: { cta?: string; story?: string } = {}): CopyInputs {
   const strip = (t: string) =>
     SLOP_PHRASES.reduce((acc, ph) => acc.replace(new RegExp(ph, 'gi'), ''), stripEmoji(t))
       .replace(new RegExp(`\\b(${SLOP_WORDS.map((w) => w.replace(/-/g, '\\-')).join('|')})\\b`, 'gi'), '')
@@ -67,13 +81,37 @@ export function ruleBasedRewrite(inp: CopyInputs, facts: Fact[]): CopyInputs {
   const f = (i: number) => (facts[i] ? `${facts[i].value} ${facts[i].label.toLowerCase()}` : '');
   let headline = sentenceCase(strip(inp.headline).replace(/^(the|a|an)\s+/i, ''));
   const wasSlop = slopHits(inp.headline).length > 0;
-  if (facts.length && (wasSlop || wordCount(headline) < 3 || wordCount(headline) > 8)) headline = sentenceCase(f(0)) + '.';
+  const story = storyClauses(opts.story ?? '');
+  const needsNew = wasSlop || wordCount(headline) < 3 || wordCount(headline) > 8;
+  let usedFact = 0;
+  let storyRest: string | undefined;
+  if (needsNew && story.head && !slopHits(story.head).length) {
+    headline = sentenceCase(story.head) + '.';
+    storyRest = story.rest;
+  } else if (needsNew && facts.length) {
+    headline = sentenceCase(f(0)) + '.';
+    usedFact = 1;
+  }
   if (wordCount(headline) > 8) headline = headline.split(/\s+/).slice(0, 8).join(' ');
-  const usedFact = facts.length && headline === sentenceCase(f(0)) + '.' ? 1 : 0;
-  const rest = facts.slice(usedFact).map((_, i) => f(i + usedFact)).filter(Boolean);
-  let subhead = rest.length ? sentenceCase(rest.join(', ')) + '.' : facts.length ? sentenceCase(f(0)) + '.' : strip(inp.subhead);
+  // Skip facts the headline or story clause already says (in any words: "12" or "twelve").
+  const said = `${headline} ${storyRest ?? ''}`.toLowerCase();
+  const NUM: Record<string, string> = { '1': 'one', '2': 'two', '3': 'three', '4': 'four', '5': 'five', '6': 'six', '7': 'seven', '8': 'eight', '9': 'nine', '10': 'ten', '12': 'twelve', '20': 'twenty' };
+  const alreadySaid = (fact: Fact) => {
+    const words = `${fact.value} ${fact.label}`.toLowerCase().match(/[a-z]{4,}|\d+/g) ?? [];
+    const hits = words.filter((w) => said.includes(w) || (NUM[w] && said.includes(NUM[w])));
+    return words.length > 0 && hits.length / words.length >= 0.5;
+  };
+  const rest = facts
+    .slice(usedFact)
+    .filter((fact) => !alreadySaid(fact))
+    .map((fact) => `${fact.value} ${fact.label.toLowerCase()}`);
+  const factLine = rest.length ? sentenceCase(rest.join(', ')) + '.' : '';
+  let subhead = storyRest ? [sentenceCase(storyRest) + '.', factLine].filter(Boolean).join(' ') : factLine || (facts.length ? sentenceCase(f(0)) + '.' : strip(inp.subhead));
+  if (wordCount(subhead) > 25) subhead = storyRest ? sentenceCase(storyRest) + '.' : subhead;
   if (wordCount(subhead) > 25) subhead = subhead.split(/\s+/).slice(0, 25).join(' ');
   let cta = strip(inp.cta).replace(/\b(free|now|today)\b/gi, '').trim();
+  // A button that was slop gets the goal's own verb ("Check dates" for bookings).
+  if (opts.cta && (slopHits(inp.cta).length || wordCount(cta) < 2)) cta = opts.cta;
   cta = wordCount(cta) >= 2 ? sentenceCase(cta.toLowerCase()) : 'See how it works';
   if (wordCount(cta) > 4) cta = cta.split(/\s+/).slice(0, 4).join(' ');
   const pill = inp.pill ? sentenceCase(strip(inp.pill).toLowerCase()) : undefined;
@@ -87,12 +125,23 @@ async function llmRewrite(ctx: PassContext, inp: CopyInputs, facts: Fact[]): Pro
     'You rewrite landing-page copy. Reply with JSON only: {"headline","subhead","cta","pill"}.',
     'Rules: the headline is ONE concrete, specific claim of at most 8 words.',
     'The subhead is at most 25 words, specific (numbers, places, who it is for), roughly half the length of the original.',
-    'The button says what happens next, at most 4 words, no exclamation marks.',
+    'The button says what happens next for the goal, at most 4 words, no exclamation marks.',
+    'Write for the audience and in the feeling given; the story is the owner’s own description, use its nouns.',
     'The pill, if given, becomes a 3 to 5 word plain descriptor with no emoji.',
     'Never use these words: ' + SLOP_WORDS.join(', ') + '. No emoji. No stacked adjectives.',
     'Never invent numbers; only use figures that appear in the facts or page text. If there are no facts, keep the original text and add "note": "need a fact".',
   ].join('\n');
-  const user = JSON.stringify({ category: ctx.config.category ?? ctx.project.category ?? 'unknown', section: 'hero', original: inp, facts, pageText });
+  const user = JSON.stringify({
+    story: ctx.brief.story,
+    audience: ctx.brief.audience,
+    goal: `get visitors to ${GOALS[ctx.brief.goal].verb}`,
+    feeling: ctx.brief.feeling,
+    category: ctx.config.category ?? ctx.project.category ?? 'unknown',
+    section: 'hero',
+    original: inp,
+    facts,
+    pageText,
+  });
   try {
     const raw = await ctx.llm.complete([{ role: 'system', content: system }, { role: 'user', content: user }], { maxTokens: 400, json: true });
     const m = raw.match(/\{[\s\S]*\}/);
@@ -115,7 +164,7 @@ export const copy = definePass({
   name: 'Copy',
   kind: 'refine',
   order: 3,
-  points: 10,
+  serves: ['clarity', 'action', 'trust'],
   ruleCards: ['human-md-specificity', 'human-md-no-slop', 'vercel-content'],
   description: 'One concrete claim instead of filler; the subhead cut by half and made specific; buttons say what happens',
   async detect(ctx) {
@@ -139,7 +188,8 @@ export const copy = definePass({
     const inp = inputsOf(ctx);
     const facts = factsOf(ctx);
     const viaLlm = await llmRewrite(ctx, inp, facts);
-    const out = viaLlm ?? ruleBasedRewrite(inp, facts);
+    const goalCta = rngFor(ctx, 'copy').pick(GOALS[ctx.brief.goal].cta);
+    const out = viaLlm ?? ruleBasedRewrite(inp, facts, { cta: goalCta, story: ctx.brief.story });
     const notes = viaLlm
       ? [`Rewritten with ${ctx.llm!.provider} (${ctx.llm!.model}) from ${facts.length} facts found on the page`]
       : [ctx.llm ? 'LLM reply failed validation; rule-based rewrite used instead' : 'LLM not configured: rule-based rewrite (set ANTHROPIC_API_KEY or OPENAI_API_KEY for a sharper headline)'];
@@ -176,27 +226,22 @@ export const copy = definePass({
       const before = ctx.files.read(ctx.content.path);
       files.push({ path: ctx.content.path, before, after: jsonEdit.setJsonValues(before, keysToSet) });
     }
-    // Feature cards with emoji become a spec row of real figures.
-    const { file } = jsxEdit.parseTsx(appAfter);
-    const cards = jsxEdit.find(file, (e) => jsxEdit.tagName(e) === 'section' && jsxEdit.classes(e).some((c) => /feature/.test(c)) && EMOJI_RE.test(e.getText()) === false && /emoji|icon/.test(e.getText()));
-    if (cards && facts.length && ctx.content && Array.isArray((ctx.content.data as any).facts)) {
-      cards.replaceWithText(`<section className="spec">
-          {content.facts.map((f) => (
-            <div key={f.label}>
-              <b>{f.value}</b>
-              <span>{f.label}</span>
-            </div>
-          ))}
-        </section>`);
-      appAfter = jsxEdit.tidy(file.getFullText());
-      copyDiff.push({ key: 'features', old: 'three emoji feature cards', new: facts.map((f) => `${f.value} ${f.label}`).join(' · '), selector: '.spec' });
-      if (!cssEdit.hasRule(src.styles, '.spec')) {
-        const block = `.spec { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--line, #ddd); margin: 0 clamp(20px, 5vw, 64px); }
-.spec div { padding: 28px 0 28px 24px; border-right: 1px solid var(--line, #ddd); }
-.spec div:first-child { padding-left: 0; } .spec div:last-child { border-right: 0; }
-.spec b { display: block; font-family: var(--display, inherit); font-weight: 400; font-size: clamp(32px, 3.2vw, 48px); line-height: 1; letter-spacing: -0.02em; }
-.spec span { font-family: var(--label, inherit); font-size: 13px; color: var(--soft, #666); text-transform: uppercase; letter-spacing: 0.06em; }`;
-        files.push({ path: ctx.config.sources.styles, before: src.styles, after: cssEdit.appendCss(src.styles, block, 'sitemaxxing: spec row') });
+    // Feature copy: filler entries are dropped, never half-rewritten. If too few real ones are
+    // left, the features stay as they are and the pass says what is missing.
+    const feats = (ctx.content?.data as any)?.features;
+    if (ctx.content && Array.isArray(feats)) {
+      const isFiller = (f: any) => slopHits(`${f?.title ?? ''} ${f?.text ?? ''}`).length > 0;
+      const keep = feats.filter((f: any) => !isFiller(f));
+      const dropped = feats.filter(isFiller);
+      if (dropped.length && keep.length >= 2) {
+        keysToSet.features = keep;
+        copyDiff.push({ key: 'features', old: dropped.map((f: any) => f.title).join(' · '), new: `kept ${keep.map((f: any) => f.title).join(' · ')}`, selector: '[class*="feature"], .sm-rows, .sm-bento, .sm-spec' });
+        const before = ctx.files.read(ctx.content.path);
+        const rest = files.filter((f) => f.path !== ctx.content!.path);
+        files.length = 0;
+        files.push(...rest, { path: ctx.content.path, before, after: jsonEdit.setJsonValues(before, keysToSet) });
+      } else if (dropped.length) {
+        notes.push(`${dropped.length} of ${feats.length} feature descriptions read as filler; add real details to ${ctx.content.path}${ctx.llm ? '' : ' or set an LLM key'}`);
       }
     }
     if (appAfter !== src.app) files.push({ path: ctx.config.sources.app, before: src.app, after: appAfter });

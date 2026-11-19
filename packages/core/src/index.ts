@@ -16,3 +16,7 @@ export * as cssEdit from './edit/css';
 export * as jsxEdit from './edit/jsx';
 export * as jsonEdit from './edit/json';
 export * from './playground';
+export * from './brief';
+export * from './planner';
+export * from './random';
+export * from './color';

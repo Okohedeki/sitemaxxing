@@ -26,8 +26,9 @@ export async function createMcpServer(engine: Engine) {
     view: s.view,
     previewing: s.previewing,
     currentVersion: s.currentVersion,
-    passes: s.passes.map((p: any) => ({ id: p.id, name: p.name, status: p.status, points: p.points, variant: p.chosenVariantId, variants: p.variants.map((v: any) => v.id), stale: p.status === 'stale', skipReason: p.skipReason, summary: p.summary })),
+    passes: s.passes.map((p: any) => ({ id: p.id, name: p.name, status: p.status, impact: p.impact, why: p.rationale, variant: p.chosenVariantId, variants: p.variants.map((v: any) => v.id), stale: p.status === 'stale', skipReason: p.skipReason, summary: p.summary })),
     versions: s.versions,
+    brief: s.brief ? { goal: s.brief.goal, feeling: s.brief.feeling, noise: s.brief.noise, seed: s.brief.seed } : null,
   });
 
   server.registerTool('init_project', { description: 'Register a repo (path) and its dev server URL; returns the project id, sections and the baseline Mog score.', inputSchema: { path: z.string(), dev_url: z.string().optional() } }, async ({ path, dev_url }) => {
@@ -35,6 +36,37 @@ export async function createMcpServer(engine: Engine) {
     lastProject = r.projectId;
     return text(r);
   });
+  server.registerTool(
+    'set_brief',
+    {
+      description:
+        'Tell Sitemaxxing the story before planning: what this is, who it is for, the one goal, how it should feel, what to keep. Noise 0..1 sets how far proposals wander (0 = safe, 1 = wild). Required before audit_page.',
+      inputSchema: {
+        project_id: z.string().optional(),
+        story: z.string(),
+        audience: z.string().optional(),
+        goal: z.enum(['signups', 'sales', 'bookings', 'leads', 'credibility', 'awareness']),
+        feeling: z.array(z.string()).optional(),
+        keep: z.object({ colors: z.boolean().optional(), fonts: z.boolean().optional(), copy: z.boolean().optional() }).optional(),
+        avoid: z.array(z.string()).optional(),
+        noise: z.number().min(0).max(1).optional(),
+        seed: z.number().int().nonnegative().optional(),
+      },
+    },
+    async ({ project_id, ...brief }) => {
+      const id = await ensure(projectOf(undefined, project_id));
+      const s = await engine.setBrief(id, brief as any);
+      return text({ brief: s.brief, mood: s.mood, next: 'call audit_page to plan' });
+    },
+  );
+  server.registerTool(
+    'reroll_pass',
+    { description: 'Randomize: give one pass (pass_id) or every open pass a new seed, so it proposes different references and parameters for the same brief.', inputSchema: { pass_id: z.string().optional(), project_id: z.string().optional() } },
+    async ({ pass_id, project_id }) => {
+      const s = await engine.reroll(await ensure(projectOf(pass_id, project_id)), pass_id);
+      return text(stripState(s).passes.filter((p: any) => !pass_id || p.id === pass_id));
+    },
+  );
   server.registerTool('audit_page', { description: 'Snapshot the page, score it, and propose the ordered passes with findings.', inputSchema: { project_id: z.string().optional() } }, async ({ project_id }) => {
     const id = await ensure(projectOf(undefined, project_id));
     const s = await engine.audit(id);

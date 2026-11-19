@@ -73,6 +73,8 @@ export default defineConfig({
   passes: ['default'],
   llm: { provider: 'anthropic' },
   viewports: [[1440, 900], [390, 844]],
+  // Optional: the story can also be told in the control room's first step.
+  // brief: { story: 'What this is and why it exists.', audience: 'who it is for', goal: 'signups', feeling: ['calm', 'precise'], noise: 0.35 },
 });
 `;
   fs.writeFileSync(p, text);

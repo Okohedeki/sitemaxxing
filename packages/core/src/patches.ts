@@ -64,52 +64,88 @@ export class PatchApplyError extends Error {
  * Applies (or reverses) a multi-file unified diff on disk. All files are checked first so a
  * failing hunk leaves the tree untouched.
  */
-export function applyToDisk(root: string, patchText: string, opts: { reverse?: boolean } = {}): string[] {
-  const parsed = parse(patchText).map((d) => (opts.reverse ? reverseParsed(d) : d));
-  const writes: Array<{ abs: string; content: string | null; rel: string }> = [];
+/**
+ * A staging area over the working tree. Reversals and applications are done in memory and flushed
+ * with one write per file, so a dev server's watcher sees a single change instead of two writes a
+ * few milliseconds apart (which file watchers can coalesce and serve stale).
+ */
+export class Staging {
+  private files = new Map<string, string | null>();
+  constructor(public root: string) {}
+
+  read(rel: string): string | null {
+    if (this.files.has(rel)) return this.files.get(rel)!;
+    const abs = path.join(this.root, rel);
+    return fs.existsSync(abs) ? fs.readFileSync(abs, 'utf8') : null;
+  }
+
+  write(rel: string, content: string | null) {
+    this.files.set(rel, content);
+  }
+
+  get dirty(): boolean {
+    return this.files.size > 0;
+  }
+
+  /** Writes every staged file whose content differs from disk. Returns the files written. */
+  flush(): string[] {
+    const written: string[] = [];
+    for (const [rel, content] of this.files) {
+      const abs = path.join(this.root, rel);
+      const onDisk = fs.existsSync(abs) ? fs.readFileSync(abs, 'utf8') : null;
+      if (onDisk === content) continue;
+      if (content === null) fs.rmSync(abs, { force: true });
+      else {
+        fs.mkdirSync(path.dirname(abs), { recursive: true });
+        fs.writeFileSync(abs, content);
+      }
+      written.push(rel);
+    }
+    this.files.clear();
+    return written;
+  }
+}
+
+function plan(stage: Staging, patchText: string, reverse: boolean): Array<{ rel: string; content: string | null }> {
+  const parsed = parse(patchText).map((d) => (reverse ? reverseParsed(d) : d));
+  const out: Array<{ rel: string; content: string | null }> = [];
   for (const d of parsed) {
     const oldName = stripPrefix(d.oldFileName);
     const newName = stripPrefix(d.newFileName);
     const rel = oldName && oldName !== DEV_NULL ? oldName : newName;
-    const abs = path.join(root, rel);
     const creating = oldName === DEV_NULL || !oldName;
-    const deleting = newName === DEV_NULL;
-    const current = creating ? '' : fs.existsSync(abs) ? fs.readFileSync(abs, 'utf8') : null;
-    if (current === null) throw new PatchApplyError(`file missing: ${rel}`, rel);
-    if (deleting) {
-      writes.push({ abs, content: null, rel });
+    if (newName === DEV_NULL) {
+      out.push({ rel, content: null });
       continue;
     }
+    const current = creating ? '' : stage.read(rel);
+    if (current === null) throw new PatchApplyError(`file missing: ${rel}`, rel);
     const next = applyPatch(current, d, { fuzzFactor: 2 });
     if (next === false) throw new PatchApplyError(`hunk does not apply: ${rel}`, rel);
-    writes.push({ abs, content: next, rel });
+    out.push({ rel, content: next });
   }
-  for (const w of writes) {
-    if (w.content === null) {
-      if (fs.existsSync(w.abs)) fs.rmSync(w.abs);
-    } else {
-      fs.mkdirSync(path.dirname(w.abs), { recursive: true });
-      fs.writeFileSync(w.abs, w.content);
-    }
-  }
+  return out;
+}
+
+/** Applies (or reverses) a multi-file diff into a staging area. All files are checked first. */
+export function applyStaged(stage: Staging, patchText: string, opts: { reverse?: boolean } = {}): string[] {
+  const writes = plan(stage, patchText, !!opts.reverse);
+  for (const w of writes) stage.write(w.rel, w.content);
   return writes.map((w) => w.rel);
 }
 
-/** Pure check: would the patch apply to the given root without writing? */
-export function canApply(root: string, patchText: string, reverse = false): boolean {
+/** Applies (or reverses) a multi-file unified diff on disk. A failing hunk leaves the tree untouched. */
+export function applyToDisk(root: string, patchText: string, opts: { reverse?: boolean } = {}): string[] {
+  const stage = new Staging(root);
+  const files = applyStaged(stage, patchText, opts);
+  stage.flush();
+  return files;
+}
+
+/** Pure check: would the patch apply (to the staged tree, or to disk) without writing? */
+export function canApply(root: string | Staging, patchText: string, reverse = false): boolean {
   try {
-    const parsed = parse(patchText).map((d) => (reverse ? reverseParsed(d) : d));
-    for (const d of parsed) {
-      const oldName = stripPrefix(d.oldFileName);
-      const newName = stripPrefix(d.newFileName);
-      const rel = oldName && oldName !== DEV_NULL ? oldName : newName;
-      if (newName === DEV_NULL) continue;
-      const creating = oldName === DEV_NULL || !oldName;
-      const abs = path.join(root, rel);
-      const current = creating ? '' : fs.existsSync(abs) ? fs.readFileSync(abs, 'utf8') : null;
-      if (current === null) return false;
-      if (applyPatch(current, d, { fuzzFactor: 2 }) === false) return false;
-    }
+    plan(typeof root === 'string' ? new Staging(root) : root, patchText, reverse);
     return true;
   } catch {
     return false;

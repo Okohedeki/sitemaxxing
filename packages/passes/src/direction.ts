@@ -1,5 +1,5 @@
-import { definePass, cssEdit, type Finding, type Variant } from '@sitemaxxing/core';
-import { DIRECTIONS } from '@sitemaxxing/components';
+import { definePass, cssEdit, rngFor, avoidOf, type Finding, type PassContext, type Variant } from '@sitemaxxing/core';
+import { generateDirections, type GeneratedDirection } from '@sitemaxxing/components';
 import { buttonsIn, changed, heroOf, navOf, readSources, selFor } from './shared';
 
 /** Semantic tokens the sloppy baseline may declare; the direction turns them solid and quiet. */
@@ -36,9 +36,29 @@ function saturatedHues(colors: string[]): number {
     if (max === r) h = (g - b) / (max - min);
     else if (max === g) h = 2 + (b - r) / (max - min);
     else h = 4 + (r - g) / (max - min);
-    hues.add(Math.round((((h * 60 + 360) % 360) / 30)));
+    hues.add(Math.round(((h * 60 + 360) % 360) / 30));
   }
   return hues.size;
+}
+
+/** The current accent, when the brief says to keep the colours. */
+function currentAccent(ctx: PassContext): string | undefined {
+  const v = ctx.tokens.vars['--acc'] ?? ctx.tokens.vars['--accent'] ?? ctx.tokens.vars['--primary'] ?? ctx.tokens.vars['--brand'];
+  return v && /^#[0-9a-f]{3,8}$/i.test(v.trim()) ? v.trim() : undefined;
+}
+
+/** Directions are generated, not listed: three picks from the reference library, perturbed by noise. */
+function directions(ctx: PassContext): GeneratedDirection[] {
+  const avoid = avoidOf(ctx.brief);
+  return generateDirections({
+    mood: ctx.mood,
+    goal: ctx.brief.goal,
+    noise: ctx.brief.noise,
+    rng: rngFor(ctx, 'direction'),
+    keepAccent: ctx.brief.keep.colors ? currentAccent(ctx) : undefined,
+    avoidDark: avoid.dark,
+    avoidBright: avoid.bright,
+  });
 }
 
 export const direction = definePass({
@@ -46,9 +66,9 @@ export const direction = definePass({
   name: 'Visual direction',
   kind: 'direction',
   order: 0,
-  points: 16,
-  ruleCards: ['refactoring-ui-color', 'tuch-2012-prototypicality', 'reinecke-2013-colorfulness', 'emil-agents-with-taste'],
-  description: 'Whole-page look: palette, accent and tone as design tokens; solid buttons, no gradients, hairline badges',
+  serves: ['character', 'mood', 'polish'],
+  ruleCards: ['refactoring-ui-color', 'tuch-2012-prototypicality', 'reinecke-2013-colorfulness', 'reinecke-gajos-2014', 'hekkert-2003-maya'],
+  description: 'Palette, accent and tone for this story, as tokens; solid buttons, no gradients, hairline badges',
   async detect(ctx) {
     const findings: Finding[] = [];
     const fold = ctx.dom.aboveFold();
@@ -60,14 +80,16 @@ export const direction = definePass({
     if (shadowed.length) findings.push({ message: 'buttons carry drop shadows', selector: shadowed[0].selector });
     const tokenGradients = Object.values(ctx.tokens.vars).filter((v) => v.includes('gradient')).length;
     if (tokenGradients) findings.push({ message: `${tokenGradients} gradient tokens declared on :root` });
-    const applies = findings.length > 0 || Object.keys(ctx.tokens.vars).length === 0;
-    return { applies, findings, reason: applies ? undefined : 'palette already restrained' };
+    findings.push({ message: `palette drawn for a ${ctx.brief.feeling.slice(0, 3).join(', ') || 'neutral'} brief` });
+    if (ctx.brief.keep.colors && !findings.some((f) => f.severity === 'warn')) return { applies: false, findings, reason: 'you asked to keep your colours, and they are already restrained' };
+    return { applies: true, findings };
   },
-  async variants() {
-    return Object.entries(DIRECTIONS).map(([id, d]): Variant => ({ id, label: d.label, thumbnail: d.thumb, attributes: d.attributes, source: 'library' }));
+  async variants(ctx) {
+    return directions(ctx).map((d): Variant => ({ id: d.id, label: d.label, thumbnail: d.thumbnail, attributes: d.attributes, source: 'generated' }));
   },
-  async propose(ctx, variantId = 'lab') {
-    const dir = DIRECTIONS[variantId] ?? DIRECTIONS.lab;
+  async propose(ctx, variantId) {
+    const all = directions(ctx);
+    const dir = all.find((d) => d.id === variantId) ?? all[0];
     const src = readSources(ctx);
     const tokensPath = ctx.tokens.file ?? ctx.config.sources.tokens;
     const before = ctx.files.exists(tokensPath) ? ctx.files.read(tokensPath) : '';
@@ -87,7 +109,7 @@ h1 span, h1 strong { background: none; color: var(--acc); -webkit-text-fill-colo
       } else files.push({ path: stylesPath, before: src.styles, after: cssEdit.appendCss(src.styles, block, 'sitemaxxing: direction') });
     }
     return {
-      summary: `${dir.label}: paper ${dir.tokens['--bg']}, ink ${dir.tokens['--ink']}, accent ${dir.tokens['--acc']}; solid buttons, no gradients`,
+      summary: `${dir.label}: paper ${dir.tokens['--bg']}, ink ${dir.tokens['--ink']}, accent ${dir.tokens['--acc']}`,
       files: changed(files),
     };
   },

@@ -20,18 +20,27 @@ pnpm dev
    `docs/writing-a-pass.md` for the contract: `detect` decides whether the pass applies and
    returns findings, `propose` returns **one patch that changes one thing**, `highlight` lists the
    selectors to outline, and `ruleCards` cites the cards that justify it.
-2. Register it in `packages/passes/src/index.ts` at the right position in the order (coarse to
-   fine) and give it `points`, the expected Mog score gain.
+2. Register it in `packages/passes/src/index.ts` and declare what it `serves` (clarity, action,
+   trust, character, mood, polish) and, if it suits some moods more than others, a `moodBias`.
+   The planner decides from the brief whether it is proposed; there is no fixed points value.
 3. Add a unit test next to it that runs `detect` and `propose` against a small fixture.
 4. Third-party passes live in their own package named `sitemaxxing-pass-<name>` and are listed in
    the target's `sitemaxxing.config.ts` under `passes`.
 
-## Adding a component variant
+## Adding a reference to the library
 
-Components are passes of kind `component` with 3 variants. Put the component source (the code
-that gets written into the target repo) in `packages/components/src/<name>.ts` as template
-strings, add an inline SVG thumbnail for each variant, and wire it in `packages/passes`.
-Everything must be original: no code or designs from paid libraries.
+The library (`packages/components/src/library`) holds the reference directions, type pairings
+and components that passes pick from. A well-made new reference is the most direct way to make
+Sitemaxxing less samey.
+
+- **A direction:** add an entry to `directions.ts` with OKLCH paper, ink and accent, and a `mood`.
+- **A type pairing:** add an entry to `fonts.ts` with open-licensed Fontsource imports.
+- **A component or section:** add the source (as template strings) and CSS to `sections.ts` or a
+  new file, then register it in `registry.ts` with its slot, `mood`, `goals`, `requires` (content
+  keys) and a thumbnail. Style it with the direction tokens.
+
+Place it honestly on the mood axes; the selection test checks that different briefs reach
+different references. Everything must be original: no code or designs from paid libraries.
 
 ## Adding a rule card
 

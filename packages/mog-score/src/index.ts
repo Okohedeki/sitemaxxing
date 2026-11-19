@@ -36,17 +36,54 @@ function linearDown(value: number, fine: number, zero: number): number {
   return 1 - (value - fine) / (zero - fine);
 }
 
-export function scoreFromParts(parts: { colorfulness: number; edge: number; regions: number; typeRatio: number; slopHits: number; slopTerms?: string[]; buttons: number; quietButtons?: number; leftEdges: number; charsPerLine: number }): ScoreResult {
-  const t = TARGETS;
+/** The brief's mood, structurally (avoids a dependency on core). Each axis is -1..1. */
+export interface ScoreMood {
+  energy: number;
+  warmth: number;
+  formality: number;
+  classic: number;
+  density: number;
+  dark: number;
+}
+
+export interface ScoreOptions {
+  /** When given, targets bend toward the brief: a bold or dark brief may be more colourful, a dense one busier. */
+  mood?: ScoreMood;
+}
+
+/**
+ * Targets for a brief. The defaults describe a calm, light page; without this, the score would
+ * reward one look and push every site toward it.
+ */
+export function targetsFor(mood?: ScoreMood): typeof TARGETS {
+  const t = JSON.parse(JSON.stringify(TARGETS)) as typeof TARGETS;
+  if (!mood) return t;
+  const pos = (v: number) => Math.max(0, v);
+  t.colorfulness.fine += 30 * pos(mood.energy) + 18 * pos(mood.dark) + 8 * pos(-mood.formality);
+  t.colorfulness.zero += 25 * pos(mood.energy) + 15 * pos(mood.dark);
+  t.complexity.edgeFine += 0.035 * pos(mood.density) + 0.015 * pos(mood.energy);
+  t.complexity.edgeZero += 0.05 * pos(mood.density) + 0.02 * pos(mood.energy);
+  t.complexity.regionsFine += 20 * pos(mood.density);
+  // Dense, formal pages (documentation, finance) read well with a gentler type scale.
+  t.typeContrast.fine -= 0.45 * pos(mood.density) + 0.2 * pos(mood.formality);
+  t.typeContrast.min -= 0.3 * pos(mood.density);
+  return t;
+}
+
+export function scoreFromParts(
+  parts: { colorfulness: number; edge: number; regions: number; typeRatio: number; slopHits: number; slopTerms?: string[]; buttons: number; quietButtons?: number; leftEdges: number; charsPerLine: number },
+  opts: ScoreOptions = {},
+): ScoreResult {
+  const t = targetsFor(opts.mood);
   const metrics: Record<string, ScoreMetric> = {};
   const add = (key: string, value: number, sub: number, note: string) => {
     metrics[key] = { value: Math.round(value * 100) / 100, sub: Math.round(clamp01(sub) * 100) / 100, weight: WEIGHTS[key], note };
   };
-  add('colorfulness', parts.colorfulness, linearDown(parts.colorfulness, t.colorfulness.fine, t.colorfulness.zero), `Hasler–Süsstrunk ${parts.colorfulness.toFixed(0)} (fine below ${t.colorfulness.fine})`);
+  add('colorfulness', parts.colorfulness, linearDown(parts.colorfulness, t.colorfulness.fine, t.colorfulness.zero), `Hasler–Süsstrunk ${parts.colorfulness.toFixed(0)} (fine below ${Math.round(t.colorfulness.fine)})`);
   const edgeSub = linearDown(parts.edge, t.complexity.edgeFine, t.complexity.edgeZero);
   const regionSub = linearDown(parts.regions, t.complexity.regionsFine, t.complexity.regionsZero);
   add('complexity', parts.edge, 0.6 * edgeSub + 0.4 * regionSub, `edge density ${(parts.edge * 100).toFixed(1)}%, ${parts.regions} busy regions`);
-  add('typeContrast', parts.typeRatio, (parts.typeRatio - t.typeContrast.min) / (t.typeContrast.fine - t.typeContrast.min), `h1 is ${parts.typeRatio.toFixed(1)}x body (target ≥ ${t.typeContrast.fine})`);
+  add('typeContrast', parts.typeRatio, (parts.typeRatio - t.typeContrast.min) / (t.typeContrast.fine - t.typeContrast.min), `h1 is ${parts.typeRatio.toFixed(1)}x body (target ≥ ${t.typeContrast.fine.toFixed(2)})`);
   add('copySlop', parts.slopHits, 1 - parts.slopHits * t.copySlop.perHit, `${parts.slopHits} slop or emoji hits in headings and buttons${parts.slopTerms?.length ? ` (${parts.slopTerms.slice(0, 6).join(', ')})` : ''}`);
   const solid = parts.buttons;
   const quiet = parts.quietButtons ?? 0;
@@ -62,6 +99,7 @@ export function scoreFromParts(parts: { colorfulness: number; edge: number; regi
   const notes = Object.entries(metrics)
     .filter(([, m]) => m.sub < 0.6)
     .map(([k, m]) => `${k}: ${m.note}`);
+  if (opts.mood) notes.push('Targets adjusted for this brief (colourfulness, complexity and type contrast).');
   return { score, metrics, notes };
 }
 
@@ -105,23 +143,34 @@ export function domParts(dom: ScoreDOM) {
     const lines = Math.max(1, Math.round(p.box.h / lh));
     cpl = lines > 1 ? Math.round(p.box.w / (fs * 0.5)) : Math.round(p.text.length);
   }
-  return { typeRatio, slopHits: hits, slopTerms, buttons, quietButtons, leftEdges, charsPerLine: cpl };
+  // Photos, illustrations and canvases are content, not the page's own colour.
+  const media = fold
+    .filter((n) => ['img', 'svg', 'video', 'canvas', 'picture'].includes(n.tag) || /url\(/.test(n.styles.backgroundImage ?? ''))
+    .map((n) => n.box)
+    // Only imagery that carries the view counts as content (a quarter of the viewport or more);
+    // a small boxed picture beside the copy is part of the composition and stays in the measure.
+    .filter((b) => b.w * Math.min(b.h, dom.viewport.height) >= 0.25 * dom.viewport.width * dom.viewport.height);
+  return { typeRatio, slopHits: hits, slopTerms, buttons, quietButtons, leftEdges, charsPerLine: cpl, media };
 }
 
-export function imageParts(img: Raster) {
-  const small = downsample(img, 4);
-  return { colorfulness: colorfulness(small), edge: edgeDensity(small), regions: regionCount(small) };
+export function imageParts(img: Raster, media: Array<{ x: number; y: number; w: number; h: number }> = []) {
+  const f = 4;
+  const small = downsample(img, f);
+  const exclude = media.map((b) => ({ x: Math.floor(b.x / f), y: Math.floor(b.y / f), w: Math.ceil(b.w / f), h: Math.ceil(b.h / f) }));
+  return { colorfulness: colorfulness(small, exclude), edge: edgeDensity(small), regions: regionCount(small) };
 }
 
 /** Scores the current viewport of a Playwright page. The DOM snapshot comes from core. */
-export async function scorePage(page: Page, dom: ScoreDOM): Promise<ScoreResult> {
+export async function scorePage(page: Page, dom: ScoreDOM, opts: ScoreOptions = {}): Promise<ScoreResult> {
   const buf = await page.screenshot({ fullPage: false, type: 'png' });
   const img = decodePng(buf);
-  return scoreFromParts({ ...imageParts(img), ...domParts(dom) });
+  const d = domParts(dom);
+  return scoreFromParts({ ...imageParts(img, d.media), ...d }, opts);
 }
 
-export async function scoreScreenshotBuffer(buf: Buffer, dom: ScoreDOM): Promise<ScoreResult> {
-  return scoreFromParts({ ...imageParts(decodePng(buf)), ...domParts(dom) });
+export async function scoreScreenshotBuffer(buf: Buffer, dom: ScoreDOM, opts: ScoreOptions = {}): Promise<ScoreResult> {
+  const d = domParts(dom);
+  return scoreFromParts({ ...imageParts(decodePng(buf), d.media), ...d }, opts);
 }
 
 export * from './image';

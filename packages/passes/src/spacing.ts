@@ -6,7 +6,8 @@ export const spacing = definePass({
   name: 'Spacing',
   kind: 'refine',
   order: 2,
-  points: 5,
+  serves: ['polish', 'clarity'],
+  moodBias: { density: -0.5 },
   ruleCards: ['refactoring-ui-spacing', 'utopia-fluid-space', 'every-layout-stack'],
   description: '8-point scale with fluid clamp() values: bigger gutters, hero padding, section rhythm',
   async detect(ctx) {
@@ -33,9 +34,14 @@ export const spacing = definePass({
     const nav = selFor(navOf(ctx.dom), 'header');
     const hero = selFor(heroOf(ctx.dom), 'main > section');
     const col = selFor(copyColumnOf(ctx.dom), `${hero} > div`);
-    const gutter = 'clamp(20px, 5vw, 64px)';
+    // Airy briefs get more room, dense ones less; both stay on the 8-pt grid.
+    const d = ctx.mood.density;
+    const step = (v: number) => Math.round(v / 8) * 8;
+    const heroMax = step(112 - 48 * d);
+    const gutterMax = step(64 - 16 * d);
+    const gutter = `clamp(20px, 5vw, ${gutterMax}px)`;
     css = cssEdit.setDeclarations(css, nav, { padding: `clamp(16px, 2vw, 32px) ${gutter}` });
-    css = cssEdit.setDeclarations(css, hero, { padding: `clamp(48px, 8vw, 112px) ${gutter} clamp(32px, 5vw, 64px)`, gap: 'clamp(24px, 4vw, 56px)' });
+    css = cssEdit.setDeclarations(css, hero, { padding: `clamp(48px, 8vw, ${heroMax}px) ${gutter} clamp(32px, 5vw, ${step(heroMax * 0.57)}px)`, gap: 'clamp(24px, 4vw, 56px)' });
     css = cssEdit.setDeclarations(css, col, { gap: 'clamp(16px, 2vw, 28px)' });
     for (const extra of ['.features', '.spec', '.footer', 'footer']) {
       if (!cssEdit.hasRule(css, extra)) continue;
@@ -44,7 +50,7 @@ export const spacing = definePass({
       else css = cssEdit.setDeclarations(css, extra, { padding: `clamp(16px, 2vw, 24px) ${gutter}` });
     }
     return {
-      summary: `Fluid 8-pt scale: gutters ${gutter}, hero padding up to 112px`,
+      summary: `Fluid 8-pt scale: gutters up to ${gutterMax}px, hero padding up to ${heroMax}px (${d <= -0.25 ? 'airy' : d >= 0.25 ? 'dense' : 'balanced'} for this brief)`,
       files: changed([{ path: stylesPath, before: src.styles, after: css }]),
     };
   },

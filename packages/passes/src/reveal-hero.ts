@@ -1,6 +1,8 @@
 import { SyntaxKind } from 'ts-morph';
-import { definePass, cssEdit, jsxEdit, type Finding, type PatchFile, type Variant } from '@sitemaxxing/core';
-import { COMPONENT_DIR, REVEAL_CSS, REVEAL_THUMBS, REVEAL_TSX } from '@sitemaxxing/components';
+import { definePass, cssEdit, jsxEdit, rngFor, type Finding, type PassContext, type PatchFile, type Variant } from '@sitemaxxing/core';
+import { COMPONENT_DIR, REVEAL_CSS, REVEAL_TSX, selectComponents, componentIdOf } from '@sitemaxxing/components';
+
+const picks = (ctx: PassContext) => selectComponents('reveal', { mood: ctx.mood, goal: ctx.brief.goal, noise: ctx.brief.noise, rng: rngFor(ctx, 'reveal-hero') });
 import { copyColumnOf, h1Of, importPath, jsxFor, readSources, selFor } from './shared';
 
 export const revealHero = definePass({
@@ -8,7 +10,8 @@ export const revealHero = definePass({
   name: 'Reveal hero',
   kind: 'refine',
   order: 10,
-  points: 5,
+  serves: ['mood', 'polish'],
+  moodBias: { energy: 0.5 },
   ruleCards: ['emil-great-animations', 'vercel-motion', 'emil-good-vs-great'],
   description: 'One hero entrance on load and nothing else animating: line rise, word stagger, or blur in',
   replay: true,
@@ -24,12 +27,12 @@ export const revealHero = definePass({
     const applies = findings.some((f) => f.severity === 'warn');
     return { applies, findings, reason: applies ? undefined : 'already one entrance' };
   },
-  async variants() {
-    const labels: Record<string, string> = { rise: 'Line rise', words: 'Word stagger', blur: 'Blur in' };
-    return (['rise', 'words', 'blur'] as const).map((id): Variant => ({ id, label: labels[id], thumbnail: REVEAL_THUMBS[id], attributes: { motion: id, duration: id === 'blur' ? 1100 : 900 }, source: 'library' }));
+  async variants(ctx) {
+    return picks(ctx).map((p): Variant => ({ id: p.id, label: p.label, thumbnail: p.spec.thumb, attributes: { ...p.attributes, duration: p.spec.id === 'blur' ? 1100 : 900 }, source: 'library' }));
   },
-  async propose(ctx, variantId = 'rise') {
-    const v = ['rise', 'words', 'blur'].includes(variantId) ? variantId : 'rise';
+  async propose(ctx, chosen) {
+    const id = componentIdOf(chosen) ?? componentIdOf(picks(ctx)[0]?.id) ?? 'rise';
+    const v = ['rise', 'words', 'blur'].includes(id) ? id : 'rise';
     const src = readSources(ctx);
     const files: PatchFile[] = [];
     const path = `${COMPONENT_DIR}/Reveal.tsx`;

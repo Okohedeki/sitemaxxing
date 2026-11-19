@@ -61,8 +61,8 @@ async function hubRpc<T>(method: string, params: Record<string, unknown>, port =
 }
 
 function printPasses(state: ProjectState) {
-  const line = (p: PassView) => `${p.status.padEnd(10)} ${('+' + p.points).padStart(4)}  ${p.name.padEnd(22)} ${p.status === 'skipped' ? 'skipped: ' + (p.skipReason ?? '') : (p.summary ?? '')}`;
-  console.log(`Mog score ${state.score?.score ?? '–'}  (v${state.currentVersion})`);
+  const line = (p: PassView) => `${p.status.padEnd(10)} ${String(p.impact).padStart(3)}  ${p.name.padEnd(24)} ${p.status === 'skipped' ? 'skipped: ' + (p.skipReason ?? '') : (p.summary ?? '')}`;
+  console.log(`Mog score ${state.score?.score ?? '–'}  (v${state.currentVersion})  goal: ${state.brief?.goal ?? '–'}  seed: ${state.brief?.seed ?? '–'}`);
   for (const p of state.passes) console.log('  ' + line(p));
 }
 
@@ -130,25 +130,31 @@ cli
   });
 
 cli
-  .command('audit [path]', 'Print the Mog score and proposed passes (CI-friendly)')
+  .command('audit [path]', 'Plan from the brief and print the Mog score and proposed passes (CI-friendly)')
   .option('--json', 'JSON output')
-  .action(async (p: string | undefined, opts: { json?: boolean }) => {
+  .option('--brief <file>', 'JSON brief: { story, audience, goal, feeling, keep, avoid, noise, seed }')
+  .option('--seed <n>', 'Generation seed (same seed, same proposals)')
+  .action(async (p: string | undefined, opts: { json?: boolean; brief?: string; seed?: string }) => {
     const root = path.resolve(p ?? '.');
     const id = Engine.projectIdFor(root);
+    const brief = opts.brief ? JSON.parse(fs.readFileSync(path.resolve(opts.brief), 'utf8')) : undefined;
+    if (brief && opts.seed) brief.seed = Number(opts.seed);
     let state: ProjectState;
     if (await hubAlive()) {
       await hubRpc('init_project', { path: root });
+      if (brief) await hubRpc('set_brief', { project_id: id, brief });
       state = await hubRpc<ProjectState>('audit_page', { project_id: id });
     } else {
       const hub = await startHub({ port: 0 as any, registryFile: path.join(os.tmpdir(), 'sitemaxxing-audit.json'), log: () => undefined });
       try {
         await hub.engine.initProject(root);
+        if (brief) await hub.engine.setBrief(id, brief);
         state = await hub.engine.audit(id);
       } finally {
         await hub.close();
       }
     }
-    if (opts.json) console.log(JSON.stringify({ score: state.score, passes: state.passes.map((x) => ({ id: x.id, name: x.name, status: x.status, points: x.points, summary: x.summary, skipReason: x.skipReason, findings: x.findings })) }, null, 2));
+    if (opts.json) console.log(JSON.stringify({ score: state.score, brief: state.brief, mood: state.mood, passes: state.passes.map((x) => ({ id: x.id, name: x.name, status: x.status, impact: x.impact, why: x.rationale, summary: x.summary, skipReason: x.skipReason, findings: x.findings, variants: x.variants.map((v) => v.label) })) }, null, 2));
     else printPasses(state);
     process.exit(0);
   });

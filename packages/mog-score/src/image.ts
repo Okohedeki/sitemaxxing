@@ -40,14 +40,29 @@ export function downsample(img: Raster, factor: number): Raster {
   return { width: w, height: h, data: out };
 }
 
-/** Hasler and Süsstrunk colourfulness: sqrt(σrg² + σyb²) + 0.3·sqrt(μrg² + μyb²). */
-export function colorfulness(img: Raster): number {
-  const n = img.width * img.height;
+export interface Rect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+/**
+ * Hasler and Süsstrunk colourfulness: sqrt(σrg² + σyb²) + 0.3·sqrt(μrg² + μyb²).
+ * Pixels inside `exclude` (in raster coordinates) are skipped, so photos and illustrations do not
+ * count as the page's own colour.
+ */
+export function colorfulness(img: Raster, exclude: Rect[] = []): number {
+  const total = img.width * img.height;
+  let n = 0;
   let srg = 0,
     syb = 0,
     srg2 = 0,
     syb2 = 0;
-  for (let i = 0; i < n; i++) {
+  const inside = (x: number, y: number) => exclude.some((r) => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h);
+  for (let i = 0; i < total; i++) {
+    if (exclude.length && inside(i % img.width, Math.floor(i / img.width))) continue;
+    n++;
     const r = img.data[i * 4];
     const g = img.data[i * 4 + 1];
     const b = img.data[i * 4 + 2];
@@ -58,6 +73,7 @@ export function colorfulness(img: Raster): number {
     srg2 += rg * rg;
     syb2 += yb * yb;
   }
+  if (n < total * 0.15) return colorfulness(img);
   const mrg = srg / n;
   const myb = syb / n;
   const vrg = srg2 / n - mrg * mrg;

@@ -5,6 +5,7 @@ import { TopBar } from './components/TopBar';
 import { StepRail } from './components/StepRail';
 import { Stage } from './components/Stage';
 import { Queue } from './components/Queue';
+import type { StoryDraft } from './components/StoryForm';
 
 export interface Project {
   id: string;
@@ -32,6 +33,7 @@ export function App() {
   const [reasons, setReasons] = useState<Record<string, ReasonChip | undefined>>({});
   const [connected, setConnected] = useState(false);
   const [delta, setDelta] = useState<{ n: number; key: number } | null>(null);
+  const [editingStory, setEditingStory] = useState(false);
   const lastScore = useRef<number | null>(null);
   const hoverStart = useRef<Record<string, number>>({});
   const playingRef = useRef(false);
@@ -114,8 +116,9 @@ export function App() {
         const s = await hub.rpc<ProjectState>('project.load', { project_id: id });
         adopt(s);
         setField(s.project.rootPath);
-        if (!s.audited) {
-          say('Auditing the page…', true);
+        if (!s.brief) say('Start with the story: what this is, who it is for, and what a visitor should do.');
+        else if (!s.audited) {
+          say('Planning from the story…', true);
           const audited = await hub.rpc<ProjectState>('audit_page', { project_id: id });
           adopt(audited);
           say(`Mog score ${audited.score?.score ?? '–'}. Start with a direction, then refine.`);
@@ -152,10 +155,16 @@ export function App() {
       say('Registering the project…', true);
       const r = existing ? { projectId: existing.id } : await hub.rpc<{ projectId: string }>('init_project', { path: field });
       setProjectId(r.projectId);
-      say('Auditing the page…', true);
+      setProjects(await hub.rpc<Project[]>('projects.list'));
+      const loaded = await hub.rpc<ProjectState>('project.load', { project_id: r.projectId });
+      adopt(loaded);
+      if (!loaded.brief) {
+        say('Start with the story: what this is, who it is for, and what a visitor should do.');
+        return;
+      }
+      say('Planning from the story…', true);
       const s = await hub.rpc<ProjectState>('audit_page', { project_id: r.projectId });
       adopt(s);
-      setProjects(await hub.rpc<Project[]>('projects.list'));
       say(`Mog score ${s.score?.score ?? '–'}. Start with a direction, then refine.`);
     } catch (e) {
       showToast((e as Error).message, true);
@@ -265,6 +274,38 @@ export function App() {
     setReasons({});
   }, [call, say]);
 
+  const saveStory = useCallback(
+    async (d: StoryDraft) => {
+      say('Reading the story…', true);
+      const s = await call<ProjectState>('set_brief', { brief: d });
+      if (!s) return;
+      adopt(s);
+      setEditingStory(false);
+      setReasons({});
+      say('Planning from the story…', true);
+      const planned = await call<ProjectState>('audit_page');
+      if (planned) {
+        adopt(planned);
+        const n = planned.passes.filter((p) => p.status === 'proposed').length;
+        say(`Planned ${n} changes for ${planned.brief?.goal ?? 'this goal'}. Start with a direction, then refine.`);
+      }
+    },
+    [call, adopt, say],
+  );
+
+  const reroll = useCallback(
+    async (passId?: string) => {
+      const p = passId ? passById(passId) : undefined;
+      say(p ? `Re-rolling <b>${p.name}</b>…` : 'Randomizing every open pass…', true);
+      const s = await call<ProjectState>('reroll_pass', passId ? { pass_id: passId } : {});
+      if (s) {
+        adopt(s);
+        say(p ? `New options for <b>${p.name}</b>` : 'New options for every open pass. Approved ones stay.');
+      }
+    },
+    [call, adopt, passById, say],
+  );
+
   const commit = useCallback(async () => {
     say('Committing…', true);
     await call('commit_version');
@@ -319,6 +360,7 @@ export function App() {
       } else if (e.key === 'a' || e.key === 'A') void decide(selected, 'approve');
       else if (e.key === 'r' || e.key === 'R') void decide(selected, 'reject');
       else if (e.key === 'c' || e.key === 'C') void commit();
+      else if (e.key === 'd' || e.key === 'D') void reroll(selected);
       else if (/^[1-5]$/.test(e.key)) {
         const v = p.variants[Number(e.key) - 1];
         if (v) void decide(selected, 'pick', v.id);
@@ -326,7 +368,7 @@ export function App() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [state, selected, passById, preview, decide, commit]);
+  }, [state, selected, passById, preview, decide, commit, reroll]);
 
   const approvedCount = state?.passes.filter((p) => p.status === 'approved').length ?? 0;
 
@@ -351,7 +393,7 @@ export function App() {
       />
       <main className="main">
         <section className="stage" aria-label="Live preview">
-          <StepRail state={state} recreating={recreating} />
+          <StepRail state={state} recreating={recreating} mode={mode} />
           <div className="stagebar">
             <div className="seg" role="group" aria-label="Compare">
               <button aria-pressed={state?.view === 'current' && !state?.viewingVersion} onClick={() => setView('current')}>
@@ -378,7 +420,10 @@ export function App() {
           onHoverVariant={(passId, variantId) => {
             if (playingRef.current) return;
             if (hoverTimer.current) window.clearTimeout(hoverTimer.current);
-            void preview(passId, variantId ?? undefined);
+            // Leaving a thumbnail falls back to the chosen variant only if no other thumbnail is
+            // entered right away, so sliding across thumbnails previews each one exactly once.
+            if (variantId) void preview(passId, variantId);
+            else hoverTimer.current = window.setTimeout(() => void preview(passId), 140);
           }}
           onPreviewClick={(id) => void preview(state?.previewing?.passId === id ? null : id)}
           onDecide={decide}
@@ -387,6 +432,11 @@ export function App() {
           onApproveAll={approveAll}
           onReset={reset}
           onVersion={viewVersion}
+          onReroll={reroll}
+          editingStory={editingStory || !!(state && !state.brief)}
+          onEditStory={() => setEditingStory(true)}
+          onCancelStory={state?.brief ? () => setEditingStory(false) : undefined}
+          onSaveStory={saveStory}
           rpc={(m, p) => hub.rpc(m, p)}
         />
       </main>

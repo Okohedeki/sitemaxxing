@@ -23,21 +23,30 @@ Claude Code.
 
 ## The loop
 
-1. **Intake.** `init_project` loads `sitemaxxing.config.ts`, makes sure the repo has a commit,
-   opens the SQLite database under `.sitemaxxing/`, takes a Playwright snapshot of the dev URL
-   (rendered DOM, computed styles, boxes) and scores it. Version 1 is the HEAD at that moment.
-2. **Generate.** `audit_page` runs every pass's `detect` against the snapshot. Passes that apply
-   get their variants listed and **every (pass, variant) patch is precomputed** as a unified diff
-   under `.sitemaxxing/patches/`. Passes that do not apply are shown as skipped with the reason.
-3. **Rank.** v1 keeps the fixed coarse-to-fine order. The Mog score is reported, not used to rank.
-4. **Stage.** `preview_pass` applies the patch to the working tree. Vite hot-reloads, the hub
-   broadcasts `pass.previewed` with the selectors to outline, and the overlay highlights them.
-   Approved patches stay applied so "With changes" is the real code; "Current" reverses them.
-5. **Commit.** `commit_version` reverses everything, re-applies the approved passes one at a time
-   capturing a labelled frame for each (the timelapse), formats touched files, makes one git
-   commit, screenshots every viewport, scores the result and records the version.
-6. **Learn.** Every preview, pick, approve, reject (with reason chip) and commit writes a row to
-   `decisions` with `shown_alongside` and `dwell_ms`.
+1. **Story.** `set_brief` stores the owner's story, audience, goal, feeling, keep, avoid, noise and
+   seed (`.sitemaxxing/brief.json` plus a `briefs` row, so the history is kept). The words are read
+   into a mood on six axes (`packages/core/src/brief.ts`). Nothing is planned without a brief.
+2. **Intake.** `init_project` loads the config, makes sure the repo has a commit, opens SQLite,
+   snapshots the dev URL with Playwright and scores it. Version 1 is HEAD at that moment.
+3. **Plan.** `audit_page` runs every pass's `detect`, then the planner
+   (`packages/core/src/planner.ts`) scores each pass from its findings, what it `serves` against
+   the goal, and its `moodBias` against the mood. Proposed passes get a rationale; the rest are
+   skipped with a reason. Direction stays first; dependencies come before dependents.
+4. **Generate.** Proposed passes ask the reference library (`packages/components/src/library`) for
+   a Fit, a Stretch and a Wildcard. Every pick uses a per-pass seed (`rngFor`), and noise sets how far
+   the Wildcard reaches and how much palettes and params are perturbed. **Every (pass, variant)
+   patch is precomputed** under `.sitemaxxing/patches/`.
+5. **Stage.** `preview_pass` applies the patch through an in-memory staging area and writes each
+   file once, then touches the written files once writes go quiet so the dev server's watcher
+   always sees the final content. The overlay highlights the change, and the score is re-measured
+   shortly after.
+6. **Randomize.** `reroll_pass` gives one pass (or every open pass) a new seed and regenerates its
+   variants and patches. Approved and committed passes are left alone.
+7. **Commit.** `commit_version` re-applies the approved passes one at a time for the timelapse,
+   formats, makes one git commit, screenshots every viewport, scores the result and records the
+   version.
+8. **Learn.** Every preview, pick, approve, reject, re-roll and commit writes a `decisions` row
+   with `shown_alongside`, `dwell_ms` and `meta` (seed, goal, noise, mood, variant attributes).
 
 ## Patches
 

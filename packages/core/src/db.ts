@@ -26,10 +26,20 @@ CREATE TABLE IF NOT EXISTS decisions(
   shown_alongside TEXT NOT NULL DEFAULT '[]', reason_chip TEXT, dwell_ms INTEGER, created_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS scores(
   id TEXT PRIMARY KEY, project_id TEXT NOT NULL, version_id TEXT, mog_score REAL NOT NULL, metrics TEXT NOT NULL DEFAULT '{}', created_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS briefs(
+  id TEXT PRIMARY KEY, project_id TEXT NOT NULL, brief TEXT NOT NULL, mood TEXT NOT NULL DEFAULT '{}', created_at TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS idx_passes_project ON passes(project_id);
 CREATE INDEX IF NOT EXISTS idx_decisions_project ON decisions(project_id);
 CREATE INDEX IF NOT EXISTS idx_versions_project ON versions(project_id, number);
 `;
+
+/** Columns added after v0.1. Each runs once; a duplicate-column error means it already ran. */
+const MIGRATIONS = [
+  `ALTER TABLE passes ADD COLUMN rationale TEXT`,
+  `ALTER TABLE passes ADD COLUMN seed INTEGER`,
+  `ALTER TABLE decisions ADD COLUMN meta TEXT NOT NULL DEFAULT '{}'`,
+  `CREATE INDEX IF NOT EXISTS idx_briefs_project ON briefs(project_id, created_at)`,
+];
 
 export type DB = Database.Database;
 
@@ -38,6 +48,13 @@ export function openDb(file: string): DB {
   const db = new Database(file);
   db.pragma('journal_mode = WAL');
   db.exec(SCHEMA);
+  for (const sql of MIGRATIONS) {
+    try {
+      db.exec(sql);
+    } catch {
+      /* column already exists */
+    }
+  }
   return db;
 }
 

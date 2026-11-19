@@ -78,18 +78,54 @@ importers:
 
   apps/sample-fieldnote:
     dependencies:
+      '@fontsource-variable/archivo':
+        specifier: ^5.3.0
+        version: 5.3.0
+      '@fontsource-variable/bricolage-grotesque':
+        specifier: ^5.3.0
+        version: 5.3.0
+      '@fontsource-variable/fraunces':
+        specifier: ^5.3.0
+        version: 5.3.0
       '@fontsource-variable/instrument-sans':
         specifier: ^5.1.0
         version: 5.1.0
+      '@fontsource-variable/literata':
+        specifier: ^5.3.0
+        version: 5.3.0
       '@fontsource-variable/newsreader':
         specifier: ^5.1.0
         version: 5.1.0
+      '@fontsource-variable/space-grotesk':
+        specifier: ^5.3.0
+        version: 5.3.0
+      '@fontsource-variable/syne':
+        specifier: ^5.3.0
+        version: 5.3.0
+      '@fontsource/dm-serif-display':
+        specifier: ^5.3.0
+        version: 5.3.0
+      '@fontsource/ibm-plex-mono':
+        specifier: ^5.3.0
+        version: 5.3.0
+      '@fontsource/ibm-plex-sans':
+        specifier: ^5.3.0
+        version: 5.3.0
+      '@fontsource/ibm-plex-serif':
+        specifier: ^5.3.0
+        version: 5.3.0
+      '@fontsource/instrument-serif':
+        specifier: ^5.3.0
+        version: 5.3.0
       '@fontsource/jetbrains-mono':
         specifier: ^5.1.1
         version: 5.1.1
       '@fontsource/poppins':
         specifier: ^5.1.0
         version: 5.1.0
+      '@fontsource/space-mono':
+        specifier: ^5.3.0
+        version: 5.3.0
       '@fontsource/unbounded':
         specifier: ^5.1.0
         version: 5.1.0
@@ -121,18 +157,54 @@ importers:
 
   apps/sample-isvik:
     dependencies:
+      '@fontsource-variable/archivo':
+        specifier: ^5.3.0
+        version: 5.3.0
+      '@fontsource-variable/bricolage-grotesque':
+        specifier: ^5.3.0
+        version: 5.3.0
+      '@fontsource-variable/fraunces':
+        specifier: ^5.3.0
+        version: 5.3.0
       '@fontsource-variable/instrument-sans':
         specifier: ^5.1.0
         version: 5.1.0
+      '@fontsource-variable/literata':
+        specifier: ^5.3.0
+        version: 5.3.0
       '@fontsource-variable/newsreader':
         specifier: ^5.1.0
         version: 5.1.0
+      '@fontsource-variable/space-grotesk':
+        specifier: ^5.3.0
+        version: 5.3.0
+      '@fontsource-variable/syne':
+        specifier: ^5.3.0
+        version: 5.3.0
+      '@fontsource/dm-serif-display':
+        specifier: ^5.3.0
+        version: 5.3.0
+      '@fontsource/ibm-plex-mono':
+        specifier: ^5.3.0
+        version: 5.3.0
+      '@fontsource/ibm-plex-sans':
+        specifier: ^5.3.0
+        version: 5.3.0
+      '@fontsource/ibm-plex-serif':
+        specifier: ^5.3.0
+        version: 5.3.0
+      '@fontsource/instrument-serif':
+        specifier: ^5.3.0
+        version: 5.3.0
       '@fontsource/jetbrains-mono':
         specifier: ^5.1.1
         version: 5.1.1
       '@fontsource/poppins':
         specifier: ^5.1.0
         version: 5.1.0
+      '@fontsource/space-mono':
+        specifier: ^5.3.0
+        version: 5.3.0
       '@fontsource/unbounded':
         specifier: ^5.1.0
         version: 5.1.0
@@ -194,6 +266,10 @@ importers:
         version: 5.7.2
 
   packages/components:
+    dependencies:
+      '@sitemaxxing/core':
+        specifier: workspace:*
+        version: link:../core
     devDependencies:
       tsup:
         specifier: ^8.3.5
@@ -1658,8 +1734,24 @@ packages:
       levn: 0.4.1
     dev: true
 
+  /@fontsource-variable/archivo@5.3.0:
+    resolution: {integrity: sha512-HogK8FJelrD1o7TlZlkIVtHgc20bO5PZRWE7mUeUTdMN055alznQV6/00J00IBeu8FQAH4s3zW9UJNvKExXf+g==}
+    dev: false
+
+  /@fontsource-variable/bricolage-grotesque@5.3.0:
+    resolution: {integrity: sha512-TLi9Q4hJjS2UvoTMRSS2nHu6c4R56lAw60NR9QYtVRCHn0XtsFpiEhNffZ8Glsoxu6wEEwLKBP8lb94J52PNBA==}
+    dev: false
+
+  /@fontsource-variable/fraunces@5.3.0:
+    resolution: {integrity: sha512-9BYGySn4AHEJdgp9Z28tQ3X+laJMEOITXkQarZXeloWQZDq5oOvXJ3kDA8c7MGIfpogIaZfjrQBqmda8POOCKA==}
+    dev: false
+
   /@fontsource-variable/instrument-sans@5.1.0:
     resolution: {integrity: sha512-ns3iHYQYJFNM9uQnjwNEscR86MQIy/3B0l6nYtUvm5TgWctIyA+Iac8YErRsktmkA6NeGu0crVhQV9sAyRf7eA==}
+    dev: false
+
+  /@fontsource-variable/literata@5.3.0:
+    resolution: {integrity: sha512-1Jw7xvOcoGyB83lxB2nG4bfNbqtX2/TTbdh9sHAOmU064SvmSdulDtA5RBu5JYWf64fdaKX7xU+z3GO1T2bCHA==}
     dev: false
 
   /@fontsource-variable/manrope@5.1.0:
@@ -1670,12 +1762,44 @@ packages:
     resolution: {integrity: sha512-2ISuLzafbdqtakul+f0EwS+u0phcnxFeEFVBCRPEVcbOOLMR2oq0MFUy1Gmi6n4F5LFso97ocyTOyGUQrUUVXg==}
     dev: false
 
+  /@fontsource-variable/space-grotesk@5.3.0:
+    resolution: {integrity: sha512-2IxmvfB08i9vnGB3Ym/AXvhRE+8XOjWMXIyDum03c+tPwH0FUoMNQfGpU8NXPxjbws0Vvss3AH0Zqt4oJBBAdw==}
+    dev: false
+
+  /@fontsource-variable/syne@5.3.0:
+    resolution: {integrity: sha512-GUNH65fUfWHQcX7bO0BGgScE465gawpTId45aDfhHcVj/upbb6b+2d++5keKP128vK8+LtE4dvLkKTsxoh7TwA==}
+    dev: false
+
+  /@fontsource/dm-serif-display@5.3.0:
+    resolution: {integrity: sha512-ecRclUcYeto9fB7ghkB36H4MtUoaUYFjjornWYYeLCMHzaWEDPk2kIWgZOq0mKBNRxclRSieKcFeLonlMYDTKg==}
+    dev: false
+
+  /@fontsource/ibm-plex-mono@5.3.0:
+    resolution: {integrity: sha512-eTgnZjZEGk1QtD3ZstF+Vclo2HLAni8YMy34/DxllwZvyz1lR/1RF/xTiAquOBO7MvqBx8D2Ig2WCPMVfdZu7Q==}
+    dev: false
+
+  /@fontsource/ibm-plex-sans@5.3.0:
+    resolution: {integrity: sha512-CbE4CbbEEZJX860XyUiRpsksXIQR8Rp2XDva2VO53NJox9tVNtusrysd2x5YkUEY3ErQ66W1IiiQL8/wihhw5w==}
+    dev: false
+
+  /@fontsource/ibm-plex-serif@5.3.0:
+    resolution: {integrity: sha512-zwPfHB7EJbS5B8qnitPigJYzNdnt6PUeaoOA1gAAt//1pjpTVZN5sOU14NIAZ+C1xypL6GWsUG2VMYJW9bhJqQ==}
+    dev: false
+
+  /@fontsource/instrument-serif@5.3.0:
+    resolution: {integrity: sha512-mDiaIg0u67sYV59fie92Wz4sM8UiVlbL7fLxnFPCKkX15DMASEnQTREbaP5S5/3DCcsoAOcQ0sV9E4AeY4QqYQ==}
+    dev: false
+
   /@fontsource/jetbrains-mono@5.1.1:
     resolution: {integrity: sha512-5rwvmdQQpXev4LlBX1P+7h2dguu6iwW/9Npjde4+DEq+HgpVJI/7QY8DI1NVVFdvLtXZNP+vO2L/5BQED6FUhA==}
     dev: false
 
   /@fontsource/poppins@5.1.0:
     resolution: {integrity: sha512-tpLXlnNi2fwQjiipvuj4uNFHCdoLA8izRsKdoexZuEzjx0r/g1aKLf4ta6lFgF7L+/+AFdmaXFlUwwvmDzYH+g==}
+    dev: false
+
+  /@fontsource/space-mono@5.3.0:
+    resolution: {integrity: sha512-FrpBMOVWn3PRdRHlrZWC55X3kZG/2BTH7SM5ZyS/bky3iKya2BturI5lk+t0RoDQL2JyHzURsVq/EisCsxpI5A==}
     dev: false
 
   /@fontsource/unbounded@5.1.0:

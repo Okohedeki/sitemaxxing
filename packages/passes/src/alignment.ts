@@ -15,7 +15,7 @@ export const alignment = definePass({
   name: 'Alignment',
   kind: 'refine',
   order: 4,
-  points: 4,
+  serves: ['clarity', 'polish'],
   dependsOn: ['declutter'],
   ruleCards: ['every-layout', 'refactoring-ui-alignment', 'butterick-line-length'],
   description: 'One grid and one left edge: left-aligned copy column, nav links moved to the right',
