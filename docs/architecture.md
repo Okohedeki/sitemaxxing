@@ -35,7 +35,9 @@ Claude Code.
 4. **Generate.** Proposed passes ask the reference library (`packages/components/src/library`) for
    a Fit, a Stretch and a Wildcard. Every pick uses a per-pass seed (`rngFor`), and noise sets how far
    the Wildcard reaches and how much palettes and params are perturbed. **Every (pass, variant)
-   patch is precomputed** under `.sitemaxxing/patches/`.
+   patch is precomputed** under `.sitemaxxing/patches/`. Reason chips on rejected passes lean the
+   mood and noise a pass generates from (`packages/core/src/taste.ts`); the lean is rebuilt from the
+   decision log since the story was last told, so it survives restarts and resets with a new story.
 5. **Stage.** `preview_pass` applies the patch through an in-memory staging area and writes each
    file once, then touches the written files once writes go quiet so the dev server's watcher
    always sees the final content. The overlay highlights the change, and the score is re-measured

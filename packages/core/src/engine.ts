@@ -16,6 +16,7 @@ import { readTokens } from './tokens';
 import { createLLM } from './llm';
 import { downstreamOf } from './registry';
 import { normalizeBrief, moodOf } from './brief';
+import { applyLean, describeLean, isNeutral, leanFor } from './taste';
 import { plan, type Detection } from './planner';
 import { hashSeed, newSeed } from './random';
 import type { HubEvent, DecisionMeta } from './protocol';
@@ -39,6 +40,7 @@ import type {
   LLM,
   Brief,
   Mood,
+  ReasonChip,
 } from './types';
 
 export interface EngineDeps {
@@ -395,6 +397,27 @@ export class Engine {
     };
   }
 
+  /** The owner's latest "why not?" answer per pass since the story was last told. */
+  private answers(rt: Runtime): Record<string, ReasonChip | null> {
+    const since = (rt.db.prepare('SELECT created_at FROM briefs WHERE project_id = ? ORDER BY created_at DESC LIMIT 1').get(rt.project.id) as any)?.created_at ?? '';
+    const rows = rt.db
+      .prepare(`SELECT pass_id, reason_chip FROM decisions WHERE project_id = ? AND action = 'reject' AND created_at >= ? AND (reason_chip IS NOT NULL OR meta LIKE '%"clearReason":true%') ORDER BY created_at, rowid`)
+      .all(rt.project.id, since) as any[];
+    const out: Record<string, ReasonChip | null> = {};
+    const prefix = `${rt.project.id}:`;
+    for (const r of rows) if (r.pass_id) out[String(r.pass_id).replace(prefix, '')] = r.reason_chip ?? null;
+    return out;
+  }
+
+  /** The context one pass generates from: the brief's mood and noise, leaned by the owner's answers. */
+  private leaned(rt: Runtime, defId: string, ctx: PassContext, answers = this.answers(rt)): PassContext {
+    if (!rt.brief || !rt.mood) return ctx;
+    const lean = leanFor(defId, answers);
+    if (isNeutral(lean)) return { ...ctx, mood: rt.mood, brief: rt.brief };
+    const { mood, noise } = applyLean(rt.mood, rt.brief.noise, lean);
+    return { ...ctx, mood, brief: { ...rt.brief, noise } };
+  }
+
   private seedFor(rt: Runtime, defId: string): number {
     return rt.seeds[defId] ?? hashSeed((rt.brief ?? PLACEHOLDER_BRIEF).seed, defId);
   }
@@ -516,13 +539,15 @@ export class Engine {
         }
       }
       const items = plan(rt.defs.filter((d) => !committed.has(d.id)), detections, rt.brief, rt.mood);
+      const answers = this.answers(rt);
       for (const item of items) {
         const def = rt.defs.find((d) => d.id === item.defId)!;
         const id = this.passRowId(rt, def.id);
         const det = detections.get(def.id)!;
         const seed = this.seedFor(rt, def.id);
         rt.seeds[def.id] = seed;
-        const variants = item.include ? ((await def.variants?.(ctx)) ?? []) : [];
+        const dctx = this.leaned(rt, def.id, ctx, answers);
+        const variants = item.include ? ((await def.variants?.(dctx)) ?? []) : [];
         rt.variants.set(def.id, variants);
         rt.db.prepare('DELETE FROM variants WHERE pass_id = ?').run(id);
         const prevChoice = (this.row(rt, def.id)?.chosen_variant_id as string | undefined) ?? undefined;
@@ -580,7 +605,7 @@ export class Engine {
 
   private async precompute(rt: Runtime, def: PassDefinition, variantId: string | undefined, ctx: PassContext): Promise<PrecomputedPatch | null> {
     try {
-      const patch = await def.propose(ctx, variantId);
+      const patch = await def.propose(this.leaned(rt, def.id, ctx), variantId);
       const text = toUnifiedDiff(patch);
       const file = writePatchFile(path.join(rt.dir, 'patches'), def.id, variantId, text);
       const pre: PrecomputedPatch = { text, files: filesTouched(text), copyDiff: patch.copyDiff, summary: patch.summary, notes: patch.notes, file };
@@ -603,6 +628,7 @@ export class Engine {
     const versions = this.versions(rt);
     const current = versions.at(-1)?.number ?? 1;
     const ctx = rt.audited ? this.ctx(rt) : null;
+    const answers = rt.brief ? this.answers(rt) : {};
     const passes: PassView[] = rows.map((r) => {
       const def = rt.defs.find((d) => d.id === r.def_id);
       const variants = rt.variants.get(r.def_id) ?? this.variantRows(rt, r.id);
@@ -630,6 +656,8 @@ export class Engine {
         forceState: def?.forceState,
         replay: def?.replay,
         highlight: def && ctx ? safeHighlight(def, ctx, r.chosen_variant_id ?? undefined) : [],
+        reason: answers[r.def_id] ?? undefined,
+        lean: describeLean(leanFor(r.def_id, answers)),
       };
     });
     return {
@@ -984,7 +1012,7 @@ export class Engine {
         }
         await this.refreshSnapshot(rt);
         const ctx = this.ctx(rt);
-        const variants = (await def.variants?.(ctx)) ?? rt.variants.get(def.id) ?? [];
+        const variants = (await def.variants?.(this.leaned(rt, def.id, ctx))) ?? rt.variants.get(def.id) ?? [];
         rt.variants.set(def.id, variants);
         const targets = variants.length ? variants.map((v) => v.id) : [undefined];
         let ok = false;
@@ -1041,11 +1069,12 @@ export class Engine {
   }
 
   /** Attaches an optional reason chip to a rejection (logged as its own decision row). */
-  addReason(projectId: string, passId: string, reasonChip: DecisionMeta['reasonChip']): void {
+  addReason(projectId: string, passId: string, reasonChip: DecisionMeta['reasonChip'] | null): ProjectState {
     const rt = this.rt(projectId);
     const def = this.defOf(rt, passId);
     const row = this.row(rt, def.id);
-    this.logDecision(rt, def.id, 'reject', row?.chosen_variant_id ?? undefined, { reasonChip, shownAlongside: this.alongside(rt, def.id) });
+    this.logDecision(rt, def.id, 'reject', row?.chosen_variant_id ?? undefined, reasonChip ? { reasonChip, shownAlongside: this.alongside(rt, def.id) } : { shownAlongside: this.alongside(rt, def.id), extra: { clearReason: true } });
+    return this.emitState(rt);
   }
 
   /**
@@ -1067,6 +1096,7 @@ export class Engine {
       for (const r of rows) if (r.status === 'approved') rt.db.prepare(`UPDATE passes SET status = 'proposed' WHERE id = ?`).run(r.id);
       await this.setApplied(rt, this.desired(rt));
       const ctx0 = this.ctx(rt);
+      const answers = this.answers(rt);
       for (const r of rows) {
         if (['committed', 'skipped'].includes(r.status)) continue;
         const def = rt.defs.find((d) => d.id === r.def_id);
@@ -1077,11 +1107,11 @@ export class Engine {
         const old = signature(rt.variants.get(def.id) ?? this.variantRows(rt, r.id));
         let seed = newSeed();
         let ctx = { ...ctx0, seeds: { ...ctx0.seeds, [def.id]: seed } };
-        let variants = (await def.variants?.(ctx)) ?? [];
+        let variants = (await def.variants?.(this.leaned(rt, def.id, ctx, answers))) ?? [];
         for (let attempt = 0; attempt < 12 && variants.length && signature(variants) === old; attempt++) {
           seed = newSeed();
           ctx = { ...ctx0, seeds: { ...ctx0.seeds, [def.id]: seed } };
-          variants = (await def.variants?.(ctx)) ?? [];
+          variants = (await def.variants?.(this.leaned(rt, def.id, ctx, answers))) ?? [];
         }
         if (passId && variants.length && signature(variants) === old) this.deps.emit({ type: 'error', projectId: rt.project.id, ts: Date.now(), message: `${def.name} has no other options for this brief; raise the noise to reach further.` });
         rt.seeds[def.id] = seed;

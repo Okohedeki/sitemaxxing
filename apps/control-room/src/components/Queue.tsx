@@ -63,7 +63,6 @@ function Row(props: {
   index: number;
   current: number;
   selected: boolean;
-  reason?: ReasonChip;
   onSelect: () => void;
   onHover: (id: string | null) => void;
   onHoverVariant: (passId: string, variantId: string | null) => void;
@@ -167,10 +166,20 @@ function Row(props: {
         {p.baseStatus === 'rejected' ? (
           <div className="reasons" aria-label="Why not?">
             {REASON_CHIPS.map((c) => (
-              <button key={c} aria-pressed={props.reason === c} onClick={(e) => (e.stopPropagation(), props.onReason(c))}>
+              <button key={c} aria-pressed={p.reason === c} onClick={(e) => (e.stopPropagation(), props.onReason(c))}>
                 {c}
               </button>
             ))}
+          </div>
+        ) : null}
+        {p.reason && p.lean.length && !locked ? (
+          <div className="lean">
+            <span>
+              Next roll leans <b>{p.lean.join(', ')}</b>
+            </span>
+            <button className="btn small" onClick={(e) => (e.stopPropagation(), props.onReroll())}>
+              Roll it
+            </button>
           </div>
         ) : null}
         {p.findings.length && p.status !== 'skipped' ? (
@@ -216,7 +225,6 @@ export function Queue(props: {
   state: ProjectState | null;
   playing: boolean;
   selected: string | null;
-  reasons: Record<string, ReasonChip | undefined>;
   onSelect: (id: string) => void;
   onHover: (id: string | null) => void;
   onHoverVariant: (passId: string, variantId: string | null) => void;
@@ -295,7 +303,6 @@ export function Queue(props: {
                   index={n++}
                   current={state?.currentVersion ?? 1}
                   selected={props.selected === p.id}
-                  reason={props.reasons[p.id]}
                   onSelect={() => props.onSelect(p.id)}
                   onHover={props.onHover}
                   onHoverVariant={props.onHoverVariant}

@@ -17,6 +17,8 @@ This file is managed by Changesets. Run `pnpm changeset` to add an entry.
 - Hero layout: seven compositions for the first screen, picked per brief like palettes and
   sections. Imagery no longer forces every photo into one full-bleed overlay.
 - New sections: lead figure, step path and inline ask, so Randomize always has another option.
+- Reason chips steer: saying why a pass was rejected leans its next roll (calmer, bolder, closer
+  to the brief, more classic), and the rest of the page a little. The row shows the lean.
 - Opening a project a second time keeps the changes already applied on disk.
 - `scripts/dev.mjs --fresh` rebuilds the sample playgrounds; the end-to-end tests use it.
 

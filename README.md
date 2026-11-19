@@ -88,6 +88,9 @@ sitemaxxing export [path] --timelapse out.mp4   one frame per pass, labelled
    same colours twice. Every palette is checked for WCAG AA contrast.
 4. **Randomize.** Re-roll one pass (the dice on its row, or D) or every open pass at once.
    Approved and committed passes stay. The same seed always reproduces the same proposals.
+   Say why you rejected something (too busy, too plain, off-brand, too trendy) and the next roll
+   of that pass leans the other way: calmer and sparser, bolder, closer to the brief, or more
+   classic. The rest of the page leans the same way a little.
 5. **Check.** The Mog score is re-measured on the real page after each change. Its targets bend
    to the brief, so a bold or dark story is not marked down for being colourful. It is a check,
    never a ranking.

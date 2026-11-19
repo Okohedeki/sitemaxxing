@@ -61,3 +61,4 @@ export type OverlayMessage = { type: 'overlay.ready'; url: string };
 
 export type { CopyChange, ProjectState, PassView, ScoreResult, ReasonChip, PassStatus, Variant, VersionView, Finding, Brief, Goal, Mood } from './types';
 export { GOALS, GOAL_IDS, describeMood, moodOf, DEFAULT_NOISE } from './brief';
+export { CHIP_LEAN, describeLean } from './taste';

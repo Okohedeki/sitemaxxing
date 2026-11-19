@@ -32,10 +32,7 @@ export function rpcHandlers(engine: Engine): Record<string, Handler> {
     preview_pass: async (p) => engine.preview(pid(p), String(p.pass_id), p.variant_id ? String(p.variant_id) : undefined, meta(p)),
     end_preview: async (p) => engine.endPreview(pid(p)),
     decide_pass: async (p) => engine.decide(pid(p), String(p.pass_id), p.action, p.variant_id ? String(p.variant_id) : undefined, meta(p)),
-    reject_reason: async (p) => {
-      engine.addReason(pid(p), String(p.pass_id), p.reason_chip);
-      return { ok: true };
-    },
+    reject_reason: async (p) => engine.addReason(pid(p), String(p.pass_id), p.reason_chip ?? null),
     regenerate_pass: async (p) => engine.decide(pid(p), String(p.pass_id), 'regenerate'),
     set_brief: async (p) => {
       await ensureLoaded(pid(p));

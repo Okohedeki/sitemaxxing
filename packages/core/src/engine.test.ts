@@ -156,6 +156,10 @@ describe(`engine against sample-${SAMPLE}`, () => {
     const s1 = engine.state(projectId);
     expect(s1.passes.find((p) => p.defId === 'font')!.status).toBe('stale');
     expect(s1.passes.find((p) => p.defId === 'font-size')!.status).toBe('stale');
+    // The answer leans the next roll of this pass, and the rest of the page a little.
+    expect(s1.passes.find((p) => p.defId === 'direction')!.reason).toBe('too plain');
+    expect(s1.passes.find((p) => p.defId === 'direction')!.lean).toContain('bolder');
+    expect(s1.passes.find((p) => p.defId === 'font')!.lean).toContain('bolder');
     await engine.decide(projectId, s1.passes.find((p) => p.defId === 'font')!.id, 'regenerate');
     await engine.decide(projectId, s1.passes.find((p) => p.defId === 'font-size')!.id, 'regenerate');
     await engine.decide(projectId, direction.id, 'reject'); // toggle back

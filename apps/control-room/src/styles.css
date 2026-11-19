@@ -803,6 +803,21 @@ a {
   border-color: transparent;
 }
 
+.lean {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+  font: 500 11px var(--mono);
+  color: var(--muted);
+}
+
+.lean b {
+  color: var(--ink, inherit);
+  font-weight: 600;
+}
+
 .acts {
   display: flex;
   gap: 4px;

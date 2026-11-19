@@ -30,7 +30,6 @@ export function App() {
   const [playing, setPlaying] = useState(false);
   const [recreating, setRecreating] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
-  const [reasons, setReasons] = useState<Record<string, ReasonChip | undefined>>({});
   const [connected, setConnected] = useState(false);
   const [delta, setDelta] = useState<{ n: number; key: number } | null>(null);
   const [editingStory, setEditingStory] = useState(false);
@@ -217,17 +216,21 @@ export function App() {
       if (action === 'pick') say(`Picked <b>${v?.label ?? variantId}</b> for ${np.name}`, true);
       else if (action === 'regenerate') say(`${np.name} regenerated`);
       else say(`${np.name}${v ? ' (' + v.label + ')' : ''} ${np.status === 'proposed' ? 'reset' : np.status}`);
-      if (action === 'reject' && np.status !== 'rejected') setReasons((r) => ({ ...r, [passId]: undefined }));
     },
     [call, passById, say],
   );
 
   const setReason = useCallback(
     async (passId: string, chip: ReasonChip) => {
-      setReasons((r) => ({ ...r, [passId]: r[passId] === chip ? undefined : chip }));
-      await call('reject_reason', { pass_id: passId, reason_chip: chip });
+      const p = passById(passId);
+      const next = p?.reason === chip ? null : chip;
+      const s = await call<ProjectState>('reject_reason', { pass_id: passId, reason_chip: next });
+      if (!s) return;
+      adopt(s);
+      const lean = s.passes.find((x) => x.id === passId)?.lean ?? [];
+      if (next && lean.length) say(`Noted. The next roll of ${p?.name ?? 'this pass'} leans <b>${lean.join(', ')}</b>`, true);
     },
-    [call],
+    [adopt, call, passById, say],
   );
 
   const playAll = useCallback(async () => {
@@ -271,7 +274,6 @@ export function App() {
     say('Auditing the page…', true);
     const s = await call<ProjectState>('audit_page');
     if (s) say(`Mog score ${s.score?.score ?? '–'}. Start with a direction, then refine.`);
-    setReasons({});
   }, [call, say]);
 
   const saveStory = useCallback(
@@ -281,8 +283,7 @@ export function App() {
       if (!s) return;
       adopt(s);
       setEditingStory(false);
-      setReasons({});
-      say('Planning from the story…', true);
+        say('Planning from the story…', true);
       const planned = await call<ProjectState>('audit_page');
       if (planned) {
         adopt(planned);
@@ -414,7 +415,6 @@ export function App() {
           state={state}
           playing={playing}
           selected={selected}
-          reasons={reasons}
           onSelect={setSelected}
           onHover={hoverRow}
           onHoverVariant={(passId, variantId) => {

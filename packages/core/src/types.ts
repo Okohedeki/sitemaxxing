@@ -308,6 +308,10 @@ export interface PassView {
   forceState?: ForceState;
   replay?: boolean;
   highlight: string[];
+  /** The owner's latest "why not?" answer for this pass, if any. */
+  reason?: ReasonChip;
+  /** How the owner's answers lean this pass's next options ("calmer", "closer to the brief"). */
+  lean: string[];
 }
 
 export interface VersionView {
