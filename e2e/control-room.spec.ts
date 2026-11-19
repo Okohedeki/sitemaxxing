@@ -22,6 +22,9 @@ async function tellStory(page: Page, opts: { guided?: boolean } = {}) {
     }
   }, !!opts.guided);
   await page.goto('/');
+  // The control room opens on the welcome screen; the Fieldnote sample is one click away.
+  await expect(page.getByRole('heading', { name: /glow.up that is yours/i })).toBeVisible();
+  await page.getByRole('button', { name: 'Fieldnote', exact: true }).click();
   const form = page.locator('form.story');
   await expect(form.or(page.locator('.storycard'))).toBeVisible({ timeout: 60_000 });
   if (!(await form.isVisible())) await page.locator('.storycard').getByRole('button', { name: 'Edit' }).click();
@@ -75,10 +78,10 @@ test('story → plan → preview → pick → approve 4 → reject 1 → commit'
   await expect(row('Alignment').getByRole('button', { name: 'too busy' })).toHaveAttribute('aria-pressed', 'true');
 
   await expect(row('Copy').locator('.diff ins').first()).toBeVisible();
-  await expect(page.getByRole('button', { name: /Commit 4 → v\d+/ })).toBeEnabled();
+  await expect(page.getByRole('button', { name: /Save 4 as v\d+/ })).toBeEnabled();
 
   // Commit.
-  await page.getByRole('button', { name: /Commit 4 → v\d+/ }).click();
+  await page.getByRole('button', { name: /Save 4 as v\d+/ }).click();
   await expect(page.locator('.toast')).toContainText('committed', { timeout: 120_000 });
   await expect(page.locator('.versions button')).toHaveCount(versionsBefore + 1, { timeout: 60_000 });
   await expect(row('Copy').locator('.chip')).toHaveText(/In v\d+/);
@@ -159,9 +162,11 @@ test('Any URL: a pasted page becomes v1 and the story starts from it', async ({ 
     }
   });
   await page.goto('/');
-  await page.getByRole('button', { name: 'Any URL' }).click();
-  await page.locator('#url').fill('localhost:5174');
-  await page.getByRole('button', { name: 'Maxx it' }).click();
+  // The welcome screen leads with one input, focused, and a real before/after.
+  await expect(page.locator('#start-url')).toBeFocused();
+  await expect(page.locator('.compare img')).toHaveCount(2);
+  await page.locator('#start-url').fill('localhost:5174');
+  await page.getByRole('button', { name: 'Start' }).click();
   await expect(page.locator('.recreate')).toBeVisible();
   await expect(page.locator('form.story')).toBeVisible({ timeout: 120_000 });
   await expect(page.locator('.drafted')).toContainText('Drafted from localhost:5174');

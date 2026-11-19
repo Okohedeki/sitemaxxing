@@ -390,6 +390,11 @@ export class Engine {
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
         await page.goto(url, { waitUntil: 'networkidle', timeout: 15_000 });
+        // A cold dev server can reload the page after "network idle" (Vite re-optimising its
+        // dependencies), which would leave a blank page to snapshot. Wait until the app has
+        // rendered something, then for the network to settle again.
+        await page.waitForFunction(() => (document.body?.innerText ?? '').trim().length > 0, undefined, { timeout: 10_000 }).catch(() => undefined);
+        await page.waitForLoadState('networkidle', { timeout: 5_000 }).catch(() => undefined);
         await page.evaluate(() => (window as any).__sitemaxxingHide?.());
         await page.waitForTimeout(150);
         return page;
@@ -1570,7 +1575,37 @@ export function spawnVite(cwd: string, port: number): ChildProcess {
   const req = createRequire(path.join(cwd, 'package.json'));
   const pkg = req.resolve('vite/package.json');
   const entry = path.join(path.dirname(pkg), JSON.parse(fs.readFileSync(pkg, 'utf8')).bin?.vite ?? 'bin/vite.js');
-  return spawn(process.execPath, [entry, '--port', String(port), '--strictPort', '--clearScreen', 'false'], { cwd, stdio: 'ignore' });
+  const args = [entry, '--port', String(port), '--strictPort', '--clearScreen', 'false'];
+  const wrapper = isolatedViteConfig(cwd);
+  if (wrapper) args.push('--config', wrapper);
+  return spawn(process.execPath, args, { cwd, stdio: 'ignore' });
+}
+
+/**
+ * Playgrounds, version previews and rebuilt sites link one shared node_modules, so by default
+ * their dev servers share one Vite dependency cache and invalidate each other when two run at
+ * once (the page then reloads blank). A small wrapper config gives each its own cache under
+ * .sitemaxxing while keeping the project's own config.
+ */
+function isolatedViteConfig(cwd: string): string | null {
+  const own = ['vite.config.ts', 'vite.config.mts', 'vite.config.js', 'vite.config.mjs'].find((f) => fs.existsSync(path.join(cwd, f)));
+  if (!own) return null;
+  const dir = path.join(cwd, '.sitemaxxing');
+  try {
+    fs.mkdirSync(dir, { recursive: true });
+    const file = path.join(dir, 'vite.isolated.config.mjs');
+    const text = `// Written by Sitemaxxing: the project's Vite config with a dev-server cache of its own.
+import base from '../${own}';
+export default async (env) => {
+  const config = typeof base === 'function' ? await base(env) : await base;
+  return { ...config, cacheDir: '.sitemaxxing/vite-cache' };
+};
+`;
+    if (!fs.existsSync(file) || fs.readFileSync(file, 'utf8') !== text) fs.writeFileSync(file, text);
+    return file;
+  } catch {
+    return null;
+  }
 }
 
 export function killTree(proc: ChildProcess) {

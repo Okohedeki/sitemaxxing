@@ -21,7 +21,8 @@ export interface Guide {
   /** Progress through the refine step. */
   progress?: { done: number; total: number };
   primary?: { label: string; action: GuideAction };
-  secondary?: Array<{ label: string; action: GuideAction }>;
+  /** Secondary actions; a tertiary one is styled as a link (one primary per view). */
+  secondary?: Array<{ label: string; action: GuideAction; tone?: 'secondary' | 'tertiary' }>;
 }
 
 const undecided = (p: PassView) => p.baseStatus === 'proposed' || p.baseStatus === 'stale';
@@ -76,7 +77,7 @@ export function guideOf(
     return {
       step: 2,
       title: 'Pick a direction',
-      body: 'Three takes on your story: a close fit, a stretch and a wildcard. Hover each to see it on the page, click the one that feels right, then keep it.',
+      body: 'Three takes on your story. Hover each to see it on your page, click the one that feels right, then keep it. A bold one often grows on you, so give it a second look.',
       focus: dir,
       primary:
         dir.baseStatus === 'stale'
@@ -86,8 +87,8 @@ export function guideOf(
               action: 'keep',
             },
       secondary: [
-        { label: 'Show me others', action: 'reroll' },
         { label: 'Skip', action: 'skip' },
+        { label: 'Show me others', action: 'reroll', tone: 'tertiary' },
       ],
     };
   }
@@ -109,7 +110,7 @@ export function guideOf(
           : { label: 'Keep it', action: 'keep' },
       secondary: [
         { label: 'Skip it', action: 'skip' },
-        ...(p.variants.length ? [{ label: 'Show me others', action: 'reroll' as const }] : []),
+        ...(p.variants.length ? [{ label: 'Show me others', action: 'reroll' as const, tone: 'tertiary' as const }] : []),
       ],
     };
   }
@@ -125,21 +126,24 @@ export function guideOf(
       body: `${kept} change${kept > 1 ? 's' : ''} kept${skipped ? `, ${skipped} skipped` : ''}. Committing writes them as one version; v${state.currentVersion} stays one click away.`,
       focus: null,
       progress: { done: rest.length, total: rest.length },
-      primary: { label: `Commit v${next}`, action: 'commit' },
+      primary: { label: `Save as v${next}`, action: 'commit' },
       secondary: skipped
-        ? [{ label: 'New options for the skipped ones', action: 'randomize' }]
+        ? [{ label: 'New options for the skipped ones', action: 'randomize', tone: 'tertiary' }]
         : [],
     };
   }
+  // The ending people remember: what was saved, how to step back, what is next.
+  const last = state.versions.at(-1);
+  const savedCount = last && last.number > 1 ? last.label.split(', ').filter(Boolean).length : 0;
   return {
     step: 5,
     title: state.currentVersion > 1 ? `v${state.currentVersion} is saved` : 'Nothing kept yet',
     body:
       state.currentVersion > 1
-        ? 'Want to go further? Randomize for fresh options, or change the story to take it somewhere else.'
-        : 'Every change was skipped. Randomize for fresh options, raise the noise, or change the story.',
+        ? `${savedCount} change${savedCount === 1 ? '' : 's'} saved as one commit. Every earlier version is one click away under Versions. To go further, ask for fresh options or change the story.`
+        : 'Every change was skipped. Ask for fresh options, raise the noise, or change the story.',
     focus: null,
-    primary: { label: 'Randomize', action: 'randomize' },
-    secondary: [{ label: 'Edit the story', action: 'story' }],
+    primary: { label: 'Fresh options', action: 'randomize' },
+    secondary: [{ label: 'Edit the story', action: 'story', tone: 'tertiary' }],
   };
 }

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { HubEvent, ProjectState, PassView, ReasonChip } from '@sitemaxxing/core/protocol';
 import { HubClient, hubUrl } from './hub';
 import { TopBar } from './components/TopBar';
+import { Welcome } from './components/Welcome';
 import { StepRail } from './components/StepRail';
 import { Stage, type RecreateState } from './components/Stage';
 import { guideOf, type GuideAction } from './guide';
@@ -43,8 +44,8 @@ export function App() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectId, setProjectId] = useState<string | null>(null);
   const [state, setState] = useState<ProjectState | null>(null);
-  const [mode, setMode] = useState<'url' | 'repo'>('url');
-  const [field, setField] = useState('');
+  /** Home is the welcome screen; work is a project open in the workspace. */
+  const [screen, setScreen] = useState<'home' | 'work'>('home');
   const [live, setLive] = useState<{ text: string; on: boolean }>({ text: 'Connecting to the hub…', on: false });
   const [toast, setToast] = useState<{ text: string; err?: boolean } | null>(null);
   const [playing, setPlaying] = useState(false);
@@ -55,8 +56,6 @@ export function App() {
     store.set('sm.guided', on ? 'on' : 'off');
   }, []);
   const [lastSkipped, setLastSkipped] = useState<string | null>(null);
-  /** Once the person picks Any URL or My repo, a project loading in the background never flips it. */
-  const modeTouched = useRef(false);
   const [selected, setSelected] = useState<string | null>(null);
   const [connected, setConnected] = useState(false);
   const [delta, setDelta] = useState<{ n: number; key: number } | null>(null);
@@ -132,24 +131,15 @@ export function App() {
     return () => window.clearTimeout(t);
   }, [delta]);
 
-  // Pick the first project once the hub says hello.
-  useEffect(() => {
-    if (projectId || !projects.length) return;
-    const last = store.get('sm.project');
-    void loadProject((projects.find((p) => p.id === last) ?? projects[0]).id, { auto: true });
-  }, [projects]);
-
   const loadProject = useCallback(
-    async (id: string, opts: { auto?: boolean } = {}) => {
+    async (id: string) => {
       setProjectId(id);
-      store.set('sm.project', id);
+      setScreen('work');
+      setSelected(null);
+      setEditingStory(false);
       try {
         const s = await hub.rpc<ProjectState>('project.load', { project_id: id });
         adopt(s);
-        if (!(opts.auto && modeTouched.current)) {
-          setMode(s.source ? 'url' : 'repo');
-          setField(s.source ?? s.project.rootPath);
-        }
         if (!s.brief) say('Start with the story: what this is, who it is for, and what a visitor should do.');
         else if (!s.audited) {
           say('Planning from the story…', true);
@@ -178,60 +168,60 @@ export function App() {
   );
 
   // ---------- actions ----------
-  const maxxIt = useCallback(async () => {
-    if (mode === 'url') {
-      if (!field.trim()) return showToast('Paste a page URL first', true);
-      // A page already rebuilt opens where it was left; nothing is captured twice.
-      const host = (u: string) => {
+  /** Any URL: rebuild a public page as code (or reopen it if it was rebuilt before). */
+  const startUrl = useCallback(
+    async (input: string) => {
+      const norm = (u: string) => {
         try {
           return new URL(/^[a-z]+:\/\//i.test(u) ? u : `https://${u}`).href.replace(/\/$/, '');
         } catch {
           return u;
         }
       };
-      const known = projects.find((p) => p.source && host(p.source) === host(field.trim()));
-      if (known) {
-        setSelected(null);
-        await loadProject(known.id);
-        return;
-      }
-      setRecreate({ url: field.trim(), current: 'Opening the page' });
-      say(`Rebuilding ${field.trim()} as code…`, true);
+      const known = projects.find((p) => p.source && norm(p.source) === norm(input));
+      if (known) return loadProject(known.id);
+      setScreen('work');
+      setState(null);
+      setProjectId(null);
+      setRecreate({ url: input, current: 'Opening the page' });
+      say(`Rebuilding ${input} as code…`, true);
       try {
-        const r = await hub.rpc<{ projectId: string; url: string }>('recreate_url', { url: field.trim() });
+        const r = await hub.rpc<{ projectId: string; url: string }>('recreate_url', { url: input });
         setProjects(await hub.rpc<Project[]>('projects.list'));
-        setSelected(null);
-        setEditingStory(false);
         await loadProject(r.projectId);
         setRecreate(null);
         say('v1 is saved. Now tell the story: what this is, who it is for, and what a visitor should do.');
       } catch (e) {
-        setRecreate((x) => ({ url: x?.url ?? field, current: null, error: (e as Error).message }));
+        setRecreate((x) => ({ url: x?.url ?? input, current: null, error: (e as Error).message }));
         say('Ready');
       }
-      return;
-    }
-    const existing = projects.find((p) => p.rootPath === field || p.name === field);
-    try {
-      say('Registering the project…', true);
-      const r = existing ? { projectId: existing.id } : await hub.rpc<{ projectId: string }>('init_project', { path: field });
-      setProjectId(r.projectId);
-      setProjects(await hub.rpc<Project[]>('projects.list'));
-      const loaded = await hub.rpc<ProjectState>('project.load', { project_id: r.projectId });
-      adopt(loaded);
-      if (!loaded.brief) {
-        say('Start with the story: what this is, who it is for, and what a visitor should do.');
-        return;
+    },
+    [projects, hub, say, loadProject],
+  );
+
+  /** My repo: register a local project folder whose dev server is running. */
+  const openFolder = useCallback(
+    async (folder: string) => {
+      const existing = projects.find((p) => p.rootPath === folder || p.name === folder);
+      try {
+        say('Opening the project…', true);
+        const r = existing ? { projectId: existing.id } : await hub.rpc<{ projectId: string }>('init_project', { path: folder });
+        setProjects(await hub.rpc<Project[]>('projects.list'));
+        await loadProject(r.projectId);
+      } catch (e) {
+        showToast((e as Error).message, true);
+        say('Ready');
       }
-      say('Planning from the story…', true);
-      const s = await hub.rpc<ProjectState>('audit_page', { project_id: r.projectId });
-      adopt(s);
-      say(`Mog score ${s.score?.score ?? '–'}. Start with a direction, then refine.`);
-    } catch (e) {
-      showToast((e as Error).message, true);
-      say('Ready');
-    }
-  }, [mode, field, projects, hub, say, showToast, loadProject]);
+    },
+    [projects, hub, say, showToast, loadProject],
+  );
+
+  const goHome = useCallback(async () => {
+    if (state?.previewing) await hub.rpc('end_preview', { project_id: state.project.id }).catch(() => undefined);
+    setScreen('home');
+    setRecreate(null);
+    hub.rpc<Project[]>('projects.list').then(setProjects).catch(() => undefined);
+  }, [hub, state]);
 
   const passById = useCallback((id: string) => state?.passes.find((p) => p.id === id), [state]);
 
@@ -404,6 +394,23 @@ export function App() {
   const guide = useMemo(() => guideOf(state, selected, !!recreate && !recreate.error), [state, selected, recreate]);
   const focusId = guide.focus?.id ?? null;
 
+  // The tab says where you are.
+  useEffect(() => {
+    if (screen === 'home') return;
+    if (!state && !recreate) {
+      document.title = 'Sitemaxxing';
+      return;
+    }
+    const names = ['Rebuilding', 'Story', 'Direction', 'Refine', 'Save', 'Saved'];
+    let where = state?.project.name ?? '';
+    try {
+      if (state?.source) where = new URL(state.source).host;
+    } catch {
+      /* keep the project name */
+    }
+    document.title = [names[editingStory || (state && !state.brief) ? 1 : guide.step], where, 'Sitemaxxing'].filter(Boolean).join(' · ');
+  }, [screen, guide.step, state?.source, state?.project.name, editingStory, state?.brief, recreate]);
+
   // The page always shows the change in focus, so every decision is made looking at it.
   useEffect(() => {
     if (!guided || playingRef.current || !state?.audited || state.viewingVersion) return;
@@ -484,26 +491,25 @@ export function App() {
 
   const approvedCount = state?.passes.filter((p) => p.status === 'approved').length ?? 0;
 
+  const mode: 'url' | 'repo' = recreate || state?.source ? 'url' : 'repo';
+  const toastEl = (
+    <div className={'toast' + (toast ? ' show' : '') + (toast?.err ? ' err' : '')} role="status">
+      {toast?.text}
+    </div>
+  );
+
+  if (screen === 'home') {
+    return (
+      <>
+        <Welcome projects={projects} connected={connected} onStartUrl={(u) => void startUrl(u)} onOpenFolder={(f) => void openFolder(f)} onOpen={(id) => void loadProject(id)} />
+        {toastEl}
+      </>
+    );
+  }
+
   return (
     <>
-      <TopBar
-        mode={mode}
-        onMode={(m) => {
-          modeTouched.current = true;
-          setMode(m);
-          setField(m === 'url' ? (state?.source ?? '') : state && !state.source ? state.project.rootPath : (projects.find((p) => !p.rootPath.includes('sites'))?.rootPath ?? ''));
-          if (m === 'repo') setRecreate(null);
-        }}
-        field={field}
-        onField={setField}
-        projects={projects}
-        onSubmit={maxxIt}
-        state={state}
-        delta={delta}
-        approvedCount={approvedCount}
-        onCommit={commit}
-        connected={connected}
-      />
+      <TopBar state={recreate ? null : state} delta={delta} approvedCount={approvedCount} onCommit={commit} onHome={() => void goHome()} />
       <main className="main">
         <section className="stage" aria-label="Live preview">
           <StepRail step={editingStory || (state && !state.brief) ? 1 : guide.step} mode={mode} />

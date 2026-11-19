@@ -38,6 +38,13 @@ interface RuleCard {
   source: { title: string; author: string; url: string };
 }
 
+/** Every option says why it is there (a bold one needs its story beside it). */
+const SLOT_WHY: Record<string, string> = {
+  fit: 'Closest to your story',
+  stretch: 'One step further',
+  wildcard: 'Far out, on purpose',
+};
+
 function chipFor(p: PassView, current: number): [string, string] {
   // A decision outranks a hover: an approved or rejected row stays labelled while it is previewed.
   const status = p.status === 'previewing' && ['approved', 'rejected'].includes(p.baseStatus) ? p.baseStatus : p.status;
@@ -104,7 +111,7 @@ function Row(props: {
           <span className="t">{p.name}</span>
           <span className={'chip ' + cls}>{label}</span>
           {p.status !== 'skipped' ? (
-            <span className="fit" title={`How much this matters for this story: ${p.impact}/100`}>
+            <span className="fit" role="img" aria-label={`Matters ${p.impact} out of 100 for this story`} title={`How much this matters for this story: ${p.impact}/100`}>
               <i style={{ width: `${Math.max(6, p.impact)}%` }} />
             </span>
           ) : null}
@@ -160,6 +167,7 @@ function Row(props: {
                   <>
                     <small className={'slot slot-' + String(v.attributes?.slot ?? '')}>{v.label.split(' · ')[0]}</small>
                     <span>{v.label.split(' · ').slice(1).join(' · ')}</span>
+                    {SLOT_WHY[String(v.attributes?.slot ?? '')] ? <span className="why-slot">{SLOT_WHY[String(v.attributes?.slot)]}</span> : null}
                   </>
                 ) : (
                   <span>{v.label}</span>
@@ -435,7 +443,7 @@ function GuidedPanel(props: Parameters<typeof Queue>[0]) {
               {guide.primary.label}
             </button>
             {(guide.secondary ?? []).map((b) => (
-              <button key={b.label} className="btn" disabled={!!state?.busy} onClick={() => run(b.action)}>
+              <button key={b.label} className={'btn' + (b.tone === 'tertiary' ? ' tertiary' : '')} disabled={!!state?.busy} onClick={() => run(b.action)}>
                 {b.label}
               </button>
             ))}
@@ -460,7 +468,7 @@ function GuidedPanel(props: Parameters<typeof Queue>[0]) {
         {upcoming.map((p) => (
           <li key={p.id} className="mini" onClick={() => props.onSelect(p.id)} title="Look at this one now">
             <span>{p.name}</span>
-            <span className="fit" title={`How much this matters for this story: ${p.impact}/100`}>
+            <span className="fit" role="img" aria-label={`Matters ${p.impact} out of 100 for this story`} title={`How much this matters for this story: ${p.impact}/100`}>
               <i style={{ width: `${Math.max(6, p.impact)}%` }} />
             </span>
           </li>

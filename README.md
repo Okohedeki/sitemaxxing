@@ -36,8 +36,9 @@ git history, so commits never touch this repo), and starts everything:
 | 5173 | Fieldnote, a sloppy SaaS landing page |
 | 5174 | Isvik Expeditions, a sloppy travel landing page |
 
-Open http://localhost:4747. Paste any public page under **Any URL**, or pick a sample under
-**My repo**, and the guide takes it from there, one decision at a time:
+Open http://localhost:4747. The welcome screen asks for one thing: a page URL. Paste any public
+page (or open a sample, or a project folder), and the guide takes it from there, one decision at a
+time:
 
 1. **Paste a page.** Sitemaxxing opens it in a headless browser, reads the brand, navigation, first
    screen, sections, facts, a quote and the footer, plus the computed colours, fonts and corner
