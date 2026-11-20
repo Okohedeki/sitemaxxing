@@ -69,8 +69,21 @@ export function guideOf(
 
   const passes = guidedPasses(state);
   const dir = passes.find((p) => p.defId === 'direction');
-  const rest = passes.filter((p) => p.defId !== 'direction');
+  const base = passes.find((p) => p.defId === 'shared-values');
+  const rest = passes.filter((p) => p.defId !== 'direction' && p.defId !== 'shared-values');
   const next = (state.currentVersion ?? 1) + 1;
+
+  // Groundwork first: once the styles read from shared values, a direction can reach all of them.
+  if (base && undecided(base)) {
+    return {
+      step: 2,
+      title: 'First, give the styles one home',
+      body: `${base.summary ?? base.description}. After this, a direction changes the whole page, not a few parts of it.`,
+      focus: base,
+      primary: base.baseStatus === 'stale' ? { label: 'Regenerate', action: 'regenerate' } : { label: 'Keep it', action: 'keep' },
+      secondary: [{ label: 'Skip', action: 'skip' }],
+    };
+  }
 
   if (dir && undecided(dir)) {
     const v = dir.variants.find((x) => x.id === dir.chosenVariantId);

@@ -90,7 +90,17 @@ export async function takeSnapshot(page: Page): Promise<SnapshotDOM> {
         if (cs.display === 'none' || cs.visibility === 'hidden') return -1;
         const r = el.getBoundingClientRect();
         const styles: Record<string, string> = {};
-        for (const k of keys) styles[k] = (cs as any)[k];
+        for (const k of keys) {
+          const v = (cs as any)[k];
+          // Mixed colours are reported as color(srgb r g b / a); keep the rgb() form everywhere.
+          styles[k] =
+            typeof v === 'string' && v.includes('color(srgb')
+              ? v.replace(/color\(srgb\s+([\d.e-]+)\s+([\d.e-]+)\s+([\d.e-]+)(?:\s*\/\s*([\d.e-]+))?\)/g, (_m: string, r: string, g: string, b: string, a?: string) => {
+                  const c = [r, g, b].map((x) => Math.round(parseFloat(x) * 255)).join(', ');
+                  return a === undefined || parseFloat(a) === 1 ? `rgb(${c})` : `rgba(${c}, ${parseFloat(a)})`;
+                })
+              : v;
+        }
         fonts.add(cs.fontFamily.split(',')[0].replace(/["']/g, '').trim());
         const attrs: Record<string, string> = {};
         for (const a of Array.from(el.attributes)) {

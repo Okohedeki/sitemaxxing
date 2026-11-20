@@ -72,7 +72,7 @@ export function plan(defs: PassDefinition[], detections: Map<string, Detection>,
     else if (brief.keep.fonts && def.id === 'font') skipReason = 'you asked to keep your fonts';
     else if (brief.keep.copy && def.id === 'copy') skipReason = 'you asked to keep your copy';
     else if (avoid.motion && (def.moodBias?.energy ?? 0) > 0.3 && def.kind === 'component') skipReason = 'you asked for nothing that moves';
-    else if (def.kind !== 'direction' && impact < threshold) skipReason = `low impact for ${GOALS[brief.goal].label.toLowerCase()} (${impact}/100)`;
+    else if (def.kind !== 'direction' && !def.foundation && impact < threshold) skipReason = `low impact for ${GOALS[brief.goal].label.toLowerCase()} (${impact}/100)`;
     return { defId: def.id, include: !skipReason, impact, rationale, skipReason, order: 0 };
   });
 
@@ -90,7 +90,8 @@ export function plan(defs: PassDefinition[], detections: Map<string, Detection>,
   for (const d of sorted) visit(d.id);
   placed.forEach((id, i) => {
     const item = itemById.get(id)!;
-    item.order = KIND_BASE[byId.get(id)!.kind] + i;
+    // Position alone: groundwork a direction depends on comes before it, whatever its kind.
+    item.order = i;
   });
   return items.sort((a, b) => a.order - b.order);
 }

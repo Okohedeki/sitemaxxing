@@ -112,3 +112,18 @@ already holds.
 
 The engine caches one reading per snapshot and puts it on `ProjectState.system`. The control room
 shows it in the System view; agents get it from `read_design_system`.
+
+## Writing shared values
+
+`systemize.ts` is the step from reading to writing. Given the stylesheets, it replaces each colour
+literal, each `font-size` length and each padding, margin or gap length with `var(--name)` and
+declares the names on `:root` in the tokens file. It is lossless: one name per distinct value, and
+a colour with an opacity becomes `color-mix(in srgb, var(--name) N%, transparent)`. Values inside
+`calc()`, `em` lengths, and `rem` lengths on a page whose root size is not the default are left
+alone. The `shared-values` pass offers this as the first change (`foundation: true`, so the
+planner never sets it aside), and `direction` depends on it.
+
+A direction then moves the whole palette with `remapColor` (`color.ts`). Each shared colour is
+placed on the nearest line between two of the three anchors (background to ink, background to
+accent, ink to accent) in OKLab, and rebuilt at the same place between the new anchors, keeping
+what was left over. The anchors come from the rendered page (`readSystem`), not from token names.

@@ -1,6 +1,7 @@
-import { definePass, cssEdit, rngFor, avoidOf, type Finding, type PassContext, type Variant } from '@sitemaxxing/core';
+import { definePass, cssEdit, rngFor, avoidOf, pureColor, remapColor, type Anchors, type Finding, type PassContext, type Variant } from '@sitemaxxing/core';
 import { generateDirections, type GeneratedDirection } from '@sitemaxxing/components';
 import { buttonsIn, changed, heroOf, navOf, readSources, selFor } from './shared';
+import { anchorsOf } from './shared-values';
 
 /** Semantic tokens the sloppy baseline may declare; the direction turns them solid and quiet. */
 const SOLID_TOKENS: Record<string, string> = {
@@ -66,6 +67,7 @@ export const direction = definePass({
   name: 'Visual direction',
   kind: 'direction',
   order: 0,
+  dependsOn: ['shared-values'],
   serves: ['character', 'mood', 'polish'],
   ruleCards: ['refactoring-ui-color', 'tuch-2012-prototypicality', 'reinecke-2013-colorfulness', 'reinecke-gajos-2014', 'hekkert-2003-maya'],
   description: 'Palette, accent and tone for this story, as tokens; solid buttons, no gradients, hairline badges',
@@ -95,8 +97,26 @@ export const direction = definePass({
     const before = ctx.files.exists(tokensPath) ? ctx.files.read(tokensPath) : '';
     const vars: Record<string, string> = { ...dir.tokens };
     for (const [k, v] of Object.entries(SOLID_TOKENS)) if (k in ctx.tokens.vars) vars[k] = v;
+    // Every other shared colour keeps its place in the palette: a surface a little off the old
+    // background lands a little off the new one, and tints of the old accent follow the new one.
+    const from = anchorsOf(ctx);
+    const to: Anchors = { bg: dir.tokens['--bg'], ink: dir.tokens['--ink'], acc: dir.tokens['--acc'] };
+    const moved = (prop: string, value: string): string | undefined => {
+      if (prop in vars) return vars[prop];
+      const hex = from && to.bg && to.ink ? pureColor(value) : null;
+      return hex ? remapColor(hex, from!, to) : undefined;
+    };
+    for (const [k, v] of Object.entries(ctx.tokens.vars)) {
+      const next = moved(k, v);
+      if (next !== undefined) vars[k] = next;
+    }
     let after = cssEdit.setRootVars(before, vars);
     const files = [{ path: tokensPath, before, after }];
+    // A stylesheet may declare shared colours of its own; they follow the palette too, and one
+    // with the same name as a token must not keep overriding it.
+    const stylesPath0 = ctx.config.sources.styles;
+    const restyled = stylesPath0 === tokensPath ? src.styles : cssEdit.mapRootVars(src.styles, moved);
+    if (restyled !== src.styles) files.push({ path: stylesPath0, before: src.styles, after: restyled });
     if (Object.keys(ctx.tokens.vars).length === 0) {
       // No token system yet: make the body and buttons follow the new tokens.
       const stylesPath = ctx.config.sources.styles;
@@ -106,7 +126,11 @@ h1 span, h1 strong { background: none; color: var(--acc); -webkit-text-fill-colo
       if (tokensPath === stylesPath) {
         after = cssEdit.appendCss(after, block, 'sitemaxxing: direction');
         files[0].after = after;
-      } else files.push({ path: stylesPath, before: src.styles, after: cssEdit.appendCss(src.styles, block, 'sitemaxxing: direction') });
+      } else {
+        const own = files.find((f) => f.path === stylesPath);
+        if (own) own.after = cssEdit.appendCss(own.after, block, 'sitemaxxing: direction');
+        else files.push({ path: stylesPath, before: src.styles, after: cssEdit.appendCss(src.styles, block, 'sitemaxxing: direction') });
+      }
     }
     return {
       summary: `${dir.label}: paper ${dir.tokens['--bg']}, ink ${dir.tokens['--ink']}, accent ${dir.tokens['--acc']}`,

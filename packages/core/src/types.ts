@@ -251,6 +251,8 @@ export interface PassDefinition {
   /** @deprecated v0.1 fixed gain. Ignored by the planner; impact is computed per brief. */
   points?: number;
   dependsOn?: string[];
+  /** Groundwork later changes build on: always proposed when it applies, whatever the goal. */
+  foundation?: boolean;
   ruleCards: string[];
   /** One-line description shown in the queue row. */
   description: string;

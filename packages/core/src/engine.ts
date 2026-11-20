@@ -926,14 +926,25 @@ export class Engine {
     return this.buildState(this.rt(projectId));
   }
 
-  private readings = new WeakMap<SnapshotDOM, SystemReading>();
+  private readings = new WeakMap<SnapshotDOM, { stamp: string; reading: SystemReading }>();
 
   /** The design system the project has now, read from the last snapshot and its stylesheets. */
   private systemOf(rt: Runtime): SystemReading | null {
     if (!rt.dom.nodes.length) return null;
-    let reading = this.readings.get(rt.dom);
+    const files = makeFileSystem(rt.project.rootPath);
+    // The page is read once per snapshot; the stylesheets again whenever one of them changes.
+    const stamp = [...new Set([rt.config.sources.tokens, rt.config.sources.styles, ...files.list('src', '.css')])]
+      .map((f) => {
+        try {
+          return `${f}:${fs.statSync(path.join(rt.project.rootPath, f)).mtimeMs}`;
+        } catch {
+          return '';
+        }
+      })
+      .join('|');
+    const cached = this.readings.get(rt.dom);
+    let reading = cached?.stamp === stamp ? cached.reading : undefined;
     if (!reading) {
-      const files = makeFileSystem(rt.project.rootPath);
       const sheets = [
         ...new Set([
           rt.config.sources.tokens,
@@ -945,7 +956,7 @@ export class Engine {
         rt.dom,
         sheets.map((f) => files.read(f)),
       );
-      this.readings.set(rt.dom, reading);
+      this.readings.set(rt.dom, { stamp, reading });
     }
     return reading;
   }

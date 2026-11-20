@@ -4,6 +4,13 @@ This file is managed by Changesets. Run `pnpm changeset` to add an entry.
 
 ## Unreleased
 
+- Shared values: a new first change that moves every colour, text size and spacing value written
+  in place in the stylesheets to a named value on `:root`. Colours are named by family (neutral,
+  accent, or their hue) and lightness; an opacity is kept with `color-mix`. The page looks the
+  same afterwards.
+- A direction now recolours every shared colour, in any stylesheet: each one keeps its place
+  between the old background, text colour and accent, so surfaces, quiet text and tints follow a
+  new palette, including a flip to dark. Colours that belong to no family stay as they are.
 - System view: reads the design system a project already has, from its rendered page and its
   stylesheets. Colours by role, type sizes and families, spacing steps and the grid they sit on,
   corner radii, shadows, repeated buttons, fields and cards grouped by how they look, motion, and

@@ -104,3 +104,75 @@ export function hueName(h: number, c: number): string {
   ];
   return (names.find(([max]) => h <= max) ?? names[0])[1];
 }
+
+// ---------- anchors: describing a colour by its place between the main ones ----------
+
+export type Lab = [number, number, number];
+
+export function hexToOklab(hex: string): Lab {
+  const { l, c, h } = hexToOklch(hex);
+  return [l, c * Math.cos((h * Math.PI) / 180), c * Math.sin((h * Math.PI) / 180)];
+}
+
+export function oklabToHex([l, a, b]: Lab): string {
+  return oklchToHex({ l: clamp(l), c: Math.hypot(a, b), h: ((Math.atan2(b, a) * 180) / Math.PI + 360) % 360 });
+}
+
+/** The three colours a palette hangs from. `acc` may be missing on a page with no accent. */
+export interface Anchors {
+  bg: string;
+  ink: string;
+  acc?: string;
+}
+
+export interface Fit {
+  /** neutral: between background and ink. tint: background to accent. shade: ink to accent. */
+  family: 'neutral' | 'tint' | 'shade';
+  /** Where it sits between the two, 0 at the first. */
+  t: number;
+  /** What is left over once that point is taken away. */
+  rest: Lab;
+  error: number;
+}
+
+/** Colours further than this from every line between the anchors belong to no family. */
+export const FIT_LIMIT = 0.09;
+
+/** Places a colour on the line between two anchors that passes closest to it. */
+export function fitColor(hex: string, anchors: Anchors): Fit | null {
+  const p = hexToOklab(hex);
+  const pairs: Array<[Fit['family'], string, string | undefined]> = [
+    ['neutral', anchors.bg, anchors.ink],
+    ['tint', anchors.bg, anchors.acc],
+    ['shade', anchors.ink, anchors.acc],
+  ];
+  let best: Fit | null = null;
+  for (const [family, from, to] of pairs) {
+    if (!to || from === to) continue;
+    const a = hexToOklab(from);
+    const b = hexToOklab(to);
+    const ab: Lab = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
+    const len = ab[0] ** 2 + ab[1] ** 2 + ab[2] ** 2;
+    if (len < 1e-6) continue;
+    const t = clamp(((p[0] - a[0]) * ab[0] + (p[1] - a[1]) * ab[1] + (p[2] - a[2]) * ab[2]) / len, -0.2, 1.2);
+    const rest: Lab = [p[0] - a[0] - t * ab[0], p[1] - a[1] - t * ab[1], p[2] - a[2] - t * ab[2]];
+    const error = Math.hypot(...rest);
+    // Greys go to the neutral line whenever it is close enough, so a flipped background flips them.
+    if (!best || error < best.error - (best.family === 'neutral' ? 0.015 : 0)) best = { family, t, rest, error };
+  }
+  return best && best.error <= FIT_LIMIT ? best : null;
+}
+
+/**
+ * Moves a colour from one palette to another, keeping its place: a surface a little off the old
+ * background lands a little off the new one. Colours that belong to no family stay as they are.
+ */
+export function remapColor(hex: string, from: Anchors, to: Anchors): string {
+  const fit = fitColor(hex, from);
+  if (!fit) return hex;
+  const [x, y] = fit.family === 'neutral' ? [to.bg, to.ink] : fit.family === 'tint' ? [to.bg, to.acc] : [to.ink, to.acc];
+  if (!y) return hex;
+  const a = hexToOklab(x);
+  const b = hexToOklab(y);
+  return oklabToHex([0, 1, 2].map((i) => a[i] + fit.t * (b[i] - a[i]) + fit.rest[i]) as Lab);
+}

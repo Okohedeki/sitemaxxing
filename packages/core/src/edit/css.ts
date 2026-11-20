@@ -89,3 +89,29 @@ export function declValue(css: string, selector: string, prop: string): string |
     return undefined;
   }
 }
+
+/**
+ * Rewrites custom properties declared on `:root` or `html`, wherever in the sheet they are.
+ * `fn` returns the new value, or undefined to leave one alone. Returns the css untouched when
+ * nothing changes.
+ */
+export function mapRootVars(css: string, fn: (prop: string, value: string) => string | undefined): string {
+  let root: Root;
+  try {
+    root = postcss.parse(css);
+  } catch {
+    return css;
+  }
+  let hit = false;
+  root.walkRules((rule) => {
+    if (!rule.selectors.some((s) => s.trim() === ':root' || s.trim() === 'html')) return;
+    rule.walkDecls((d) => {
+      if (!d.prop.startsWith('--')) return;
+      const next = fn(d.prop, d.value);
+      if (next === undefined || next === d.value) return;
+      d.value = next;
+      hit = true;
+    });
+  });
+  return hit ? root.toString() : css;
+}

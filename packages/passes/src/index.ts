@@ -1,5 +1,6 @@
 import type { PassDefinition } from '@sitemaxxing/core';
 import { direction } from './direction';
+import { sharedValues } from './shared-values';
 import { declutter } from './declutter';
 import { heroLayout } from './hero-layout';
 import { spacing } from './spacing';
@@ -16,9 +17,9 @@ import { preloader } from './preloader';
 import { proof, features, closingCta } from './sections';
 
 /** The built-in set, coarse to fine. */
-export const passes: PassDefinition[] = [direction, declutter, heroLayout, spacing, copy, alignment, font, fontSize, imagery, navDropdown, arrowButton, revealHero, heroArt, preloader, proof, features, closingCta];
+export const passes: PassDefinition[] = [sharedValues, direction, declutter, heroLayout, spacing, copy, alignment, font, fontSize, imagery, navDropdown, arrowButton, revealHero, heroArt, preloader, proof, features, closingCta];
 
-export { direction, declutter, heroLayout, spacing, copy, alignment, font, fontSize, imagery, navDropdown, arrowButton, revealHero, heroArt, preloader, proof, features, closingCta };
+export { sharedValues, direction, declutter, heroLayout, spacing, copy, alignment, font, fontSize, imagery, navDropdown, arrowButton, revealHero, heroArt, preloader, proof, features, closingCta };
 export { sectionPass } from './sections';
 export { ruleBasedRewrite } from './copy';
 export * as shared from './shared';
