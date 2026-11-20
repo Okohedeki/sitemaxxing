@@ -4,6 +4,11 @@ This file is managed by Changesets. Run `pnpm changeset` to add an entry.
 
 ## Unreleased
 
+- System view: reads the design system a project already has, from its rendered page and its
+  stylesheets. Colours by role, type sizes and families, spacing steps and the grid they sit on,
+  corner radii, shadows, repeated buttons, fields and cards grouped by how they look, motion, and
+  the share of colour, size and spacing values that read from shared values. Shown as a specimen
+  sheet beside the page, and available as `read_design_system` over MCP.
 - Story first: a brief (story, audience, goal, feeling, keep, avoid, noise) is required before
   planning, from the control room's Story step, `set_brief` over MCP, the config, or
   `audit --brief`.

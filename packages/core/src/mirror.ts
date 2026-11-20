@@ -209,6 +209,8 @@ const ATTR: Record<string, string | null> = {
   autofocus: null,
   crossorigin: 'crossOrigin',
   playsinline: 'playsInline',
+  disablepictureinpicture: 'disablePictureInPicture',
+  disableremoteplayback: 'disableRemotePlayback',
   autoplay: 'autoPlay',
   allowfullscreen: 'allowFullScreen',
   enctype: 'encType',

@@ -85,6 +85,15 @@ export async function createMcpServer(engine: Engine) {
     const s = await engine.audit(id);
     return text({ ...stripState(s), findings: s.passes.map((p) => ({ id: p.id, findings: p.findings })) });
   });
+  server.registerTool(
+    'read_design_system',
+    {
+      description:
+        'What the project has now: colours by role, type sizes and families, spacing steps, corner radii and shadows, repeated components and their different looks, motion, how much of the styling reads from shared values, and findings.',
+      inputSchema: { project_id: z.string().optional() },
+    },
+    async ({ project_id }) => text(engine.readSystem(await ensure(projectOf(undefined, project_id)))),
+  );
   server.registerTool('list_passes', { description: 'Passes with status, variants, points and stale flags.', inputSchema: { project_id: z.string().optional() } }, async ({ project_id }) => text(stripState(engine.state(await ensure(projectOf(undefined, project_id)))).passes));
   server.registerTool('preview_pass', { description: 'Apply a pass (and optional variant) to the working tree and highlight it live.', inputSchema: { pass_id: z.string(), variant_id: z.string().optional() } }, async ({ pass_id, variant_id }) => {
     await engine.preview(await ensure(projectOf(pass_id)), pass_id, variant_id);

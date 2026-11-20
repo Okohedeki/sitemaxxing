@@ -56,6 +56,10 @@ export function rpcHandlers(engine: Engine): Record<string, Handler> {
       engine.reportPass(pid(p), String(p.name), Array.isArray(p.selectors) ? p.selectors.map(String) : []);
       return { ok: true };
     },
+    read_design_system: async (p) => {
+      await ensureLoaded(pid(p));
+      return engine.readSystem(pid(p));
+    },
     decisions: async (p) => engine.decisions(pid(p)),
   };
 }

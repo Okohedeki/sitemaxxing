@@ -2088,3 +2088,329 @@ a {
     transition: none !important;
   }
 }
+
+/* The system view: what the project has now, as a specimen sheet. The project's own colours and
+   sizes are the only bright things; the warm light marks what is off. */
+.system.sheet {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  border-radius: 12px;
+  background: var(--sheet);
+  box-shadow: var(--lift-2);
+  padding: clamp(20px, 3vw, 36px);
+  font-variant-numeric: tabular-nums;
+}
+
+.sys-empty {
+  height: 100%;
+  display: grid;
+  place-content: center;
+  text-align: center;
+  gap: 6px;
+  color: var(--muted);
+}
+
+.sys-empty b {
+  font: 600 22px var(--display);
+  color: var(--ink);
+}
+
+.sys-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(220px, 1fr);
+  gap: 24px 48px;
+  align-items: end;
+  padding-bottom: 28px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.sys-figure {
+  display: flex;
+  align-items: flex-end;
+  gap: 20px;
+}
+
+.sys-figure b {
+  font: 800 clamp(64px, 9vw, 120px) / 0.82 var(--display);
+  font-stretch: 125%;
+  letter-spacing: -0.04em;
+  background: var(--prism);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.sys-figure p {
+  margin: 0;
+  max-width: 30ch;
+  font-size: 15px;
+  line-height: 1.4;
+  color: var(--soft);
+}
+
+.sys-figure p span {
+  display: block;
+  margin-top: 6px;
+  font: 500 11.5px var(--mono);
+  color: var(--faint);
+}
+
+.sys-cover {
+  display: grid;
+  gap: 9px;
+}
+
+.sys-cover-row {
+  display: grid;
+  grid-template-columns: 84px minmax(0, 1fr) 76px;
+  align-items: center;
+  gap: 12px;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.sys-cover-row i {
+  height: 6px;
+  border-radius: 3px;
+  background: hsl(0 0% 100% / 0.08);
+  overflow: hidden;
+}
+
+.sys-cover-row b {
+  display: block;
+  height: 100%;
+  min-width: 2px;
+  background: var(--ink);
+  border-radius: 3px;
+}
+
+.sys-cover-row em {
+  font: 500 11.5px var(--mono);
+  font-style: normal;
+  text-align: right;
+  color: var(--faint);
+}
+
+.sys-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 48px;
+}
+
+.sys-block {
+  padding: 26px 0;
+  border-bottom: 1px solid var(--rule);
+  min-width: 0;
+}
+
+.sys-block:first-child,
+.sys-block:has(.sys-comps) {
+  grid-column: 1 / -1;
+}
+
+.sys-block > header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.sys-block h3 {
+  margin: 0;
+  font: 700 12px var(--ui);
+  font-stretch: 125%;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.sys-block > header span {
+  font: 500 11.5px var(--mono);
+  color: var(--faint);
+  text-align: right;
+}
+
+.system figure {
+  margin: 0;
+}
+
+.system figcaption {
+  margin-top: 6px;
+  font: 500 10.5px var(--mono);
+  color: var(--faint);
+}
+
+.sys-strip {
+  display: flex;
+  height: 56px;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 0 0 1px var(--rule);
+}
+
+.sys-strip i {
+  flex: 0 1 0;
+  min-width: 5px;
+}
+
+.sys-roles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px 36px;
+  margin-top: 20px;
+}
+
+.sys-role > span,
+.sys-comp > span {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.sys-role > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.sys-role figure i {
+  display: grid;
+  place-items: center;
+  width: 58px;
+  height: 40px;
+  border-radius: 7px;
+  box-shadow: inset 0 0 0 1px hsl(0 0% 100% / 0.12);
+  font: 600 15px var(--ui);
+  font-style: normal;
+}
+
+.sys-ladder {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 10px 16px;
+}
+
+.sys-ladder b {
+  display: block;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.sys-ladder .base figcaption {
+  color: var(--ink);
+}
+
+.sys-ladder .base figcaption::after {
+  content: ' · most text';
+}
+
+.sys-line {
+  margin: 16px 0 0;
+  font: 500 11.5px/1.6 var(--mono);
+  color: var(--muted);
+}
+
+.sys-steps {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px 14px;
+}
+
+.sys-steps i {
+  display: block;
+  background: hsl(0 0% 100% / 0.16);
+  border-radius: 2px;
+}
+
+.sys-steps .off i {
+  background: var(--red);
+}
+
+.sys-steps .off figcaption {
+  color: var(--red-ink);
+}
+
+.sys-steps i.corner {
+  width: 44px;
+  height: 44px;
+  background: none;
+  border-radius: 0;
+  border-top: 2px solid var(--ink);
+  border-left: 2px solid var(--ink);
+}
+
+.sys-comps {
+  display: grid;
+  gap: 18px;
+}
+
+.sys-bench {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px 20px;
+  padding: 18px 20px 12px;
+  border-radius: 10px;
+}
+
+.sys-bench figcaption {
+  color: inherit;
+  opacity: 0.6;
+}
+
+.sys-bench i {
+  display: inline-block;
+  font: 600 14px var(--ui);
+  font-style: normal;
+  white-space: nowrap;
+}
+
+.sys-bench i.sys-card {
+  width: 84px;
+  height: 56px;
+}
+
+.sys-bench i.sys-field {
+  min-width: 96px;
+  opacity: 0.9;
+}
+
+.sys-notes {
+  list-style: none;
+  margin: 18px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--soft);
+  max-width: 72ch;
+}
+
+.sys-notes li {
+  padding-left: 16px;
+  position: relative;
+}
+
+.sys-notes li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.55em;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--red);
+}
+
+@media (max-width: 1100px) {
+  .sys-head,
+  .sys-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

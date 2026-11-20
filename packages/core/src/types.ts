@@ -1,5 +1,7 @@
 /* Core types shared by every package. Keep this file free of Node imports. */
 
+import type { SystemReading } from './system';
+
 export type PassKind = 'direction' | 'refine' | 'component';
 
 export type PassStatus =
@@ -341,6 +343,8 @@ export interface ProjectState {
   source: string | null;
   /** For a page rebuilt from a URL: how much of its first screen matches the original, 0 to 1. */
   sourceMatch?: number | null;
+  /** The design system the project has now, or null before the page has been read. */
+  system?: SystemReading | null;
   /** A first draft of the story read from the page, until the owner tells it. */
   suggestedBrief: Partial<Brief> | null;
 }

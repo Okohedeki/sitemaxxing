@@ -7,6 +7,7 @@ import { StepRail } from './components/StepRail';
 import { Stage, type RecreateState } from './components/Stage';
 import { guideOf, type GuideAction } from './guide';
 import { Queue } from './components/Queue';
+import { System } from './components/System';
 import type { StoryDraft } from './components/StoryForm';
 
 export interface Project {
@@ -46,10 +47,14 @@ export function App() {
   const [state, setState] = useState<ProjectState | null>(null);
   /** Home is the welcome screen; work is a project open in the workspace. */
   const [screen, setScreen] = useState<'home' | 'work'>('home');
-  const [live, setLive] = useState<{ text: string; on: boolean }>({ text: 'Connecting to the hub…', on: false });
+  const [live, setLive] = useState<{ text: string; on: boolean }>({
+    text: 'Connecting to the hub…',
+    on: false,
+  });
   const [toast, setToast] = useState<{ text: string; err?: boolean } | null>(null);
   const [playing, setPlaying] = useState(false);
   const [recreate, setRecreate] = useState<RecreateState | null>(null);
+  const [stageView, setStageView] = useState<'page' | 'system'>('page');
   const [guided, setGuidedState] = useState(() => store.get('sm.guided') !== 'off');
   const setGuided = useCallback((on: boolean) => {
     setGuidedState(on);
@@ -87,7 +92,10 @@ export function App() {
       }
       if (e.type === 'busy' && e.projectId === '') {
         setConnected(true);
-        hub.rpc<Project[]>('projects.list').then(setProjects).catch(() => undefined);
+        hub
+          .rpc<Project[]>('projects.list')
+          .then(setProjects)
+          .catch(() => undefined);
         return;
       }
       if (projectId && e.projectId && e.projectId !== projectId) return;
@@ -110,7 +118,9 @@ export function App() {
           say(`v${e.number} is the current version. v1 stays viewable read-only.`);
           break;
         case 'pass.stale':
-          showToast(`${e.passIds.length} downstream pass${e.passIds.length > 1 ? 'es' : ''} marked stale`);
+          showToast(
+            `${e.passIds.length} downstream pass${e.passIds.length > 1 ? 'es' : ''} marked stale`,
+          );
           break;
         default:
           break;
@@ -122,7 +132,8 @@ export function App() {
   useEffect(() => {
     const s = state?.score?.score ?? null;
     if (s === null) return;
-    if (lastScore.current !== null && s !== lastScore.current) setDelta({ n: s - lastScore.current, key: Date.now() });
+    if (lastScore.current !== null && s !== lastScore.current)
+      setDelta({ n: s - lastScore.current, key: Date.now() });
     lastScore.current = s;
   }, [state?.score?.score]);
   useEffect(() => {
@@ -140,7 +151,8 @@ export function App() {
       try {
         const s = await hub.rpc<ProjectState>('project.load', { project_id: id });
         adopt(s);
-        if (!s.brief) say('Start with the story: what this is, who it is for, and what a visitor should do.');
+        if (!s.brief)
+          say('Start with the story: what this is, who it is for, and what a visitor should do.');
         else if (!s.audited) {
           say('Planning from the story…', true);
           const audited = await hub.rpc<ProjectState>('audit_page', { project_id: id });
@@ -190,7 +202,9 @@ export function App() {
         setProjects(await hub.rpc<Project[]>('projects.list'));
         await loadProject(r.projectId);
         setRecreate(null);
-        say('v1 is saved. Now tell the story: what this is, who it is for, and what a visitor should do.');
+        say(
+          'v1 is saved. Now tell the story: what this is, who it is for, and what a visitor should do.',
+        );
       } catch (e) {
         setRecreate((x) => ({ url: x?.url ?? input, current: null, error: (e as Error).message }));
         say('Ready');
@@ -205,7 +219,9 @@ export function App() {
       const existing = projects.find((p) => p.rootPath === folder || p.name === folder);
       try {
         say('Opening the project…', true);
-        const r = existing ? { projectId: existing.id } : await hub.rpc<{ projectId: string }>('init_project', { path: folder });
+        const r = existing
+          ? { projectId: existing.id }
+          : await hub.rpc<{ projectId: string }>('init_project', { path: folder });
         setProjects(await hub.rpc<Project[]>('projects.list'));
         await loadProject(r.projectId);
       } catch (e) {
@@ -217,10 +233,14 @@ export function App() {
   );
 
   const goHome = useCallback(async () => {
-    if (state?.previewing) await hub.rpc('end_preview', { project_id: state.project.id }).catch(() => undefined);
+    if (state?.previewing)
+      await hub.rpc('end_preview', { project_id: state.project.id }).catch(() => undefined);
     setScreen('home');
     setRecreate(null);
-    hub.rpc<Project[]>('projects.list').then(setProjects).catch(() => undefined);
+    hub
+      .rpc<Project[]>('projects.list')
+      .then(setProjects)
+      .catch(() => undefined);
   }, [hub, state]);
 
   const passById = useCallback((id: string) => state?.passes.find((p) => p.id === id), [state]);
@@ -237,7 +257,13 @@ export function App() {
       hoverStart.current[passId] = hoverStart.current[passId] ?? Date.now();
       const v = p.variants.find((x) => x.id === (variantId ?? p.chosenVariantId));
       say(`Previewing <b>${p.name}${v ? ': ' + v.label : ''}</b>`, true);
-      await call('preview_pass', { pass_id: passId, variant_id: variantId, shown_alongside: state.passes.filter((x) => x.kind === p.kind && x.id !== passId).map((x) => x.id) });
+      await call('preview_pass', {
+        pass_id: passId,
+        variant_id: variantId,
+        shown_alongside: state.passes
+          .filter((x) => x.kind === p.kind && x.id !== passId)
+          .map((x) => x.id),
+      });
     },
     [state, call, passById, say],
   );
@@ -246,22 +272,35 @@ export function App() {
     (passId: string | null) => {
       if (playingRef.current) return;
       if (hoverTimer.current) window.clearTimeout(hoverTimer.current);
-      hoverTimer.current = window.setTimeout(() => {
-        if (passId) hoverStart.current[passId] = Date.now();
-        void preview(passId);
-        if (!passId) say('Ready');
-      }, passId ? 90 : 160);
+      hoverTimer.current = window.setTimeout(
+        () => {
+          if (passId) hoverStart.current[passId] = Date.now();
+          void preview(passId);
+          if (!passId) say('Ready');
+        },
+        passId ? 90 : 160,
+      );
     },
     [preview, say],
   );
 
-  const dwell = (passId: string) => (hoverStart.current[passId] ? Date.now() - hoverStart.current[passId] : undefined);
+  const dwell = (passId: string) =>
+    hoverStart.current[passId] ? Date.now() - hoverStart.current[passId] : undefined;
 
   const decide = useCallback(
-    async (passId: string, action: 'approve' | 'reject' | 'pick' | 'regenerate', variantId?: string) => {
+    async (
+      passId: string,
+      action: 'approve' | 'reject' | 'pick' | 'regenerate',
+      variantId?: string,
+    ) => {
       const p = passById(passId);
       if (!p) return;
-      const s = await call<ProjectState>('decide_pass', { pass_id: passId, action, variant_id: variantId, dwell_ms: dwell(passId) });
+      const s = await call<ProjectState>('decide_pass', {
+        pass_id: passId,
+        action,
+        variant_id: variantId,
+        dwell_ms: dwell(passId),
+      });
       if (!s) return;
       const np = s.passes.find((x) => x.id === passId)!;
       if (action === 'reject') setLastSkipped(np.baseStatus === 'rejected' ? passId : null);
@@ -269,7 +308,10 @@ export function App() {
       const v = np.variants.find((x) => x.id === np.chosenVariantId);
       if (action === 'pick') say(`Picked <b>${v?.label ?? variantId}</b> for ${np.name}`, true);
       else if (action === 'regenerate') say(`${np.name} regenerated`);
-      else say(`${np.name}${v ? ' (' + v.label + ')' : ''} ${np.status === 'proposed' ? 'reset' : np.status}`);
+      else
+        say(
+          `${np.name}${v ? ' (' + v.label + ')' : ''} ${np.status === 'proposed' ? 'reset' : np.status}`,
+        );
     },
     [call, passById, say],
   );
@@ -283,7 +325,11 @@ export function App() {
       if (!s) return;
       adopt(s);
       const lean = s.passes.find((x) => x.id === passId)?.lean ?? [];
-      if (next && lean.length) say(`Noted. The next roll of ${p?.name ?? 'this pass'} leans <b>${lean.join(', ')}</b>`, true);
+      if (next && lean.length)
+        say(
+          `Noted. The next roll of ${p?.name ?? 'this pass'} leans <b>${lean.join(', ')}</b>`,
+          true,
+        );
     },
     [adopt, call, passById, say],
   );
@@ -302,7 +348,9 @@ export function App() {
     for (const p of state.passes) {
       if (!playingRef.current) break;
       if (p.status !== 'proposed') continue;
-      document.getElementById('row-' + p.id)?.scrollIntoView({ block: 'nearest', behavior: reduced() ? 'auto' : 'smooth' });
+      document
+        .getElementById('row-' + p.id)
+        ?.scrollIntoView({ block: 'nearest', behavior: reduced() ? 'auto' : 'smooth' });
       if (p.variants.length) {
         for (const v of p.variants) {
           if (!playingRef.current) break;
@@ -338,12 +386,14 @@ export function App() {
       if (!s) return;
       adopt(s);
       setEditingStory(false);
-        say('Planning from the story…', true);
+      say('Planning from the story…', true);
       const planned = await call<ProjectState>('audit_page');
       if (planned) {
         adopt(planned);
         const n = planned.passes.filter((p) => p.status === 'proposed').length;
-        say(`Planned ${n} changes for ${planned.brief?.goal ?? 'this goal'}. Start with a direction, then refine.`);
+        say(
+          `Planned ${n} changes for ${planned.brief?.goal ?? 'this goal'}. Start with a direction, then refine.`,
+        );
       }
     },
     [call, adopt, say],
@@ -356,7 +406,11 @@ export function App() {
       const s = await call<ProjectState>('reroll_pass', passId ? { pass_id: passId } : {});
       if (s) {
         adopt(s);
-        say(p ? `New options for <b>${p.name}</b>` : 'New options for every open pass. Approved ones stay.');
+        say(
+          p
+            ? `New options for <b>${p.name}</b>`
+            : 'New options for every open pass. Approved ones stay.',
+        );
       }
     },
     [call, adopt, passById, say],
@@ -370,7 +424,11 @@ export function App() {
   const setView = useCallback(
     async (view: 'current' | 'changes') => {
       await call('set_view', { view });
-      say(view === 'current' ? `Showing <b>v${state?.currentVersion ?? 1}</b> without pending changes` : 'Showing pending changes');
+      say(
+        view === 'current'
+          ? `Showing <b>v${state?.currentVersion ?? 1}</b> without pending changes`
+          : 'Showing pending changes',
+      );
     },
     [call, say, state?.currentVersion],
   );
@@ -391,7 +449,10 @@ export function App() {
   );
 
   // ---------- guide ----------
-  const guide = useMemo(() => guideOf(state, selected, !!recreate && !recreate.error), [state, selected, recreate]);
+  const guide = useMemo(
+    () => guideOf(state, selected, !!recreate && !recreate.error),
+    [state, selected, recreate],
+  );
   const focusId = guide.focus?.id ?? null;
 
   // The tab says where you are.
@@ -408,8 +469,22 @@ export function App() {
     } catch {
       /* keep the project name */
     }
-    document.title = [names[editingStory || (state && !state.brief) ? 1 : guide.step], where, 'Sitemaxxing'].filter(Boolean).join(' · ');
-  }, [screen, guide.step, state?.source, state?.project.name, editingStory, state?.brief, recreate]);
+    document.title = [
+      names[editingStory || (state && !state.brief) ? 1 : guide.step],
+      where,
+      'Sitemaxxing',
+    ]
+      .filter(Boolean)
+      .join(' · ');
+  }, [
+    screen,
+    guide.step,
+    state?.source,
+    state?.project.name,
+    editingStory,
+    state?.brief,
+    recreate,
+  ]);
 
   // The page always shows the change in focus, so every decision is made looking at it.
   useEffect(() => {
@@ -423,7 +498,14 @@ export function App() {
   const regenerated = useRef(new Set<string>());
   useEffect(() => {
     const f = guide.focus;
-    if (!guided || !f || f.baseStatus !== 'stale' || state?.busy || regenerated.current.has(f.id + f.seed)) return;
+    if (
+      !guided ||
+      !f ||
+      f.baseStatus !== 'stale' ||
+      state?.busy ||
+      regenerated.current.has(f.id + f.seed)
+    )
+      return;
     regenerated.current.add(f.id + f.seed);
     void decide(f.id, 'regenerate');
   }, [guided, guide.focus, state?.busy]);
@@ -456,14 +538,16 @@ export function App() {
           void guideAction(guide.primary.action);
         } else if ((e.key === 's' || e.key === 'S') && f) void guideAction('skip');
         else if ((e.key === 'd' || e.key === 'D') && f) void guideAction('reroll');
-        else if (/^[1-5]$/.test(e.key) && f?.variants[Number(e.key) - 1]) void decide(f.id, 'pick', f.variants[Number(e.key) - 1].id);
+        else if (/^[1-5]$/.test(e.key) && f?.variants[Number(e.key) - 1])
+          void decide(f.id, 'pick', f.variants[Number(e.key) - 1].id);
         return;
       }
       const rows = state.passes.filter((p) => p.status !== 'skipped');
       const idx = rows.findIndex((p) => p.id === selected);
       if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
         e.preventDefault();
-        const next = rows[Math.max(0, Math.min(rows.length - 1, idx + (e.key === 'ArrowDown' ? 1 : -1)))];
+        const next =
+          rows[Math.max(0, Math.min(rows.length - 1, idx + (e.key === 'ArrowDown' ? 1 : -1)))];
         if (next) {
           setSelected(next.id);
           document.getElementById('row-' + next.id)?.scrollIntoView({ block: 'nearest' });
@@ -487,7 +571,19 @@ export function App() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [state, selected, passById, preview, decide, commit, reroll, guided, editingStory, guide, guideAction]);
+  }, [
+    state,
+    selected,
+    passById,
+    preview,
+    decide,
+    commit,
+    reroll,
+    guided,
+    editingStory,
+    guide,
+    guideAction,
+  ]);
 
   const approvedCount = state?.passes.filter((p) => p.status === 'approved').length ?? 0;
 
@@ -501,7 +597,13 @@ export function App() {
   if (screen === 'home') {
     return (
       <>
-        <Welcome projects={projects} connected={connected} onStartUrl={(u) => void startUrl(u)} onOpenFolder={(f) => void openFolder(f)} onOpen={(id) => void loadProject(id)} />
+        <Welcome
+          projects={projects}
+          connected={connected}
+          onStartUrl={(u) => void startUrl(u)}
+          onOpenFolder={(f) => void openFolder(f)}
+          onOpen={(id) => void loadProject(id)}
+        />
         {toastEl}
       </>
     );
@@ -513,27 +615,60 @@ export function App() {
         state={recreate ? null : state}
         delta={delta}
         approvedCount={approvedCount}
-        rail={<StepRail step={editingStory || (state && !state.brief) ? 1 : guide.step} mode={mode} />}
+        rail={
+          <StepRail step={editingStory || (state && !state.brief) ? 1 : guide.step} mode={mode} />
+        }
         onCommit={commit}
         onHome={() => void goHome()}
       />
       <main className="main">
         <section className="stage" aria-label="Live preview">
           <div className="stagebar">
+            <div className="seg" role="group" aria-label="Show">
+              <button
+                aria-pressed={stageView === 'page' || !!recreate}
+                onClick={() => setStageView('page')}
+              >
+                Page
+              </button>
+              <button
+                aria-pressed={stageView === 'system' && !recreate}
+                disabled={!!recreate}
+                onClick={() => setStageView('system')}
+              >
+                System
+              </button>
+            </div>
             <div className="seg" role="group" aria-label="Compare">
-              <button aria-pressed={state?.view === 'current' && !state?.viewingVersion} onClick={() => setView('current')}>
+              <button
+                aria-pressed={state?.view === 'current' && !state?.viewingVersion}
+                onClick={() => setView('current')}
+              >
                 Current v{state?.currentVersion ?? 1}
               </button>
-              <button aria-pressed={state?.view === 'changes' && !state?.viewingVersion} onClick={() => setView('changes')}>
+              <button
+                aria-pressed={state?.view === 'changes' && !state?.viewingVersion}
+                onClick={() => setView('changes')}
+              >
                 With changes
               </button>
             </div>
             <div className="live">
               <span className={'dot' + (live.on || state?.busy ? ' on' : '')} />
-              <span dangerouslySetInnerHTML={{ __html: state?.busy ? `${state.busy}…` : live.text }} />
+              <span
+                dangerouslySetInnerHTML={{ __html: state?.busy ? `${state.busy}…` : live.text }}
+              />
             </div>
           </div>
-          <Stage state={recreate && !recreate.error ? null : state} recreate={recreate} onCloseRecreate={() => setRecreate(null)} />
+          {stageView === 'system' && !recreate ? (
+            <System state={state} />
+          ) : (
+            <Stage
+              state={recreate && !recreate.error ? null : state}
+              recreate={recreate}
+              onCloseRecreate={() => setRecreate(null)}
+            />
+          )}
         </section>
         <Queue
           state={state}

@@ -9,7 +9,16 @@ import { openDb, newId, now, json, type DB } from './db';
 import { loadConfig } from './config';
 import { makeFileSystem, toPosix } from './fsx';
 import * as gitx from './git';
-import { applyStaged, canApply, filesTouched, toUnifiedDiff, writePatchFile, patchFileName, PatchApplyError, Staging } from './patches';
+import {
+  applyStaged,
+  canApply,
+  filesTouched,
+  toUnifiedDiff,
+  writePatchFile,
+  patchFileName,
+  PatchApplyError,
+  Staging,
+} from './patches';
 import { takeSnapshot, emptySnapshot } from './snapshot';
 import { detectSections } from './sections';
 import { readTokens } from './tokens';
@@ -18,6 +27,7 @@ import { downstreamOf } from './registry';
 import { normalizeBrief, moodOf } from './brief';
 import { captureSite, normalizeUrl, siteDirFor, siteFiles } from './recreate';
 import { STILL_JS, screenshotMatch } from './fidelity';
+import { readSystem, type SystemReading } from './system';
 import net from 'node:net';
 import { applyLean, describeLean, isNeutral, leanFor } from './taste';
 import { plan, type Detection } from './planner';
@@ -48,7 +58,11 @@ import type {
 
 export interface EngineDeps {
   passes: PassDefinition[];
-  rules: { search(q: string): RuleCard[]; byId(id: string): RuleCard | undefined; all(): RuleCard[] };
+  rules: {
+    search(q: string): RuleCard[];
+    byId(id: string): RuleCard | undefined;
+    all(): RuleCard[];
+  };
   scorer: (page: Page, dom: SnapshotDOM, opts?: { mood?: Mood }) => Promise<ScoreResult>;
   browser: () => Promise<Browser>;
   emit: (e: HubEvent) => void;
@@ -94,7 +108,12 @@ interface Runtime {
   patches: Map<string, PrecomputedPatch>;
   variants: Map<string, Variant[]>;
   applied: AppliedPatch[];
-  previewing: { defId: string; variantId?: string; startedAt: number; shownAlongside: string[] } | null;
+  previewing: {
+    defId: string;
+    variantId?: string;
+    startedAt: number;
+    shownAlongside: string[];
+  } | null;
   lastPreviewAt: Record<string, number>;
   view: 'current' | 'changes';
   viewingVersion: number | null;
@@ -113,7 +132,16 @@ interface Runtime {
 }
 
 /** Used only to build contexts for highlights before a story exists. */
-const PLACEHOLDER_BRIEF: Brief = { story: '', audience: '', goal: 'signups', feeling: [], keep: {}, avoid: [], noise: 0, seed: 1 };
+const PLACEHOLDER_BRIEF: Brief = {
+  story: '',
+  audience: '',
+  goal: 'signups',
+  feeling: [],
+  keep: {},
+  avoid: [],
+  noise: 0,
+  seed: 1,
+};
 
 const pkey = (defId: string, variantId?: string) => `${defId}__${variantId ?? 'default'}`;
 
@@ -135,14 +163,31 @@ export class Engine {
     }
   }
 
-  private writeRegistry(rows: Array<{ id: string; name: string; rootPath: string; devUrl: string }>) {
+  private writeRegistry(
+    rows: Array<{ id: string; name: string; rootPath: string; devUrl: string }>,
+  ) {
     fs.mkdirSync(path.dirname(this.registryPath()), { recursive: true });
     fs.writeFileSync(this.registryPath(), JSON.stringify(rows, null, 2));
   }
 
-  listProjects(): Array<{ id: string; name: string; devUrl: string; rootPath: string; loaded: boolean; source: string | null }> {
-    const source = (root: string) => json.parse<{ url?: string } | null>(readIf(path.join(root, RECREATED)), null)?.url ?? null;
-    const loaded = [...this.projects.values()].map((r) => ({ id: r.project.id, name: r.project.name, devUrl: r.project.devUrl, rootPath: r.project.rootPath, loaded: true, source: source(r.project.rootPath) }));
+  listProjects(): Array<{
+    id: string;
+    name: string;
+    devUrl: string;
+    rootPath: string;
+    loaded: boolean;
+    source: string | null;
+  }> {
+    const source = (root: string) =>
+      json.parse<{ url?: string } | null>(readIf(path.join(root, RECREATED)), null)?.url ?? null;
+    const loaded = [...this.projects.values()].map((r) => ({
+      id: r.project.id,
+      name: r.project.name,
+      devUrl: r.project.devUrl,
+      rootPath: r.project.rootPath,
+      loaded: true,
+      source: source(r.project.rootPath),
+    }));
     const reg = this.readRegistry()
       .filter((r) => !this.projects.has(r.id) && fs.existsSync(r.rootPath))
       .map((r) => ({ ...r, loaded: false, source: source(r.rootPath) }));
@@ -156,11 +201,17 @@ export class Engine {
   // ---------- lifecycle ----------
 
   static projectIdFor(rootPath: string): string {
-    return createHash('sha1').update(path.resolve(rootPath).toLowerCase()).digest('hex').slice(0, 10);
+    return createHash('sha1')
+      .update(path.resolve(rootPath).toLowerCase())
+      .digest('hex')
+      .slice(0, 10);
   }
 
   /** Registers (or reloads) a project, takes a baseline snapshot and score, creates v1. */
-  async initProject(rootPath: string, devUrl?: string): Promise<{ projectId: string; sections: Section[]; baseline: number | null; name: string }> {
+  async initProject(
+    rootPath: string,
+    devUrl?: string,
+  ): Promise<{ projectId: string; sections: Section[]; baseline: number | null; name: string }> {
     const root = path.resolve(rootPath);
     if (!fs.existsSync(root)) throw new Error(`path does not exist: ${root}`);
     const config = await loadConfig(root);
@@ -233,7 +284,10 @@ export class Engine {
       if (old.measureTimer) clearTimeout(old.measureTimer);
     } else this.restoreApplied(rt);
     this.loadBrief(rt);
-    for (const r of db.prepare('SELECT def_id, seed FROM passes WHERE project_id = ?').all(id) as any[]) if (r.seed != null) rt.seeds[r.def_id] = Number(r.seed);
+    for (const r of db
+      .prepare('SELECT def_id, seed FROM passes WHERE project_id = ?')
+      .all(id) as any[])
+      if (r.seed != null) rt.seeds[r.def_id] = Number(r.seed);
     this.projects.set(id, rt);
     const reg = this.readRegistry().filter((r) => r.id !== id);
     reg.unshift({ id, name, rootPath: root, devUrl: config.devUrl });
@@ -242,28 +296,24 @@ export class Engine {
     await this.refreshSnapshot(rt);
     rt.sections = detectSections(rt.dom, id);
     db.prepare('DELETE FROM sections WHERE project_id = ?').run(id);
-    const ins = db.prepare('INSERT INTO sections(id,project_id,kind,selector,"order") VALUES(?,?,?,?,?)');
+    const ins = db.prepare(
+      'INSERT INTO sections(id,project_id,kind,selector,"order") VALUES(?,?,?,?,?)',
+    );
     for (const s of rt.sections) ins.run(s.id, id, s.kind, s.selector, s.order);
 
     let baseline: number | null = null;
-    const v1 = db.prepare('SELECT * FROM versions WHERE project_id = ? ORDER BY number DESC LIMIT 1').get(id) as any;
+    const v1 = db
+      .prepare('SELECT * FROM versions WHERE project_id = ? ORDER BY number DESC LIMIT 1')
+      .get(id) as any;
     if (!v1) {
       const score = await this.measure(rt);
       baseline = score?.score ?? null;
       const sha = gitx.headSha(root);
       const vid = newId();
       const shots = await this.screenshotAll(rt, 1);
-      db.prepare('INSERT INTO versions(id,project_id,number,git_sha,mog_score,pass_ids,variant_map,screenshots,created_at) VALUES(?,?,?,?,?,?,?,?,?)').run(
-        vid,
-        id,
-        1,
-        sha,
-        score?.score ?? 0,
-        '[]',
-        '{}',
-        json.str(shots),
-        now(),
-      );
+      db.prepare(
+        'INSERT INTO versions(id,project_id,number,git_sha,mog_score,pass_ids,variant_map,screenshots,created_at) VALUES(?,?,?,?,?,?,?,?,?)',
+      ).run(vid, id, 1, sha, score?.score ?? 0, '[]', '{}', json.str(shots), now());
       if (score) this.recordScore(rt, vid, score);
     } else {
       rt.score = this.latestScore(rt);
@@ -277,7 +327,8 @@ export class Engine {
     const r = this.readRegistry().find((x) => x.id === id);
     if (!r) throw new Error(`unknown project ${id}`);
     // A recreated site has no dev server of its own running; start it again on its port.
-    if (fs.existsSync(path.join(r.rootPath, RECREATED)) && !(await waitForUrl(r.devUrl, 600))) await this.serveSite(r.rootPath, r.devUrl);
+    if (fs.existsSync(path.join(r.rootPath, RECREATED)) && !(await waitForUrl(r.devUrl, 600)))
+      await this.serveSite(r.rootPath, r.devUrl);
     await this.initProject(r.rootPath, r.devUrl);
   }
 
@@ -289,7 +340,8 @@ export class Engine {
     if (old) killTree(old);
     const proc = spawnVite(dir, port);
     this.siteServers.set(dir, proc);
-    if (!(await waitForUrl(devUrl, 40_000))) throw new Error(`the recreated site did not start on ${devUrl}`);
+    if (!(await waitForUrl(devUrl, 40_000)))
+      throw new Error(`the recreated site did not start on ${devUrl}`);
   }
 
   /**
@@ -298,14 +350,23 @@ export class Engine {
    * original, and opens it as a project. The story is left for the owner, with a first draft read
    * from the page.
    */
-  async recreate(input: string): Promise<{ projectId: string; url: string; rootPath: string; baseline: number | null }> {
+  async recreate(
+    input: string,
+  ): Promise<{ projectId: string; url: string; rootPath: string; baseline: number | null }> {
     const sites = this.deps.sites;
-    if (!sites) throw new Error('Recreating from a URL needs a sites folder; start Sitemaxxing with `sitemaxxing dev`.');
+    if (!sites)
+      throw new Error(
+        'Recreating from a URL needs a sites folder; start Sitemaxxing with `sitemaxxing dev`.',
+      );
     const url = normalizeUrl(input);
-    const step = (what: string | null) => this.deps.emit({ type: 'recreate.step', projectId: '', ts: Date.now(), url, what });
+    const step = (what: string | null) =>
+      this.deps.emit({ type: 'recreate.step', projectId: '', ts: Date.now(), url, what });
     try {
       const browser = await this.deps.browser();
-      const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 });
+      const context = await browser.newContext({
+        viewport: { width: 1440, height: 900 },
+        deviceScaleFactor: 1,
+      });
       const page = await context.newPage();
       let cap;
       try {
@@ -327,18 +388,33 @@ export class Engine {
         fs.writeFileSync(path.join(dir, rel), text);
       }
       const mark = (match: number | null) =>
-        fs.writeFileSync(path.join(dir, RECREATED), JSON.stringify({ url, capturedAt: now(), match }, null, 2) + '\n');
+        fs.writeFileSync(
+          path.join(dir, RECREATED),
+          JSON.stringify({ url, capturedAt: now(), match }, null, 2) + '\n',
+        );
       mark(null);
       linkNodeModules(sites.template, dir);
       gitx.git(dir, ['init', '-q', '-b', 'main']);
       gitx.git(dir, ['add', '-A']);
-      gitx.git(dir, ['-c', 'user.name=Sitemaxxing', '-c', 'user.email=sitemaxxing@localhost', 'commit', '-q', '-m', `v1: recreated from ${url}`, '--no-verify']);
+      gitx.git(dir, [
+        '-c',
+        'user.name=Sitemaxxing',
+        '-c',
+        'user.email=sitemaxxing@localhost',
+        'commit',
+        '-q',
+        '-m',
+        `v1: recreated from ${url}`,
+        '--no-verify',
+      ]);
       step('Starting its dev server');
       await this.serveSite(dir, devUrl);
       step('Checking it against the original');
       const match = cap.shot ? await this.matchOf(devUrl, cap.shot) : null;
       mark(match);
-      this.log(`recreated ${url}: first screen matches ${match === null ? 'unknown' : Math.round(match * 100) + '%'}`);
+      this.log(
+        `recreated ${url}: first screen matches ${match === null ? 'unknown' : Math.round(match * 100) + '%'}`,
+      );
       step('Measuring v1');
       const r = await this.initProject(dir, devUrl);
       return { projectId: r.projectId, url, rootPath: dir, baseline: r.baseline };
@@ -351,7 +427,10 @@ export class Engine {
   private async matchOf(devUrl: string, original: Buffer): Promise<number | null> {
     try {
       const browser = await this.deps.browser();
-      const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 });
+      const context = await browser.newContext({
+        viewport: { width: 1440, height: 900 },
+        deviceScaleFactor: 1,
+      });
       try {
         const page = await context.newPage();
         await page.goto(devUrl, { waitUntil: 'load', timeout: 30_000 });
@@ -375,7 +454,11 @@ export class Engine {
   }
 
   /** Serializes operations per project. */
-  private run<T>(projectId: string, what: string | null, fn: (rt: Runtime) => Promise<T>): Promise<T> {
+  private run<T>(
+    projectId: string,
+    what: string | null,
+    fn: (rt: Runtime) => Promise<T>,
+  ): Promise<T> {
     const rt = this.rt(projectId);
     const next = rt.queue.then(async () => {
       if (what) this.setBusy(rt, what);
@@ -404,7 +487,10 @@ export class Engine {
     try {
       if (rt.page && !rt.page.isClosed()) return rt.page;
       const browser = await this.deps.browser();
-      const ctx = await browser.newContext({ viewport: { width: rt.config.viewports[0][0], height: rt.config.viewports[0][1] }, reducedMotion: 'reduce' });
+      const ctx = await browser.newContext({
+        viewport: { width: rt.config.viewports[0][0], height: rt.config.viewports[0][1] },
+        reducedMotion: 'reduce',
+      });
       rt.page = await ctx.newPage();
       return rt.page;
     } catch (e) {
@@ -422,7 +508,11 @@ export class Engine {
         // A cold dev server can reload the page after "network idle" (Vite re-optimising its
         // dependencies), which would leave a blank page to snapshot. Wait until the app has
         // rendered something, then for the network to settle again.
-        await page.waitForFunction(() => (document.body?.innerText ?? '').trim().length > 0, undefined, { timeout: 10_000 }).catch(() => undefined);
+        await page
+          .waitForFunction(() => (document.body?.innerText ?? '').trim().length > 0, undefined, {
+            timeout: 10_000,
+          })
+          .catch(() => undefined);
         await page.waitForLoadState('networkidle', { timeout: 5_000 }).catch(() => undefined);
         await page.evaluate(() => (window as any).__sitemaxxingHide?.());
         await page.waitForTimeout(150);
@@ -467,16 +557,25 @@ export class Engine {
       await page.screenshot({ path: file, fullPage: false });
       out[`${w}x${h}`] = toPosix(path.relative(rt.project.rootPath, file));
     }
-    await page.setViewportSize({ width: rt.config.viewports[0][0], height: rt.config.viewports[0][1] });
+    await page.setViewportSize({
+      width: rt.config.viewports[0][0],
+      height: rt.config.viewports[0][1],
+    });
     return out;
   }
 
   private recordScore(rt: Runtime, versionId: string | null, score: ScoreResult) {
-    rt.db.prepare('INSERT INTO scores(id,project_id,version_id,mog_score,metrics,created_at) VALUES(?,?,?,?,?,?)').run(newId(), rt.project.id, versionId, score.score, json.str(score), now());
+    rt.db
+      .prepare(
+        'INSERT INTO scores(id,project_id,version_id,mog_score,metrics,created_at) VALUES(?,?,?,?,?,?)',
+      )
+      .run(newId(), rt.project.id, versionId, score.score, json.str(score), now());
   }
 
   private latestScore(rt: Runtime): ScoreResult | null {
-    const row = rt.db.prepare('SELECT metrics FROM scores WHERE project_id = ? ORDER BY created_at DESC LIMIT 1').get(rt.project.id) as any;
+    const row = rt.db
+      .prepare('SELECT metrics FROM scores WHERE project_id = ? ORDER BY created_at DESC LIMIT 1')
+      .get(rt.project.id) as any;
     return row ? json.parse<ScoreResult | null>(row.metrics, null) : null;
   }
 
@@ -484,9 +583,13 @@ export class Engine {
 
   private ctx(rt: Runtime): PassContext {
     const files = makeFileSystem(rt.project.rootPath);
-    const content = files.exists(rt.config.content) ? { path: rt.config.content, data: JSON.parse(files.read(rt.config.content)) } : undefined;
+    const content = files.exists(rt.config.content)
+      ? { path: rt.config.content, data: JSON.parse(files.read(rt.config.content)) }
+      : undefined;
     const choices: Record<string, string> = {};
-    for (const row of rt.db.prepare('SELECT def_id, chosen_variant_id FROM passes WHERE project_id = ?').all(rt.project.id) as any[]) {
+    for (const row of rt.db
+      .prepare('SELECT def_id, chosen_variant_id FROM passes WHERE project_id = ?')
+      .all(rt.project.id) as any[]) {
       if (row.chosen_variant_id) choices[row.def_id] = row.chosen_variant_id;
     }
     return {
@@ -507,18 +610,33 @@ export class Engine {
 
   /** The owner's latest "why not?" answer per pass since the story was last told. */
   private answers(rt: Runtime): Record<string, ReasonChip | null> {
-    const since = (rt.db.prepare('SELECT created_at FROM briefs WHERE project_id = ? ORDER BY created_at DESC LIMIT 1').get(rt.project.id) as any)?.created_at ?? '';
+    const since =
+      (
+        rt.db
+          .prepare(
+            'SELECT created_at FROM briefs WHERE project_id = ? ORDER BY created_at DESC LIMIT 1',
+          )
+          .get(rt.project.id) as any
+      )?.created_at ?? '';
     const rows = rt.db
-      .prepare(`SELECT pass_id, reason_chip FROM decisions WHERE project_id = ? AND action = 'reject' AND created_at >= ? AND (reason_chip IS NOT NULL OR meta LIKE '%"clearReason":true%') ORDER BY created_at, rowid`)
+      .prepare(
+        `SELECT pass_id, reason_chip FROM decisions WHERE project_id = ? AND action = 'reject' AND created_at >= ? AND (reason_chip IS NOT NULL OR meta LIKE '%"clearReason":true%') ORDER BY created_at, rowid`,
+      )
       .all(rt.project.id, since) as any[];
     const out: Record<string, ReasonChip | null> = {};
     const prefix = `${rt.project.id}:`;
-    for (const r of rows) if (r.pass_id) out[String(r.pass_id).replace(prefix, '')] = r.reason_chip ?? null;
+    for (const r of rows)
+      if (r.pass_id) out[String(r.pass_id).replace(prefix, '')] = r.reason_chip ?? null;
     return out;
   }
 
   /** The context one pass generates from: the brief's mood and noise, leaned by the owner's answers. */
-  private leaned(rt: Runtime, defId: string, ctx: PassContext, answers = this.answers(rt)): PassContext {
+  private leaned(
+    rt: Runtime,
+    defId: string,
+    ctx: PassContext,
+    answers = this.answers(rt),
+  ): PassContext {
     if (!rt.brief || !rt.mood) return ctx;
     const lean = leanFor(defId, answers);
     if (isNeutral(lean)) return { ...ctx, mood: rt.mood, brief: rt.brief };
@@ -533,14 +651,19 @@ export class Engine {
   // ---------- brief ----------
 
   private loadBrief(rt: Runtime) {
-    const row = rt.db.prepare('SELECT brief FROM briefs WHERE project_id = ? ORDER BY created_at DESC LIMIT 1').get(rt.project.id) as any;
+    const row = rt.db
+      .prepare('SELECT brief FROM briefs WHERE project_id = ? ORDER BY created_at DESC LIMIT 1')
+      .get(rt.project.id) as any;
     let brief: Brief | null = null;
     if (row) brief = json.parse<Brief | null>(row.brief, null);
     else {
       const file = path.join(rt.dir, 'brief.json');
-      const fromFile = fs.existsSync(file) ? json.parse<Partial<Brief> | null>(fs.readFileSync(file, 'utf8'), null) : null;
+      const fromFile = fs.existsSync(file)
+        ? json.parse<Partial<Brief> | null>(fs.readFileSync(file, 'utf8'), null)
+        : null;
       const seedBrief = fromFile ?? rt.config.brief ?? null;
-      if (seedBrief?.story && seedBrief.story.trim().length >= 12) brief = normalizeBrief(seedBrief);
+      if (seedBrief?.story && seedBrief.story.trim().length >= 12)
+        brief = normalizeBrief(seedBrief);
     }
     rt.brief = brief;
     rt.mood = brief ? moodOf(brief) : null;
@@ -557,14 +680,24 @@ export class Engine {
       const prev = rt.brief;
       const brief = normalizeBrief({ ...(prev ?? {}), ...input, seed: input.seed ?? prev?.seed });
       const mood = moodOf(brief);
-      rt.db.prepare('INSERT INTO briefs(id,project_id,brief,mood,created_at) VALUES(?,?,?,?,?)').run(newId(), rt.project.id, json.str(brief), json.str(mood), now());
+      rt.db
+        .prepare('INSERT INTO briefs(id,project_id,brief,mood,created_at) VALUES(?,?,?,?,?)')
+        .run(newId(), rt.project.id, json.str(brief), json.str(mood), now());
       fs.writeFileSync(path.join(rt.dir, 'brief.json'), JSON.stringify(brief, null, 2) + '\n');
-      const changed = !prev || prev.seed !== brief.seed || prev.story !== brief.story || prev.goal !== brief.goal || prev.feeling.join() !== brief.feeling.join() || prev.noise !== brief.noise;
+      const changed =
+        !prev ||
+        prev.seed !== brief.seed ||
+        prev.story !== brief.story ||
+        prev.goal !== brief.goal ||
+        prev.feeling.join() !== brief.feeling.join() ||
+        prev.noise !== brief.noise;
       rt.brief = brief;
       rt.mood = mood;
       if (changed) {
         rt.seeds = {};
-        rt.db.prepare(`UPDATE passes SET seed = NULL WHERE project_id = ? AND status != 'committed'`).run(rt.project.id);
+        rt.db
+          .prepare(`UPDATE passes SET seed = NULL WHERE project_id = ? AND status != 'committed'`)
+          .run(rt.project.id);
         rt.audited = false;
       }
       return this.emitState(rt);
@@ -586,7 +719,12 @@ export class Engine {
     return rt.db.prepare('SELECT * FROM passes WHERE id = ?').get(this.passRowId(rt, defId));
   }
 
-  private setStatus(rt: Runtime, defId: string, status: PassStatus, extra: Record<string, unknown> = {}) {
+  private setStatus(
+    rt: Runtime,
+    defId: string,
+    status: PassStatus,
+    extra: Record<string, unknown> = {},
+  ) {
     const sets = ['status = ?'];
     const vals: unknown[] = [status];
     for (const [k, v] of Object.entries(extra)) {
@@ -595,14 +733,23 @@ export class Engine {
     }
     vals.push(this.passRowId(rt, defId));
     rt.db.prepare(`UPDATE passes SET ${sets.join(', ')} WHERE id = ?`).run(...vals);
-    this.deps.emit({ type: 'pass.decided', projectId: rt.project.id, ts: Date.now(), passId: this.passRowId(rt, defId), status });
+    this.deps.emit({
+      type: 'pass.decided',
+      projectId: rt.project.id,
+      ts: Date.now(),
+      passId: this.passRowId(rt, defId),
+      status,
+    });
   }
 
   // ---------- audit ----------
 
   async audit(projectId: string): Promise<ProjectState> {
     return this.run(projectId, 'Planning', async (rt) => {
-      if (!rt.brief || !rt.mood) throw new Error('Tell the story first: set a brief (what this is, who it is for, the goal, how it should feel) before planning.');
+      if (!rt.brief || !rt.mood)
+        throw new Error(
+          'Tell the story first: set a brief (what this is, who it is for, the goal, how it should feel) before planning.',
+        );
       this.assertClean(rt);
       this.measureSuspended = true;
       try {
@@ -626,7 +773,11 @@ export class Engine {
       const score = await this.measure(rt);
       if (score) this.recordScore(rt, null, score);
       const committed = new Set(
-        (rt.db.prepare(`SELECT def_id FROM passes WHERE project_id = ? AND status = 'committed'`).all(rt.project.id) as any[]).map((r) => r.def_id),
+        (
+          rt.db
+            .prepare(`SELECT def_id FROM passes WHERE project_id = ? AND status = 'committed'`)
+            .all(rt.project.id) as any[]
+        ).map((r) => r.def_id),
       );
       const ctx = this.ctx(rt);
       const upsert = rt.db.prepare(
@@ -643,10 +794,19 @@ export class Engine {
         try {
           detections.set(def.id, await def.detect(ctx));
         } catch (e) {
-          detections.set(def.id, { applies: false, findings: [], reason: `detect failed: ${(e as Error).message}` });
+          detections.set(def.id, {
+            applies: false,
+            findings: [],
+            reason: `detect failed: ${(e as Error).message}`,
+          });
         }
       }
-      const items = plan(rt.defs.filter((d) => !committed.has(d.id)), detections, rt.brief, rt.mood);
+      const items = plan(
+        rt.defs.filter((d) => !committed.has(d.id)),
+        detections,
+        rt.brief,
+        rt.mood,
+      );
       const answers = this.answers(rt);
       for (const item of items) {
         const def = rt.defs.find((d) => d.id === item.defId)!;
@@ -658,8 +818,13 @@ export class Engine {
         const variants = item.include ? ((await def.variants?.(dctx)) ?? []) : [];
         rt.variants.set(def.id, variants);
         rt.db.prepare('DELETE FROM variants WHERE pass_id = ?').run(id);
-        const prevChoice = (this.row(rt, def.id)?.chosen_variant_id as string | undefined) ?? undefined;
-        const chosen = variants.length ? (variants.some((v) => v.id === prevChoice) ? prevChoice : variants[0].id) : null;
+        const prevChoice =
+          (this.row(rt, def.id)?.chosen_variant_id as string | undefined) ?? undefined;
+        const chosen = variants.length
+          ? variants.some((v) => v.id === prevChoice)
+            ? prevChoice
+            : variants[0].id
+          : null;
         let summary = item.include ? def.description : null;
         let copyDiff: CopyChange[] | null = null;
         let include = item.include;
@@ -672,7 +837,10 @@ export class Engine {
             if (pre && vid === (chosen ?? undefined)) {
               summary = pre.summary || summary;
               copyDiff = pre.copyDiff ?? null;
-              if (pre.notes?.length) det.findings.push(...pre.notes.map((n) => ({ message: n, severity: 'info' as const })));
+              if (pre.notes?.length)
+                det.findings.push(
+                  ...pre.notes.map((n) => ({ message: n, severity: 'info' as const })),
+                );
             }
           }
           if (!any) {
@@ -681,8 +849,18 @@ export class Engine {
           }
           for (const v of variants) {
             rt.db
-              .prepare('INSERT INTO variants(id,pass_id,label,patch_path,thumbnail_svg,source,attributes) VALUES(?,?,?,?,?,?,?)')
-              .run(`${id}:${v.id}`, id, v.label, path.join('.sitemaxxing', 'patches', patchFileName(def.id, v.id)), v.thumbnail, v.source ?? 'library', json.str(v.attributes ?? {}));
+              .prepare(
+                'INSERT INTO variants(id,pass_id,label,patch_path,thumbnail_svg,source,attributes) VALUES(?,?,?,?,?,?,?)',
+              )
+              .run(
+                `${id}:${v.id}`,
+                id,
+                v.label,
+                path.join('.sitemaxxing', 'patches', patchFileName(def.id, v.id)),
+                v.thumbnail,
+                v.source ?? 'library',
+                json.str(v.attributes ?? {}),
+              );
           }
         }
         upsert.run({
@@ -706,17 +884,34 @@ export class Engine {
         });
       }
       rt.audited = true;
-      this.deps.emit({ type: 'audit.done', projectId: rt.project.id, ts: Date.now(), score: rt.score?.score ?? 0 });
+      this.deps.emit({
+        type: 'audit.done',
+        projectId: rt.project.id,
+        ts: Date.now(),
+        score: rt.score?.score ?? 0,
+      });
       return this.emitState(rt);
     }
   }
 
-  private async precompute(rt: Runtime, def: PassDefinition, variantId: string | undefined, ctx: PassContext): Promise<PrecomputedPatch | null> {
+  private async precompute(
+    rt: Runtime,
+    def: PassDefinition,
+    variantId: string | undefined,
+    ctx: PassContext,
+  ): Promise<PrecomputedPatch | null> {
     try {
       const patch = await def.propose(this.leaned(rt, def.id, ctx), variantId);
       const text = toUnifiedDiff(patch);
       const file = writePatchFile(path.join(rt.dir, 'patches'), def.id, variantId, text);
-      const pre: PrecomputedPatch = { text, files: filesTouched(text), copyDiff: patch.copyDiff, summary: patch.summary, notes: patch.notes, file };
+      const pre: PrecomputedPatch = {
+        text,
+        files: filesTouched(text),
+        copyDiff: patch.copyDiff,
+        summary: patch.summary,
+        notes: patch.notes,
+        file,
+      };
       rt.patches.set(pkey(def.id, variantId), pre);
       return pre;
     } catch (e) {
@@ -731,8 +926,38 @@ export class Engine {
     return this.buildState(this.rt(projectId));
   }
 
+  private readings = new WeakMap<SnapshotDOM, SystemReading>();
+
+  /** The design system the project has now, read from the last snapshot and its stylesheets. */
+  private systemOf(rt: Runtime): SystemReading | null {
+    if (!rt.dom.nodes.length) return null;
+    let reading = this.readings.get(rt.dom);
+    if (!reading) {
+      const files = makeFileSystem(rt.project.rootPath);
+      const sheets = [
+        ...new Set([
+          rt.config.sources.tokens,
+          rt.config.sources.styles,
+          ...files.list('src', '.css'),
+        ]),
+      ].filter((f) => files.exists(f));
+      reading = readSystem(
+        rt.dom,
+        sheets.map((f) => files.read(f)),
+      );
+      this.readings.set(rt.dom, reading);
+    }
+    return reading;
+  }
+
+  readSystem(projectId: string): SystemReading | null {
+    return this.systemOf(this.rt(projectId));
+  }
+
   private buildState(rt: Runtime): ProjectState {
-    const rows = rt.db.prepare('SELECT * FROM passes WHERE project_id = ? ORDER BY "order"').all(rt.project.id) as any[];
+    const rows = rt.db
+      .prepare('SELECT * FROM passes WHERE project_id = ? ORDER BY "order"')
+      .all(rt.project.id) as any[];
     const versions = this.versions(rt);
     const current = versions.at(-1)?.number ?? 1;
     const ctx = rt.audited ? this.ctx(rt) : null;
@@ -776,16 +1001,36 @@ export class Engine {
       versions,
       currentVersion: current,
       view: rt.view,
-      previewing: rt.previewing ? { passId: this.passRowId(rt, rt.previewing.defId), variantId: rt.previewing.variantId } : null,
+      previewing: rt.previewing
+        ? { passId: this.passRowId(rt, rt.previewing.defId), variantId: rt.previewing.variantId }
+        : null,
       viewingVersion: rt.viewingVersion,
       versionUrl: rt.versionServer?.url ?? null,
       audited: rt.audited,
       busy: rt.busy,
       brief: rt.brief,
       mood: rt.mood,
-      source: rt.project.mode === 'url' ? (json.parse<{ url?: string } | null>(readIf(path.join(rt.project.rootPath, RECREATED)), null)?.url ?? null) : null,
-      sourceMatch: rt.project.mode === 'url' ? (json.parse<{ match?: number | null } | null>(readIf(path.join(rt.project.rootPath, RECREATED)), null)?.match ?? null) : null,
-      suggestedBrief: rt.brief ? null : json.parse<Partial<Brief> | null>(readIf(path.join(rt.dir, 'suggested-brief.json')), null),
+      source:
+        rt.project.mode === 'url'
+          ? (json.parse<{ url?: string } | null>(
+              readIf(path.join(rt.project.rootPath, RECREATED)),
+              null,
+            )?.url ?? null)
+          : null,
+      sourceMatch:
+        rt.project.mode === 'url'
+          ? (json.parse<{ match?: number | null } | null>(
+              readIf(path.join(rt.project.rootPath, RECREATED)),
+              null,
+            )?.match ?? null)
+          : null,
+      system: this.systemOf(rt),
+      suggestedBrief: rt.brief
+        ? null
+        : json.parse<Partial<Brief> | null>(
+            readIf(path.join(rt.dir, 'suggested-brief.json')),
+            null,
+          ),
     };
   }
 
@@ -802,30 +1047,46 @@ export class Engine {
         const before = rt.score?.score ?? null;
         const score = await this.measure(rt);
         if (!score) return;
-        this.deps.emit({ type: 'score.updated', projectId: rt.project.id, ts: Date.now(), score: score.score, delta: before === null ? 0 : Math.round(score.score - before), metrics: score.metrics });
+        this.deps.emit({
+          type: 'score.updated',
+          projectId: rt.project.id,
+          ts: Date.now(),
+          score: score.score,
+          delta: before === null ? 0 : Math.round(score.score - before),
+          metrics: score.metrics,
+        });
         this.emitState(rt);
       }).catch((e) => this.log(`measure failed: ${(e as Error).message}`));
     }, 900);
   }
 
   private variantRows(rt: Runtime, passId: string): Variant[] {
-    return (rt.db.prepare('SELECT * FROM variants WHERE pass_id = ?').all(passId) as any[]).map((v) => ({
-      id: v.id.split(':').at(-1),
-      label: v.label,
-      thumbnail: v.thumbnail_svg ?? '',
-      attributes: json.parse(v.attributes, {}),
-      source: v.source,
-    }));
+    return (rt.db.prepare('SELECT * FROM variants WHERE pass_id = ?').all(passId) as any[]).map(
+      (v) => ({
+        id: v.id.split(':').at(-1),
+        label: v.label,
+        thumbnail: v.thumbnail_svg ?? '',
+        attributes: json.parse(v.attributes, {}),
+        source: v.source,
+      }),
+    );
   }
 
   private versions(rt: Runtime): VersionView[] {
-    return (rt.db.prepare('SELECT * FROM versions WHERE project_id = ? ORDER BY number').all(rt.project.id) as any[]).map((v) => {
+    return (
+      rt.db
+        .prepare('SELECT * FROM versions WHERE project_id = ? ORDER BY number')
+        .all(rt.project.id) as any[]
+    ).map((v) => {
       const ids = json.parse<string[]>(v.pass_ids, []);
       return {
         number: v.number,
         score: Math.round(v.mog_score),
         sha: v.git_sha,
-        label: v.number === 1 ? 'Original' : ids.map((id) => rt.defs.find((d) => d.id === id)?.name ?? id).join(', '),
+        label:
+          v.number === 1
+            ? 'Original'
+            : ids.map((id) => rt.defs.find((d) => d.id === id)?.name ?? id).join(', '),
         createdAt: v.created_at,
       };
     });
@@ -847,10 +1108,21 @@ export class Engine {
     const ours = new Set<string>();
     for (const a of rt.applied) a.files.forEach((f) => ours.add(f));
     for (const f of rt.extraFiles) ours.add(f);
-    const ignore = ['sitemaxxing.config.ts', 'sitemaxxing.config.js', '.gitignore', 'vite.config.ts', 'vite.config.js', 'vite.config.mts'];
-    const dirty = gitx.dirtyFiles(rt.project.rootPath).filter((f) => !ours.has(f) && !ignore.includes(f));
+    const ignore = [
+      'sitemaxxing.config.ts',
+      'sitemaxxing.config.js',
+      '.gitignore',
+      'vite.config.ts',
+      'vite.config.js',
+      'vite.config.mts',
+    ];
+    const dirty = gitx
+      .dirtyFiles(rt.project.rootPath)
+      .filter((f) => !ours.has(f) && !ignore.includes(f));
     if (dirty.length) {
-      throw new Error(`Uncommitted edits in the target repo: ${dirty.slice(0, 5).join(', ')}${dirty.length > 5 ? '…' : ''}. Commit or stash them first.`);
+      throw new Error(
+        `Uncommitted edits in the target repo: ${dirty.slice(0, 5).join(', ')}${dirty.length > 5 ? '…' : ''}. Commit or stash them first.`,
+      );
     }
   }
 
@@ -859,9 +1131,18 @@ export class Engine {
   }
 
   /** Brings the working tree to exactly `desired` (ordered), reversing/applying as needed. */
-  private async setApplied(rt: Runtime, desired: Array<{ defId: string; variantId?: string }>): Promise<void> {
+  private async setApplied(
+    rt: Runtime,
+    desired: Array<{ defId: string; variantId?: string }>,
+  ): Promise<void> {
     let common = 0;
-    while (common < rt.applied.length && common < desired.length && rt.applied[common].defId === desired[common].defId && rt.applied[common].variantId === desired[common].variantId) common++;
+    while (
+      common < rt.applied.length &&
+      common < desired.length &&
+      rt.applied[common].defId === desired[common].defId &&
+      rt.applied[common].variantId === desired[common].variantId
+    )
+      common++;
     const stage = new Staging(rt.project.rootPath);
     try {
       for (let i = rt.applied.length - 1; i >= common; i--) {
@@ -888,7 +1169,12 @@ export class Engine {
         }
         try {
           applyStaged(stage, pre.text);
-          rt.applied.push({ defId: d.defId, variantId: d.variantId, text: pre.text, files: pre.files });
+          rt.applied.push({
+            defId: d.defId,
+            variantId: d.variantId,
+            text: pre.text,
+            files: pre.files,
+          });
         } catch (e) {
           if (e instanceof PatchApplyError) {
             this.markStale(rt, [d.defId]);
@@ -910,7 +1196,10 @@ export class Engine {
    */
   private persistApplied(rt: Runtime) {
     try {
-      fs.writeFileSync(path.join(rt.dir, 'applied.json'), JSON.stringify({ applied: rt.applied, extraFiles: [...rt.extraFiles] }));
+      fs.writeFileSync(
+        path.join(rt.dir, 'applied.json'),
+        JSON.stringify({ applied: rt.applied, extraFiles: [...rt.extraFiles] }),
+      );
     } catch (e) {
       this.log(`could not record applied patches: ${(e as Error).message}`);
     }
@@ -919,7 +1208,10 @@ export class Engine {
   /** Reverses patches a previous run left applied, so the tree is back at HEAD plus copy edits. */
   private restoreApplied(rt: Runtime) {
     const file = path.join(rt.dir, 'applied.json');
-    const saved = json.parse<{ applied: AppliedPatch[]; extraFiles: string[] } | null>(readIf(file), null);
+    const saved = json.parse<{ applied: AppliedPatch[]; extraFiles: string[] } | null>(
+      readIf(file),
+      null,
+    );
     if (!saved) return;
     for (const f of saved.extraFiles ?? []) rt.extraFiles.add(f);
     if (saved.applied?.length) {
@@ -971,7 +1263,13 @@ export class Engine {
   private measureSuspended = false;
 
   private approvedOrdered(rt: Runtime): Array<{ defId: string; variantId?: string }> {
-    return (rt.db.prepare(`SELECT def_id, chosen_variant_id FROM passes WHERE project_id = ? AND status = 'approved' ORDER BY "order"`).all(rt.project.id) as any[]).map((r) => ({
+    return (
+      rt.db
+        .prepare(
+          `SELECT def_id, chosen_variant_id FROM passes WHERE project_id = ? AND status = 'approved' ORDER BY "order"`,
+        )
+        .all(rt.project.id) as any[]
+    ).map((r) => ({
       defId: r.def_id,
       variantId: r.chosen_variant_id ?? undefined,
     }));
@@ -980,7 +1278,8 @@ export class Engine {
   private desired(rt: Runtime): Array<{ defId: string; variantId?: string }> {
     if (rt.view === 'current') return [];
     const list = this.approvedOrdered(rt);
-    if (rt.previewing && !list.some((x) => x.defId === rt.previewing!.defId)) list.push({ defId: rt.previewing.defId, variantId: rt.previewing.variantId });
+    if (rt.previewing && !list.some((x) => x.defId === rt.previewing!.defId))
+      list.push({ defId: rt.previewing.defId, variantId: rt.previewing.variantId });
     else if (rt.previewing) {
       const i = list.findIndex((x) => x.defId === rt.previewing!.defId);
       list[i] = { defId: rt.previewing.defId, variantId: rt.previewing.variantId };
@@ -996,12 +1295,23 @@ export class Engine {
       rt.db.prepare(`UPDATE passes SET status = 'stale' WHERE id = ?`).run(row.id);
       stale.push(row.id);
     }
-    if (stale.length) this.deps.emit({ type: 'pass.stale', projectId: rt.project.id, ts: Date.now(), passIds: stale });
+    if (stale.length)
+      this.deps.emit({
+        type: 'pass.stale',
+        projectId: rt.project.id,
+        ts: Date.now(),
+        passIds: stale,
+      });
   }
 
   // ---------- preview ----------
 
-  async preview(projectId: string, passId: string, variantId?: string, meta: DecisionMeta = {}): Promise<ProjectState> {
+  async preview(
+    projectId: string,
+    passId: string,
+    variantId?: string,
+    meta: DecisionMeta = {},
+  ): Promise<ProjectState> {
     return this.run(projectId, null, async (rt) => {
       const def = this.defOf(rt, passId);
       const row = this.row(rt, def.id);
@@ -1010,10 +1320,16 @@ export class Engine {
       this.assertClean(rt);
       if (rt.viewingVersion) await this.viewVersionInner(rt, null);
       const vid = variantId ?? row.chosen_variant_id ?? undefined;
-      if (rt.previewing && rt.previewing.defId === def.id && rt.previewing.variantId === vid) return this.buildState(rt);
+      if (rt.previewing && rt.previewing.defId === def.id && rt.previewing.variantId === vid)
+        return this.buildState(rt);
       this.closePreviewDecision(rt);
       rt.view = 'changes';
-      rt.previewing = { defId: def.id, variantId: vid, startedAt: Date.now(), shownAlongside: meta.shownAlongside ?? this.alongside(rt, def.id) };
+      rt.previewing = {
+        defId: def.id,
+        variantId: vid,
+        startedAt: Date.now(),
+        shownAlongside: meta.shownAlongside ?? this.alongside(rt, def.id),
+      };
       try {
         await this.setApplied(rt, this.desired(rt));
       } catch (e) {
@@ -1045,13 +1361,18 @@ export class Engine {
 
   private alongside(rt: Runtime, defId: string): string[] {
     const def = rt.defs.find((d) => d.id === defId);
-    return rt.defs.filter((d) => d.id !== defId && d.kind === def?.kind).map((d) => this.passRowId(rt, d.id));
+    return rt.defs
+      .filter((d) => d.id !== defId && d.kind === def?.kind)
+      .map((d) => this.passRowId(rt, d.id));
   }
 
   private closePreviewDecision(rt: Runtime) {
     if (!rt.previewing) return;
     const p = rt.previewing;
-    this.logDecision(rt, p.defId, 'preview', p.variantId, { dwellMs: Date.now() - p.startedAt, shownAlongside: p.shownAlongside });
+    this.logDecision(rt, p.defId, 'preview', p.variantId, {
+      dwellMs: Date.now() - p.startedAt,
+      shownAlongside: p.shownAlongside,
+    });
   }
 
   async endPreview(projectId: string): Promise<ProjectState> {
@@ -1081,8 +1402,17 @@ export class Engine {
 
   // ---------- decisions ----------
 
-  private logDecision(rt: Runtime, defId: string | null, action: DecisionAction, variantId: string | undefined, meta: DecisionMeta) {
-    const variant = defId && variantId ? (rt.variants.get(defId) ?? []).find((v) => v.id === variantId) : undefined;
+  private logDecision(
+    rt: Runtime,
+    defId: string | null,
+    action: DecisionAction,
+    variantId: string | undefined,
+    meta: DecisionMeta,
+  ) {
+    const variant =
+      defId && variantId
+        ? (rt.variants.get(defId) ?? []).find((v) => v.id === variantId)
+        : undefined;
     const extra = {
       seed: defId ? this.seedFor(rt, defId) : rt.brief?.seed,
       goal: rt.brief?.goal,
@@ -1092,7 +1422,9 @@ export class Engine {
       ...(meta.extra ?? {}),
     };
     rt.db
-      .prepare('INSERT INTO decisions(id,user_id,project_id,pass_id,variant_id,action,shown_alongside,reason_chip,dwell_ms,created_at,meta) VALUES(?,?,?,?,?,?,?,?,?,?,?)')
+      .prepare(
+        'INSERT INTO decisions(id,user_id,project_id,pass_id,variant_id,action,shown_alongside,reason_chip,dwell_ms,created_at,meta) VALUES(?,?,?,?,?,?,?,?,?,?,?)',
+      )
       .run(
         newId(),
         'local',
@@ -1102,13 +1434,20 @@ export class Engine {
         action,
         json.str(meta.shownAlongside ?? (defId ? this.alongside(rt, defId) : [])),
         meta.reasonChip ?? null,
-        meta.dwellMs ?? (defId && rt.lastPreviewAt[defId] ? Date.now() - rt.lastPreviewAt[defId] : null),
+        meta.dwellMs ??
+          (defId && rt.lastPreviewAt[defId] ? Date.now() - rt.lastPreviewAt[defId] : null),
         now(),
         json.str(extra),
       );
   }
 
-  async decide(projectId: string, passId: string, action: 'approve' | 'reject' | 'pick' | 'regenerate', variantId?: string, meta: DecisionMeta = {}): Promise<ProjectState> {
+  async decide(
+    projectId: string,
+    passId: string,
+    action: 'approve' | 'reject' | 'pick' | 'regenerate',
+    variantId?: string,
+    meta: DecisionMeta = {},
+  ): Promise<ProjectState> {
     return this.run(projectId, action === 'regenerate' ? 'Regenerating' : null, async (rt) => {
       const def = this.defOf(rt, passId);
       const row = this.row(rt, def.id);
@@ -1123,12 +1462,20 @@ export class Engine {
         const changed = vid !== row.chosen_variant_id;
         rt.db.prepare('UPDATE passes SET chosen_variant_id = ? WHERE id = ?').run(vid, row.id);
         const pre = this.patchFor(rt, def.id, vid ?? undefined);
-        if (pre) rt.db.prepare('UPDATE passes SET summary = ?, copy_diff = ? WHERE id = ?').run(pre.summary, pre.copyDiff ? json.str(pre.copyDiff) : null, row.id);
+        if (pre)
+          rt.db
+            .prepare('UPDATE passes SET summary = ?, copy_diff = ? WHERE id = ?')
+            .run(pre.summary, pre.copyDiff ? json.str(pre.copyDiff) : null, row.id);
         this.logDecision(rt, def.id, 'pick', vid ?? undefined, meta);
         if (changed && row.status === 'approved') this.markStale(rt, downstreamOf(def.id, rt.defs));
         if (rt.previewing?.defId !== def.id) {
           this.closePreviewDecision(rt);
-          rt.previewing = { defId: def.id, variantId: vid ?? undefined, startedAt: Date.now(), shownAlongside: this.alongside(rt, def.id) };
+          rt.previewing = {
+            defId: def.id,
+            variantId: vid ?? undefined,
+            startedAt: Date.now(),
+            shownAlongside: this.alongside(rt, def.id),
+          };
         } else rt.previewing = { ...rt.previewing, variantId: vid ?? undefined };
         rt.view = 'changes';
         await this.setApplied(rt, this.desired(rt));
@@ -1157,13 +1504,17 @@ export class Engine {
         }
         await this.refreshSnapshot(rt);
         const ctx = this.ctx(rt);
-        const variants = (await def.variants?.(this.leaned(rt, def.id, ctx))) ?? rt.variants.get(def.id) ?? [];
+        const variants =
+          (await def.variants?.(this.leaned(rt, def.id, ctx))) ?? rt.variants.get(def.id) ?? [];
         rt.variants.set(def.id, variants);
         const targets = variants.length ? variants.map((v) => v.id) : [undefined];
         let ok = false;
         for (const vid of targets) ok = (await this.precompute(rt, def, vid, ctx)) !== null || ok;
         const pre = this.patchFor(rt, def.id, row.chosen_variant_id ?? undefined);
-        this.setStatus(rt, def.id, ok ? 'proposed' : 'stale', { summary: pre?.summary ?? def.description, copy_diff: pre?.copyDiff ? json.str(pre.copyDiff) : null });
+        this.setStatus(rt, def.id, ok ? 'proposed' : 'stale', {
+          summary: pre?.summary ?? def.description,
+          copy_diff: pre?.copyDiff ? json.str(pre.copyDiff) : null,
+        });
         this.logDecision(rt, def.id, 'regenerate', row.chosen_variant_id ?? undefined, meta);
         return this.emitState(rt);
       }
@@ -1178,7 +1529,11 @@ export class Engine {
         }
         this.setStatus(rt, def.id, next);
         this.logDecision(rt, def.id, 'approve', vid, meta);
-        if (next === 'proposed') this.markStale(rt, downstreamOf(def.id, rt.defs).filter((d) => this.row(rt, d)?.status === 'approved'));
+        if (next === 'proposed')
+          this.markStale(
+            rt,
+            downstreamOf(def.id, rt.defs).filter((d) => this.row(rt, d)?.status === 'approved'),
+          );
         rt.view = 'changes';
         await this.setApplied(rt, this.desired(rt));
         if (next === 'approved') {
@@ -1194,7 +1549,13 @@ export class Engine {
             forceState: undefined,
             replay: def.replay,
           });
-        } else this.deps.emit({ type: 'preview.ended', projectId: rt.project.id, ts: Date.now(), passId: row.id });
+        } else
+          this.deps.emit({
+            type: 'preview.ended',
+            projectId: rt.project.id,
+            ts: Date.now(),
+            passId: row.id,
+          });
         return this.emitState(rt);
       }
 
@@ -1208,17 +1569,34 @@ export class Engine {
       this.logDecision(rt, def.id, 'reject', vid, meta);
       if (next === 'rejected') this.markStale(rt, downstreamOf(def.id, rt.defs));
       await this.setApplied(rt, this.desired(rt));
-      this.deps.emit({ type: 'preview.ended', projectId: rt.project.id, ts: Date.now(), passId: row.id });
+      this.deps.emit({
+        type: 'preview.ended',
+        projectId: rt.project.id,
+        ts: Date.now(),
+        passId: row.id,
+      });
       return this.emitState(rt);
     });
   }
 
   /** Attaches an optional reason chip to a rejection (logged as its own decision row). */
-  addReason(projectId: string, passId: string, reasonChip: DecisionMeta['reasonChip'] | null): ProjectState {
+  addReason(
+    projectId: string,
+    passId: string,
+    reasonChip: DecisionMeta['reasonChip'] | null,
+  ): ProjectState {
     const rt = this.rt(projectId);
     const def = this.defOf(rt, passId);
     const row = this.row(rt, def.id);
-    this.logDecision(rt, def.id, 'reject', row?.chosen_variant_id ?? undefined, reasonChip ? { reasonChip, shownAlongside: this.alongside(rt, def.id) } : { shownAlongside: this.alongside(rt, def.id), extra: { clearReason: true } });
+    this.logDecision(
+      rt,
+      def.id,
+      'reject',
+      row?.chosen_variant_id ?? undefined,
+      reasonChip
+        ? { reasonChip, shownAlongside: this.alongside(rt, def.id) }
+        : { shownAlongside: this.alongside(rt, def.id), extra: { clearReason: true } },
+    );
     return this.emitState(rt);
   }
 
@@ -1230,15 +1608,21 @@ export class Engine {
     return this.run(projectId, passId ? 'Re-rolling' : 'Randomizing', async (rt) => {
       if (!rt.brief) throw new Error('Tell the story first.');
       this.assertClean(rt);
-      const rows = (rt.db.prepare('SELECT * FROM passes WHERE project_id = ?').all(rt.project.id) as any[]).filter((r) =>
-        passId ? r.id === passId || r.def_id === passId : ['proposed', 'rejected', 'stale'].includes(r.status),
+      const rows = (
+        rt.db.prepare('SELECT * FROM passes WHERE project_id = ?').all(rt.project.id) as any[]
+      ).filter((r) =>
+        passId
+          ? r.id === passId || r.def_id === passId
+          : ['proposed', 'rejected', 'stale'].includes(r.status),
       );
       if (rt.previewing && rows.some((r) => r.def_id === rt.previewing!.defId)) {
         this.closePreviewDecision(rt);
         rt.previewing = null;
       }
       const wasApproved = rows.filter((r) => r.status === 'approved').map((r) => r.def_id);
-      for (const r of rows) if (r.status === 'approved') rt.db.prepare(`UPDATE passes SET status = 'proposed' WHERE id = ?`).run(r.id);
+      for (const r of rows)
+        if (r.status === 'approved')
+          rt.db.prepare(`UPDATE passes SET status = 'proposed' WHERE id = ?`).run(r.id);
       await this.setApplied(rt, this.desired(rt));
       const ctx0 = this.ctx(rt);
       const answers = this.answers(rt);
@@ -1248,49 +1632,94 @@ export class Engine {
         if (!def) continue;
         // A re-roll must show something new. Low noise keeps the Fit steady, so try fresh seeds
         // until the set of options differs; a pass whose options do not depend on the seed says so.
-        const signature = (vs: Variant[]) => JSON.stringify(vs.map((v) => [v.id, v.attributes ?? {}]));
+        const signature = (vs: Variant[]) =>
+          JSON.stringify(vs.map((v) => [v.id, v.attributes ?? {}]));
         const old = signature(rt.variants.get(def.id) ?? this.variantRows(rt, r.id));
         let seed = newSeed();
         let ctx = { ...ctx0, seeds: { ...ctx0.seeds, [def.id]: seed } };
         let variants = (await def.variants?.(this.leaned(rt, def.id, ctx, answers))) ?? [];
-        for (let attempt = 0; attempt < 12 && variants.length && signature(variants) === old; attempt++) {
+        for (
+          let attempt = 0;
+          attempt < 12 && variants.length && signature(variants) === old;
+          attempt++
+        ) {
           seed = newSeed();
           ctx = { ...ctx0, seeds: { ...ctx0.seeds, [def.id]: seed } };
           variants = (await def.variants?.(this.leaned(rt, def.id, ctx, answers))) ?? [];
         }
-        if (passId && variants.length && signature(variants) === old) this.deps.emit({ type: 'error', projectId: rt.project.id, ts: Date.now(), message: `${def.name} has no other options for this brief; raise the noise to reach further.` });
+        if (passId && variants.length && signature(variants) === old)
+          this.deps.emit({
+            type: 'error',
+            projectId: rt.project.id,
+            ts: Date.now(),
+            message: `${def.name} has no other options for this brief; raise the noise to reach further.`,
+          });
         rt.seeds[def.id] = seed;
-        for (const k of [...rt.patches.keys()]) if (k.startsWith(`${def.id}__`)) rt.patches.delete(k);
+        for (const k of [...rt.patches.keys()])
+          if (k.startsWith(`${def.id}__`)) rt.patches.delete(k);
         rt.variants.set(def.id, variants);
         rt.db.prepare('DELETE FROM variants WHERE pass_id = ?').run(r.id);
         for (const v of variants) {
           rt.db
-            .prepare('INSERT INTO variants(id,pass_id,label,patch_path,thumbnail_svg,source,attributes) VALUES(?,?,?,?,?,?,?)')
-            .run(`${r.id}:${v.id}`, r.id, v.label, path.join('.sitemaxxing', 'patches', patchFileName(def.id, v.id)), v.thumbnail, v.source ?? 'library', json.str(v.attributes ?? {}));
+            .prepare(
+              'INSERT INTO variants(id,pass_id,label,patch_path,thumbnail_svg,source,attributes) VALUES(?,?,?,?,?,?,?)',
+            )
+            .run(
+              `${r.id}:${v.id}`,
+              r.id,
+              v.label,
+              path.join('.sitemaxxing', 'patches', patchFileName(def.id, v.id)),
+              v.thumbnail,
+              v.source ?? 'library',
+              json.str(v.attributes ?? {}),
+            );
         }
         const chosen = variants[0]?.id ?? null;
         let ok = false;
-        for (const vid of variants.length ? variants.map((v) => v.id) : [undefined]) ok = (await this.precompute(rt, def, vid, ctx)) !== null || ok;
+        for (const vid of variants.length ? variants.map((v) => v.id) : [undefined])
+          ok = (await this.precompute(rt, def, vid, ctx)) !== null || ok;
         const pre = this.patchFor(rt, def.id, chosen ?? undefined);
         rt.db
-          .prepare(`UPDATE passes SET seed = ?, chosen_variant_id = ?, status = ?, summary = ?, copy_diff = ? WHERE id = ?`)
-          .run(seed, chosen, ok ? 'proposed' : 'stale', pre?.summary ?? def.description, pre?.copyDiff ? json.str(pre.copyDiff) : null, r.id);
-        this.logDecision(rt, def.id, 'regenerate', chosen ?? undefined, { extra: { reroll: true, seed } });
+          .prepare(
+            `UPDATE passes SET seed = ?, chosen_variant_id = ?, status = ?, summary = ?, copy_diff = ? WHERE id = ?`,
+          )
+          .run(
+            seed,
+            chosen,
+            ok ? 'proposed' : 'stale',
+            pre?.summary ?? def.description,
+            pre?.copyDiff ? json.str(pre.copyDiff) : null,
+            r.id,
+          );
+        this.logDecision(rt, def.id, 'regenerate', chosen ?? undefined, {
+          extra: { reroll: true, seed },
+        });
       }
-      if (wasApproved.length) this.markStale(rt, wasApproved.flatMap((id) => downstreamOf(id, rt.defs)).filter((id) => this.row(rt, id)?.status === 'approved'));
+      if (wasApproved.length)
+        this.markStale(
+          rt,
+          wasApproved
+            .flatMap((id) => downstreamOf(id, rt.defs))
+            .filter((id) => this.row(rt, id)?.status === 'approved'),
+        );
       return this.emitState(rt);
     });
   }
 
   async approveAll(projectId: string): Promise<ProjectState> {
     const st = this.state(projectId);
-    for (const p of st.passes) if (p.status === 'proposed') await this.decide(projectId, p.id, 'approve');
+    for (const p of st.passes)
+      if (p.status === 'proposed') await this.decide(projectId, p.id, 'approve');
     return this.state(projectId);
   }
 
   // ---------- copy + reports ----------
 
-  async setCopy(projectId: string, key: string, text: string): Promise<{ old: string; new: string }> {
+  async setCopy(
+    projectId: string,
+    key: string,
+    text: string,
+  ): Promise<{ old: string; new: string }> {
     return this.run(projectId, null, async (rt) => {
       const file = path.join(rt.project.rootPath, rt.config.content);
       if (!fs.existsSync(file)) throw new Error(`content file not found: ${rt.config.content}`);
@@ -1303,14 +1732,28 @@ export class Engine {
       fs.writeFileSync(file, JSON.stringify(data, null, 2) + '\n');
       rt.extraFiles.add(toPosix(rt.config.content));
       this.persistApplied(rt);
-      this.deps.emit({ type: 'copy.changed', projectId: rt.project.id, ts: Date.now(), key, old, new: text, selector: `[data-copy="${key}"]` });
+      this.deps.emit({
+        type: 'copy.changed',
+        projectId: rt.project.id,
+        ts: Date.now(),
+        key,
+        old,
+        new: text,
+        selector: `[data-copy="${key}"]`,
+      });
       return { old, new: text };
     });
   }
 
   reportPass(projectId: string, name: string, selectors: string[]): void {
     const rt = this.rt(projectId);
-    this.deps.emit({ type: 'pass.reported', projectId: rt.project.id, ts: Date.now(), name, selectors });
+    this.deps.emit({
+      type: 'pass.reported',
+      projectId: rt.project.id,
+      ts: Date.now(),
+      name,
+      selectors,
+    });
   }
 
   // ---------- commit ----------
@@ -1360,7 +1803,9 @@ export class Engine {
         if (page) {
           await page.waitForTimeout(450);
           const def = rt.defs.find((d) => d.id === approved[i].defId)!;
-          const vlabel = (rt.variants.get(def.id) ?? []).find((v) => v.id === approved[i].variantId)?.label;
+          const vlabel = (rt.variants.get(def.id) ?? []).find(
+            (v) => v.id === approved[i].variantId,
+          )?.label;
           const f = path.join(frameDir, `${String(i + 1).padStart(2, '0')}-${def.id}.png`);
           await this.labelledShot(page, f, vlabel ? `${def.name} · ${vlabel}` : def.name);
           frames.push(f);
@@ -1375,7 +1820,11 @@ export class Engine {
       }
       this.formatFiles(rt, [...touched]);
       const names = approved.map((a) => rt.defs.find((d) => d.id === a.defId)?.name ?? a.defId);
-      const sha = gitx.commitFiles(rt.project.rootPath, [...touched], `sitemaxxing: v${number} — ${names.join(', ')}`);
+      const sha = gitx.commitFiles(
+        rt.project.rootPath,
+        [...touched],
+        `sitemaxxing: v${number} — ${names.join(', ')}`,
+      );
 
       // The approved patches are now part of HEAD.
       const variantMap: Record<string, string> = {};
@@ -1384,9 +1833,17 @@ export class Engine {
       rt.applied = [];
       rt.extraFiles.clear();
       this.persistApplied(rt);
-      this.logDecision(rt, null, 'commit', undefined, { shownAlongside: approved.map((a) => this.passRowId(rt, a.defId)) });
-      for (const r of rt.db.prepare(`SELECT def_id FROM passes WHERE project_id = ? AND status IN ('rejected','stale')`).all(rt.project.id) as any[]) {
-        rt.db.prepare(`UPDATE passes SET status = 'proposed' WHERE id = ?`).run(this.passRowId(rt, r.def_id));
+      this.logDecision(rt, null, 'commit', undefined, {
+        shownAlongside: approved.map((a) => this.passRowId(rt, a.defId)),
+      });
+      for (const r of rt.db
+        .prepare(
+          `SELECT def_id FROM passes WHERE project_id = ? AND status IN ('rejected','stale')`,
+        )
+        .all(rt.project.id) as any[]) {
+        rt.db
+          .prepare(`UPDATE passes SET status = 'proposed' WHERE id = ?`)
+          .run(this.passRowId(rt, r.def_id));
       }
 
       const score = await this.measure(rt);
@@ -1394,21 +1851,52 @@ export class Engine {
       shots.timelapse = toPosix(path.relative(rt.project.rootPath, frameDir));
       const vid = newId();
       rt.db
-        .prepare('INSERT INTO versions(id,project_id,number,git_sha,mog_score,pass_ids,variant_map,screenshots,created_at) VALUES(?,?,?,?,?,?,?,?,?)')
-        .run(vid, rt.project.id, number, sha, score?.score ?? 0, json.str(approved.map((a) => a.defId)), json.str(variantMap), json.str(shots), now());
+        .prepare(
+          'INSERT INTO versions(id,project_id,number,git_sha,mog_score,pass_ids,variant_map,screenshots,created_at) VALUES(?,?,?,?,?,?,?,?,?)',
+        )
+        .run(
+          vid,
+          rt.project.id,
+          number,
+          sha,
+          score?.score ?? 0,
+          json.str(approved.map((a) => a.defId)),
+          json.str(variantMap),
+          json.str(shots),
+          now(),
+        );
       if (score) this.recordScore(rt, vid, score);
       const prev = versions.at(-1)?.score ?? 0;
-      this.deps.emit({ type: 'version.committed', projectId: rt.project.id, ts: Date.now(), number, sha, score: score?.score ?? 0 });
-      this.deps.emit({ type: 'score.updated', projectId: rt.project.id, ts: Date.now(), score: score?.score ?? 0, delta: Math.round((score?.score ?? 0) - prev), metrics: score?.metrics });
+      this.deps.emit({
+        type: 'version.committed',
+        projectId: rt.project.id,
+        ts: Date.now(),
+        number,
+        sha,
+        score: score?.score ?? 0,
+      });
+      this.deps.emit({
+        type: 'score.updated',
+        projectId: rt.project.id,
+        ts: Date.now(),
+        score: score?.score ?? 0,
+        delta: Math.round((score?.score ?? 0) - prev),
+        metrics: score?.metrics,
+      });
 
       // Re-propose what is still open against the new tree.
       await this.refreshSnapshot(rt);
       const ctx = this.ctx(rt);
-      for (const r of rt.db.prepare(`SELECT def_id, chosen_variant_id FROM passes WHERE project_id = ? AND status NOT IN ('committed','skipped')`).all(rt.project.id) as any[]) {
+      for (const r of rt.db
+        .prepare(
+          `SELECT def_id, chosen_variant_id FROM passes WHERE project_id = ? AND status NOT IN ('committed','skipped')`,
+        )
+        .all(rt.project.id) as any[]) {
         const def = rt.defs.find((d) => d.id === r.def_id);
         if (!def) continue;
         const variants = rt.variants.get(def.id) ?? [];
-        for (const v of variants.length ? variants.map((x) => x.id) : [undefined]) await this.precompute(rt, def, v, ctx);
+        for (const v of variants.length ? variants.map((x) => x.id) : [undefined])
+          await this.precompute(rt, def, v, ctx);
       }
       this.emitState(rt);
       return { version: number, sha, score: score?.score ?? 0 };
@@ -1440,10 +1928,24 @@ export class Engine {
   }
 
   private formatFiles(rt: Runtime, files: string[]) {
-    const bin = path.join(rt.project.rootPath, 'node_modules', '.bin', process.platform === 'win32' ? 'prettier.cmd' : 'prettier');
+    const bin = path.join(
+      rt.project.rootPath,
+      'node_modules',
+      '.bin',
+      process.platform === 'win32' ? 'prettier.cmd' : 'prettier',
+    );
     if (!fs.existsSync(bin) || !files.length) return;
     try {
-      execFileSync(bin, ['--write', '--log-level', 'silent', ...files.filter((f) => /\.(tsx?|jsx?|css|json)$/.test(f))], { cwd: rt.project.rootPath, stdio: 'ignore', shell: process.platform === 'win32' });
+      execFileSync(
+        bin,
+        [
+          '--write',
+          '--log-level',
+          'silent',
+          ...files.filter((f) => /\.(tsx?|jsx?|css|json)$/.test(f)),
+        ],
+        { cwd: rt.project.rootPath, stdio: 'ignore', shell: process.platform === 'win32' },
+      );
     } catch {
       /* formatting is best-effort */
     }
@@ -1494,14 +1996,26 @@ export class Engine {
 
   // ---------- scores and rules ----------
 
-  getScore(projectId: string, version?: number): { score: number; metrics: ScoreResult['metrics']; notes: string[]; version?: number } {
+  getScore(
+    projectId: string,
+    version?: number,
+  ): { score: number; metrics: ScoreResult['metrics']; notes: string[]; version?: number } {
     const rt = this.rt(projectId);
     if (version) {
-      const v = rt.db.prepare('SELECT id, mog_score FROM versions WHERE project_id = ? AND number = ?').get(rt.project.id, version) as any;
+      const v = rt.db
+        .prepare('SELECT id, mog_score FROM versions WHERE project_id = ? AND number = ?')
+        .get(rt.project.id, version) as any;
       if (!v) throw new Error(`no version ${version}`);
-      const s = rt.db.prepare('SELECT metrics FROM scores WHERE version_id = ? ORDER BY created_at DESC LIMIT 1').get(v.id) as any;
+      const s = rt.db
+        .prepare('SELECT metrics FROM scores WHERE version_id = ? ORDER BY created_at DESC LIMIT 1')
+        .get(v.id) as any;
       const parsed = json.parse<ScoreResult | null>(s?.metrics, null);
-      return { score: Math.round(v.mog_score), metrics: parsed?.metrics ?? {}, notes: parsed?.notes ?? [], version };
+      return {
+        score: Math.round(v.mog_score),
+        metrics: parsed?.metrics ?? {},
+        notes: parsed?.notes ?? [],
+        version,
+      };
     }
     const s = rt.score ?? this.latestScore(rt);
     return { score: Math.round(s?.score ?? 0), metrics: s?.metrics ?? {}, notes: s?.notes ?? [] };
@@ -1516,11 +2030,15 @@ export class Engine {
   }
 
   decisions(projectId: string): any[] {
-    return this.rt(projectId).db.prepare('SELECT * FROM decisions WHERE project_id = ? ORDER BY created_at').all(projectId);
+    return this.rt(projectId)
+      .db.prepare('SELECT * FROM decisions WHERE project_id = ? ORDER BY created_at')
+      .all(projectId);
   }
 
   versionRows(projectId: string): any[] {
-    return this.rt(projectId).db.prepare('SELECT * FROM versions WHERE project_id = ? ORDER BY number').all(projectId);
+    return this.rt(projectId)
+      .db.prepare('SELECT * FROM versions WHERE project_id = ? ORDER BY number')
+      .all(projectId);
   }
 
   async close(): Promise<void> {
@@ -1575,7 +2093,18 @@ export function freePort(): Promise<number> {
   });
 }
 
-const TEMPLATE_SKIP = new Set(['node_modules', 'dist', '.sitemaxxing', '.git', 'src/App.tsx', 'src/content.json', 'src/tokens.css', 'src/fonts.ts', 'index.html', 'README.md']);
+const TEMPLATE_SKIP = new Set([
+  'node_modules',
+  'dist',
+  '.sitemaxxing',
+  '.git',
+  'src/App.tsx',
+  'src/content.json',
+  'src/tokens.css',
+  'src/fonts.ts',
+  'index.html',
+  'README.md',
+]);
 
 /** Copies the template app's shared files (package.json, Vite config, entry, base styles). */
 function copyTemplate(from: string, to: string, rel = '') {
@@ -1604,7 +2133,10 @@ export function spawnVite(cwd: string, port: number): ChildProcess {
   // that break behind the node_modules junctions used by playgrounds and version worktrees.
   const req = createRequire(path.join(cwd, 'package.json'));
   const pkg = req.resolve('vite/package.json');
-  const entry = path.join(path.dirname(pkg), JSON.parse(fs.readFileSync(pkg, 'utf8')).bin?.vite ?? 'bin/vite.js');
+  const entry = path.join(
+    path.dirname(pkg),
+    JSON.parse(fs.readFileSync(pkg, 'utf8')).bin?.vite ?? 'bin/vite.js',
+  );
   const args = [entry, '--port', String(port), '--strictPort', '--clearScreen', 'false'];
   const wrapper = isolatedViteConfig(cwd);
   if (wrapper) args.push('--config', wrapper);
@@ -1618,7 +2150,9 @@ export function spawnVite(cwd: string, port: number): ChildProcess {
  * .sitemaxxing while keeping the project's own config.
  */
 function isolatedViteConfig(cwd: string): string | null {
-  const own = ['vite.config.ts', 'vite.config.mts', 'vite.config.js', 'vite.config.mjs'].find((f) => fs.existsSync(path.join(cwd, f)));
+  const own = ['vite.config.ts', 'vite.config.mts', 'vite.config.js', 'vite.config.mjs'].find((f) =>
+    fs.existsSync(path.join(cwd, f)),
+  );
   if (!own) return null;
   const dir = path.join(cwd, '.sitemaxxing');
   try {
@@ -1631,7 +2165,8 @@ export default async (env) => {
   return { ...config, cacheDir: '.sitemaxxing/vite-cache' };
 };
 `;
-    if (!fs.existsSync(file) || fs.readFileSync(file, 'utf8') !== text) fs.writeFileSync(file, text);
+    if (!fs.existsSync(file) || fs.readFileSync(file, 'utf8') !== text)
+      fs.writeFileSync(file, text);
     return file;
   } catch {
     return null;
@@ -1641,7 +2176,8 @@ export default async (env) => {
 export function killTree(proc: ChildProcess) {
   if (!proc.pid) return;
   try {
-    if (process.platform === 'win32') spawnSync('taskkill', ['/pid', String(proc.pid), '/T', '/F'], { stdio: 'ignore' });
+    if (process.platform === 'win32')
+      spawnSync('taskkill', ['/pid', String(proc.pid), '/T', '/F'], { stdio: 'ignore' });
     else proc.kill('SIGTERM');
   } catch {
     /* ignore */

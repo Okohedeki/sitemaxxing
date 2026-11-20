@@ -93,3 +93,22 @@ Rejecting a pass or switching its variant marks its dependents stale on purpose
 | 4747 | control room |
 | 5173, 5174 | sample sites (Fieldnote, Isvik) when running `pnpm dev` |
 | 5300 + n | read-only server for version n |
+
+## Reading the system a project has
+
+`system.ts` turns a snapshot of the rendered page and the project's stylesheets into a
+`SystemReading`. It needs no browser of its own: it works from the computed styles the snapshot
+already holds.
+
+- **Colour.** Every fill, text colour and border is resolved against what is behind it, colours
+  nobody could tell apart are folded together, and each one gets a role: background, surface, ink,
+  quieter text, text on fills, accent, other strong colours, lines.
+- **Type, spacing, shape.** The sizes in use and how much text each carries, the families, the
+  spacing values and the share that sit on a 4 or 8px grid, the corner radii and shadows.
+- **Components.** Buttons, fields and cards, grouped by how they look, so five slightly different
+  buttons show up as five variants of one thing.
+- **Source.** How many colour, size and spacing values in the stylesheets are written in place and
+  how many read a custom property.
+
+The engine caches one reading per snapshot and puts it on `ProjectState.system`. The control room
+shows it in the System view; agents get it from `read_design_system`.

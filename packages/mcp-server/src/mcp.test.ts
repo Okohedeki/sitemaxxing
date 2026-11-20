@@ -49,7 +49,7 @@ describe('mcp server over streamable http', () => {
   it('lists the tools from the brief', async () => {
     const { tools } = await client.listTools();
     const names = tools.map((t) => t.name);
-    for (const n of ['init_project', 'audit_page', 'list_passes', 'preview_pass', 'end_preview', 'decide_pass', 'regenerate_pass', 'set_copy', 'report_pass', 'commit_version', 'get_score', 'search_rules', 'set_brief', 'reroll_pass', 'rank_for_me', 'get_trend', 'taste_card']) {
+    for (const n of ['init_project', 'audit_page', 'list_passes', 'preview_pass', 'end_preview', 'decide_pass', 'regenerate_pass', 'set_copy', 'report_pass', 'commit_version', 'get_score', 'search_rules', 'set_brief', 'reroll_pass', 'read_design_system', 'rank_for_me', 'get_trend', 'taste_card']) {
       expect(names).toContain(n);
     }
   });
