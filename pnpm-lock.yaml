@@ -44,7 +44,7 @@ importers:
 
   apps/control-room:
     dependencies:
-      '@fontsource-variable/schibsted-grotesk':
+      '@fontsource-variable/archivo':
         specifier: ^5.3.0
         version: 5.3.0
       '@fontsource/jetbrains-mono':
@@ -74,7 +74,7 @@ importers:
         version: 5.7.2
       vite:
         specifier: ^6.0.5
-        version: 6.0.5(@types/node@22.10.2)(tsx@4.19.2)
+        version: 6.0.5
 
   apps/sample-fieldnote:
     dependencies:
@@ -1840,10 +1840,6 @@ packages:
     resolution: {integrity: sha512-2ISuLzafbdqtakul+f0EwS+u0phcnxFeEFVBCRPEVcbOOLMR2oq0MFUy1Gmi6n4F5LFso97ocyTOyGUQrUUVXg==}
     dev: false
 
-  /@fontsource-variable/schibsted-grotesk@5.3.0:
-    resolution: {integrity: sha512-ndS6H/KICWANchlHF3q4UdZD+xrZ3Ji0rUobIuXlgvDUzDfqZDsVuXPXZb636nJZMHE9zZ9Fmwgqazm8hMB50Q==}
-    dev: false
-
   /@fontsource-variable/space-grotesk@5.3.0:
     resolution: {integrity: sha512-2IxmvfB08i9vnGB3Ym/AXvhRE+8XOjWMXIyDum03c+tPwH0FUoMNQfGpU8NXPxjbws0Vvss3AH0Zqt4oJBBAdw==}
     dev: false
@@ -2474,7 +2470,7 @@ packages:
       '@babel/plugin-transform-react-jsx-source': 7.29.7(@babel/core@7.29.13)
       '@types/babel__core': 7.20.5
       react-refresh: 0.14.2
-      vite: 6.0.5(@types/node@22.10.2)(tsx@4.19.2)
+      vite: 6.0.5
     transitivePeerDependencies:
       - supports-color
     dev: true
@@ -5163,6 +5159,53 @@ packages:
     dependencies:
       '@types/node': 22.10.2
       esbuild: 0.21.5
+      postcss: 8.4.49
+      rollup: 4.68.7
+    optionalDependencies:
+      fsevents: 2.3.3
+    dev: true
+
+  /vite@6.0.5:
+    resolution: {integrity: sha512-akD5IAH/ID5imgue2DYhzsEwCi0/4VKY31uhMLEYJwPP4TiUp8pL5PIK+Wo7H8qT8JY9i+pVfPydcFPYD1EL7g==}
+    engines: {node: ^18.0.0 || ^20.0.0 || >=22.0.0}
+    hasBin: true
+    peerDependencies:
+      '@types/node': ^18.0.0 || ^20.0.0 || >=22.0.0
+      jiti: '>=1.21.0'
+      less: '*'
+      lightningcss: ^1.21.0
+      sass: '*'
+      sass-embedded: '*'
+      stylus: '*'
+      sugarss: '*'
+      terser: ^5.16.0
+      tsx: ^4.8.1
+      yaml: ^2.4.2
+    peerDependenciesMeta:
+      '@types/node':
+        optional: true
+      jiti:
+        optional: true
+      less:
+        optional: true
+      lightningcss:
+        optional: true
+      sass:
+        optional: true
+      sass-embedded:
+        optional: true
+      stylus:
+        optional: true
+      sugarss:
+        optional: true
+      terser:
+        optional: true
+      tsx:
+        optional: true
+      yaml:
+        optional: true
+    dependencies:
+      esbuild: 0.24.0
       postcss: 8.4.49
       rollup: 4.68.7
     optionalDependencies:

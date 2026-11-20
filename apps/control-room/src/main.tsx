@@ -1,7 +1,7 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import '@fontsource-variable/schibsted-grotesk/wght.css';
-import '@fontsource-variable/schibsted-grotesk/wght-italic.css';
+import '@fontsource-variable/archivo/wdth.css';
+import '@fontsource-variable/archivo/wdth-italic.css';
 import '@fontsource/jetbrains-mono/500.css';
 import './styles.css';
 import { App } from './App';

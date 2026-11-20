@@ -1,34 +1,36 @@
-/* Proof: a page under edit on a cool grey desk, marked up in one vermilion. Light on purpose.
+/* Night studio: the page under edit is the lit object in a dark room; marks are split light.
    The page under edit sits on a desk as a proof sheet; the editor's notes live in the margin. */
 :root {
-  /* Cool greys (hue 218, a little saturation so they read as paper under daylight, not beige),
-     one vermilion for marks, focus and the active step. Every shade is fixed here, in HSL. */
-  --paper: hsl(216 22% 95%);
-  --desk: hsl(216 18% 88%);
-  --sheet: hsl(216 40% 99.5%);
-  --ink: hsl(222 28% 10%);
-  --soft: hsl(221 16% 26%);
-  --muted: hsl(220 11% 36%);
-  --faint: hsl(220 9% 43%);
-  --rule: hsl(222 30% 14% / 0.12);
-  --rule-strong: hsl(222 30% 14% / 0.24);
-  --red: hsl(7 76% 47%);
-  --red-ink: hsl(7 74% 38%);
-  --red-soft: hsl(7 76% 47% / 0.09);
-  --green: hsl(152 48% 29%);
-  --green-soft: hsl(152 48% 29% / 0.1);
-  /* One family: Schibsted Grotesk, a newsroom grotesk, carries both display and UI;
-     mono only for addresses, versions and data. */
-  --ui: 'Schibsted Grotesk Variable', 'Schibsted Grotesk', system-ui, sans-serif;
+  /* Night studio: a near-black room with film grain, lit by one warm source, with prism light
+     (the full spectrum, split) as the signature for marks and the current step. Fixed HSL tokens;
+     the names are kept from the light theme so components map role to role. */
+  --paper: hsl(240 14% 3%); /* the room */
+  --desk: hsl(240 10% 5.5%); /* where the page sits */
+  --sheet: hsl(240 8% 9%); /* raised surfaces: cards, menus, the margin */
+  --ink: hsl(36 30% 96%); /* warm white, never #fff */
+  --soft: hsl(240 6% 80%);
+  --muted: hsl(240 5% 66%);
+  --faint: hsl(240 4% 56%);
+  --rule: hsl(0 0% 100% / 0.09);
+  --rule-strong: hsl(0 0% 100% / 0.2);
+  --red: hsl(30 100% 60%); /* the warm light: focus, active, the one mark colour on text */
+  --red-ink: hsl(32 100% 70%);
+  --red-soft: hsl(30 100% 60% / 0.14);
+  --danger: hsl(356 90% 66%);
+  --green: hsl(150 60% 58%);
+  --green-soft: hsl(150 60% 58% / 0.12);
+  /* The prism: the spectrum as one stroke, used sparingly (step underline, rings, progress). */
+  --prism: linear-gradient(90deg, hsl(350 100% 62%), hsl(28 100% 58%), hsl(52 100% 58%), hsl(140 80% 52%), hsl(205 100% 60%), hsl(262 90% 68%));
+  --ui: 'Archivo Variable', 'Archivo', system-ui, sans-serif;
   --display: var(--ui);
   --mono: 'JetBrains Mono', ui-monospace, monospace;
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-out-strong: cubic-bezier(0.32, 0.72, 0, 1);
   --label: 600 11px/1.3 var(--ui);
-  /* Two-part shadows from one light above: a tight contact line and a soft drop. */
-  --lift-1: 0 1px 0 var(--rule-strong), 0 10px 24px -16px hsl(222 40% 12% / 0.4);
-  --lift-2: 0 1px 0 var(--rule-strong), 0 28px 56px -30px hsl(222 40% 12% / 0.45);
-  color-scheme: light;
+  /* On a dark room, depth is light: a hairline top highlight plus a deep drop. */
+  --lift-1: inset 0 1px 0 hsl(0 0% 100% / 0.06), 0 0 0 1px hsl(0 0% 100% / 0.07), 0 12px 28px -14px hsl(0 0% 0% / 0.9);
+  --lift-2: inset 0 1px 0 hsl(0 0% 100% / 0.07), 0 0 0 1px hsl(0 0% 100% / 0.08), 0 40px 80px -30px hsl(0 0% 0% / 0.95);
+  color-scheme: dark;
 }
 
 * {
@@ -46,6 +48,18 @@ body {
   color: var(--ink);
   font: 15px/1.5 var(--ui);
   -webkit-font-smoothing: antialiased;
+}
+
+/* Film grain over everything, like the room is photographed. Pointer-transparent, fixed. */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  pointer-events: none;
+  opacity: 0.09;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
 /* Tabular figures only where numbers line up; on body text this font spaces out punctuation too. */
@@ -98,7 +112,7 @@ a {
   border: 1px solid var(--rule-strong);
   background: transparent;
   padding: 9px 16px;
-  border-radius: 6px;
+  border-radius: 8px;
   font-weight: 600;
   font-size: 14px;
   white-space: nowrap;
@@ -129,7 +143,7 @@ a {
 }
 
 .btn.primary:hover:not(:disabled) {
-  background: hsl(221 22% 22%);
+  background: hsl(36 30% 86%);
 }
 
 .btn.primary:disabled {
@@ -173,30 +187,100 @@ a {
   font-weight: 600;
 }
 
-/* ================= welcome: a title page ================= */
+/* ================= welcome: one lit object in a dark room ================= */
 .home {
   min-height: 100vh;
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+/* The light: a warm source behind the plate, and prism streaks crossing the room. Pure CSS. */
+.light {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+
+.light .glow {
+  position: absolute;
+  right: 18%;
+  top: 46%;
+  width: 46vmax;
+  height: 46vmax;
+  translate: 50% -50%;
+  border-radius: 50%;
+  background: radial-gradient(circle, hsl(34 100% 72% / 0.34) 0%, hsl(24 100% 50% / 0.16) 26%, hsl(10 90% 40% / 0.05) 50%, transparent 68%);
+  filter: blur(8px);
+}
+
+.light .streak {
+  position: absolute;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--prism);
+  filter: blur(16px) saturate(1.4);
+  opacity: 0.85;
+  mix-blend-mode: screen;
+  animation: drift 14s ease-in-out infinite alternate;
+}
+
+.light .s1 {
+  left: -8%;
+  top: 64%;
+  width: 30vw;
+  rotate: -3deg;
+}
+
+.light .s2 {
+  right: -4%;
+  top: 16%;
+  width: 22vw;
+  height: 28px;
+  rotate: 8deg;
+  opacity: 0.7;
+  animation-delay: -5s;
+}
+
+.light .s3 {
+  right: 6%;
+  bottom: 12%;
+  width: 18vw;
+  height: 24px;
+  rotate: -12deg;
+  opacity: 0.6;
+  animation-delay: -9s;
+}
+
+@keyframes drift {
+  to {
+    translate: 3vw 1.2vh;
+    opacity: 0.45;
+  }
 }
 
 .home-bar {
   display: flex;
   justify-content: space-between;
-  align-items: baseline;
+  align-items: center;
   max-width: 1440px;
   margin: 0 auto;
-  padding: 22px clamp(16px, 4vw, 64px);
-  border-bottom: 1px solid var(--rule);
+  padding: 24px clamp(16px, 4vw, 64px);
 }
 
+/* The wordmark: heavy, expanded caps. */
 .brand {
-  font: 700 19px/1 var(--display);
-  letter-spacing: -0.03em;
+  font: 850 17px/1 var(--display);
+  font-stretch: 125%;
+  text-transform: uppercase;
+  letter-spacing: -0.01em;
 }
 
 .conn {
   font: var(--label);
   text-transform: uppercase;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.12em;
   color: var(--faint);
   display: inline-flex;
   align-items: center;
@@ -213,15 +297,16 @@ a {
 
 .conn.on::before {
   background: var(--green);
+  box-shadow: 0 0 8px var(--green);
 }
 
-/* Copy left, the before/after plate right and larger: the product is the hero, not the words.
+/* Copy left, the lit plate right and larger: the product is the hero, not the words.
    Two columns hold down to 860px so a laptop or a half-width window has no dead half. */
 .home-main {
   display: grid;
   grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
-  gap: clamp(32px, 4.5vw, 72px);
-  padding: clamp(32px, 6vh, 64px) clamp(16px, 4vw, 64px) 48px;
+  gap: clamp(32px, 4.5vw, 80px);
+  padding: clamp(28px, 6vh, 72px) clamp(16px, 4vw, 64px) 56px;
   max-width: 1440px;
   margin: 0 auto;
   align-items: center;
@@ -230,46 +315,70 @@ a {
 @media (max-width: 860px) {
   .home-main {
     grid-template-columns: minmax(0, 1fr);
-    gap: 40px;
+    gap: 48px;
   }
 }
 
 .home-copy {
-  animation: rise 520ms var(--ease) both;
+  animation: rise 700ms var(--ease) both;
 }
 
 .home-copy h1 {
-  font: 650 clamp(44px, 5vw, 76px) / 0.96 var(--display);
-  letter-spacing: -0.045em;
-  margin: 0 0 22px;
+  font: 850 clamp(34px, 4.1vw, 62px) / 0.94 var(--display);
+  font-stretch: 125%;
+  text-transform: uppercase;
+  letter-spacing: -0.025em;
+  margin: 0 0 20px;
   text-wrap: balance;
 }
 
+/* The one word that is lit: warm, with the glow of the source on it. */
 .home-copy h1 i {
-  color: var(--red);
-  font-style: italic;
+  font-style: normal;
+  color: hsl(38 100% 82%);
+  text-shadow:
+    0 0 18px hsl(32 100% 60% / 0.65),
+    0 0 48px hsl(24 100% 50% / 0.4);
 }
 
+/* Tagline in small caps, two lines, the second dimmed. */
 .lede {
-  font-size: clamp(16.5px, 1.3vw, 18.5px);
-  color: var(--soft);
-  margin: 0 0 34px;
-  max-width: 42ch;
-  text-wrap: pretty;
+  font: 700 12.5px/1.45 var(--ui);
+  font-stretch: 112%;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink);
+  margin: 0 0 36px;
+  max-width: 46ch;
 }
 
+.lede span {
+  display: block;
+  color: var(--faint);
+}
+
+/* The field: a white card floating in the dark, with the black button inside it. */
 .start {
   display: flex;
   align-items: center;
-  gap: 12px;
-  border-bottom: 2px solid var(--ink);
-  padding-bottom: 10px;
-  max-width: 540px;
-  transition: border-color 150ms ease;
+  gap: 10px;
+  max-width: 520px;
+  padding: 6px 6px 6px 18px;
+  border-radius: 12px;
+  background: var(--ink);
+  color: hsl(240 14% 6%);
+  box-shadow:
+    0 0 0 1px hsl(0 0% 100% / 0.4),
+    0 20px 60px -20px hsl(30 100% 55% / 0.35),
+    0 30px 60px -30px hsl(0 0% 0% / 0.9);
+  transition: box-shadow 200ms ease;
 }
 
 .start:focus-within {
-  border-color: var(--ink);
+  box-shadow:
+    0 0 0 3px hsl(30 100% 60% / 0.55),
+    0 20px 70px -18px hsl(30 100% 55% / 0.5),
+    0 30px 60px -30px hsl(0 0% 0% / 0.9);
 }
 
 .start input {
@@ -277,38 +386,60 @@ a {
   min-width: 0;
   border: 0;
   background: transparent;
-  font: 500 clamp(20px, 1.8vw, 24px) / 1.2 var(--display);
-  letter-spacing: -0.015em;
-  padding: 4px 0;
+  color: inherit;
+  font: 500 17px/1.2 var(--ui);
+  padding: 10px 0;
   outline: none;
 }
 
 .start input::placeholder {
-  color: var(--faint);
+  color: hsl(240 5% 42%);
+}
+
+.start .btn.primary {
+  background: hsl(240 14% 5%);
+  border-color: hsl(240 14% 5%);
+  color: var(--ink);
+  padding: 10px 18px;
+}
+
+.start .btn.primary:hover:not(:disabled) {
+  background: hsl(240 10% 18%);
+}
+
+.start .btn.primary:disabled {
+  background: hsl(240 6% 84%);
+  border-color: transparent;
+  color: hsl(240 5% 42%);
 }
 
 .start.folder {
   margin-top: 16px;
-  border-bottom-width: 1px;
+  padding-left: 14px;
 }
 
 .start.folder input {
   font: 500 14px var(--mono);
 }
 
+.start.folder .btn {
+  border-color: hsl(240 6% 70%);
+  color: hsl(240 14% 6%);
+}
+
 .note {
-  margin: 12px 0 0;
+  margin: 14px 0 0;
   color: var(--muted);
   font-size: 13.5px;
   min-height: 1.5em;
 }
 
 .note.err {
-  color: var(--red-ink);
+  color: var(--danger);
 }
 
 .start:has(input[aria-invalid='true']) {
-  border-color: var(--red);
+  box-shadow: 0 0 0 3px var(--danger);
 }
 
 .steps {
@@ -333,8 +464,8 @@ a {
 
 .steps b {
   font: 500 12px var(--mono);
-  color: var(--red);
-  width: 22px;
+  color: var(--red-ink);
+  width: 30px;
 }
 
 .steps small {
@@ -388,7 +519,7 @@ a {
 }
 
 .rname {
-  font: 600 16px var(--display);
+  font: 600 15px var(--mono);
 }
 
 .rmeta {
@@ -407,7 +538,7 @@ a {
   color: var(--red);
 }
 
-/* The plate: two proof sheets, v2 on top, the first proof underneath. */
+/* The plate: two screens, v2 on top and lit from behind, the first proof underneath in shadow. */
 .compare {
   margin: 0 0 0 26px;
   animation: rise 640ms 80ms var(--ease) both;
@@ -426,7 +557,9 @@ a {
   position: absolute;
   inset: 0;
   background: var(--sheet);
-  padding: 12px;
+  padding: 0;
+  border-radius: 10px;
+  overflow: hidden;
   box-shadow: var(--lift-2);
   transition:
     transform 520ms var(--ease-out-strong),
@@ -443,11 +576,15 @@ a {
 .plate .after {
   transform: rotate(0.6deg);
   z-index: 2;
+  box-shadow:
+    0 0 0 1px hsl(36 100% 85% / 0.35),
+    0 0 60px -6px hsl(32 100% 58% / 0.45),
+    0 50px 90px -30px hsl(0 0% 0% / 0.95);
 }
 
 .plate .before {
   transform: rotate(-2.4deg) translate(-26px, 20px);
-  filter: saturate(0.75);
+  filter: saturate(0.6) brightness(0.55);
   z-index: 1;
 }
 
@@ -457,7 +594,7 @@ a {
 
 .show-before .plate .after {
   transform: rotate(3deg) translate(34px, 26px);
-  filter: saturate(0.75);
+  filter: saturate(0.6) brightness(0.55);
   z-index: 1;
 }
 
@@ -467,14 +604,20 @@ a {
   z-index: 2;
 }
 
+/* The mark: a ring of split light, drawn as a prism stroke masked to its border. */
 .plate .ring {
   position: absolute;
-  left: 2.5%;
-  top: 63%;
-  width: 44%;
-  height: 33%;
-  border: 2px solid var(--red);
+  left: 2%;
+  top: 58%;
+  width: 46%;
+  height: 38%;
+  padding: 2.5px;
   border-radius: 46% 54% 48% 52% / 56% 44% 56% 44%;
+  background: conic-gradient(from 200deg, hsl(350 100% 62%), hsl(28 100% 58%), hsl(52 100% 58%), hsl(140 80% 52%), hsl(205 100% 60%), hsl(262 90% 68%), hsl(350 100% 62%));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  filter: drop-shadow(0 0 6px hsl(30 100% 60% / 0.8));
   transform: rotate(-2deg);
   transition: opacity 300ms ease;
 }
@@ -486,9 +629,12 @@ a {
 .plate .ann {
   position: absolute;
   left: 30%;
-  top: calc(100% + 14px);
-  font: italic 500 16px var(--display);
-  color: var(--red);
+  top: calc(100% + 16px);
+  font: 700 11.5px var(--ui);
+  font-stretch: 112%;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--red-ink);
   z-index: 3;
   pointer-events: none;
 }
@@ -496,7 +642,7 @@ a {
 .plate .ann::before {
   content: '';
   position: absolute;
-  border-top: 1.5px solid var(--red);
+  border-top: 1.5px solid var(--red-ink);
   width: 40px;
   top: 13px;
   left: -50px;
@@ -515,7 +661,7 @@ a {
 }
 
 .compare figcaption {
-  margin-top: 56px;
+  margin-top: 60px;
   color: var(--muted);
   font-size: 13.5px;
   max-width: 62ch;
@@ -552,7 +698,7 @@ a {
 }
 
 .bar .brand {
-  font-size: 19px;
+  font-size: 15px;
 }
 
 .where {
@@ -619,7 +765,8 @@ a {
   right: 0;
   bottom: -14px;
   height: 2px;
-  background: var(--red);
+  background: var(--prism);
+  box-shadow: 0 0 10px hsl(30 100% 60% / 0.6);
 }
 
 /* ---------- score ---------- */
@@ -633,7 +780,8 @@ a {
 }
 
 .score .n {
-  font: 650 30px/1 var(--display);
+  font: 850 28px/1 var(--display);
+  font-stretch: 125%;
   letter-spacing: -0.04em;
 }
 
@@ -763,7 +911,11 @@ a {
 }
 
 .stage {
-  background: var(--desk);
+  /* The page is the lit object: a warm source above and behind it, falling off into the room. */
+  background:
+    radial-gradient(70% 55% at 50% 8%, hsl(30 100% 55% / 0.16), transparent 70%),
+    radial-gradient(40% 30% at 92% 96%, hsl(262 90% 60% / 0.08), transparent 70%),
+    var(--desk);
   padding: 20px clamp(16px, 2.6vw, 40px) 36px;
   display: flex;
   flex-direction: column;
@@ -914,7 +1066,8 @@ a {
 }
 
 .recreate h3 {
-  font: 650 28px/1.1 var(--display);
+  font: 800 28px/1.1 var(--display);
+  font-stretch: 112%;
   letter-spacing: -0.03em;
   margin: 0 0 18px;
 }
@@ -1038,12 +1191,13 @@ a {
 }
 
 .ticks i.cut {
-  background: var(--red);
+  background: var(--danger);
   opacity: 0.55;
 }
 
 .ticks i.on {
-  background: var(--red);
+  background: var(--prism);
+  box-shadow: 0 0 8px hsl(30 100% 60% / 0.7);
 }
 
 .list {
@@ -1158,7 +1312,7 @@ a {
 }
 
 .chip.previewing {
-  color: var(--sheet);
+  color: var(--paper);
   background: var(--red);
   box-shadow: none;
 }
@@ -1301,7 +1455,7 @@ a {
 
 .reasons button[aria-pressed='true'] {
   background: var(--red);
-  color: var(--sheet);
+  color: var(--paper);
   box-shadow: none;
 }
 
@@ -1406,7 +1560,7 @@ a {
 
 .ib.no[aria-pressed='true'] {
   background: var(--red);
-  color: var(--sheet);
+  color: var(--paper);
 }
 
 .dicebtn svg {
@@ -1484,7 +1638,8 @@ a {
 
 .guide > h3 {
   margin: 6px 0 10px;
-  font: 650 clamp(24px, 2.1vw, 30px) / 1.08 var(--display);
+  font: 800 clamp(24px, 2.1vw, 30px) / 1.08 var(--display);
+  font-stretch: 112%;
   letter-spacing: -0.03em;
   text-wrap: balance;
 }
@@ -1762,7 +1917,8 @@ a {
 
 .story-head h2 {
   margin: 8px 0 8px;
-  font: 650 30px/1.05 var(--display);
+  font: 800 30px/1.05 var(--display);
+  font-stretch: 112%;
   letter-spacing: -0.035em;
 }
 
@@ -1952,7 +2108,7 @@ a {
 }
 
 .toast.err {
-  background: var(--red-ink);
+  background: var(--danger);
 }
 
 /* ---------- small screens ---------- */

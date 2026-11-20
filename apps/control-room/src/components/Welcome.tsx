@@ -88,6 +88,12 @@ export function Welcome(props: {
   }, []);
   return (
     <div className="home">
+      <div className="light" aria-hidden="true">
+        <i className="glow" />
+        <i className="streak s1" />
+        <i className="streak s2" />
+        <i className="streak s3" />
+      </div>
       <header className="home-bar">
         <span className="brand">Sitemaxxing</span>
         <span className={'conn' + (props.connected ? ' on' : '')} aria-live="polite">
@@ -99,7 +105,10 @@ export function Welcome(props: {
           <h1>
             Give your site a glow&#8209;up that is <i>yours</i>.
           </h1>
-          <p className="lede">Paste a page. Sitemaxxing sets it as an editable proof, then marks it up with you, one change at a time.</p>
+          <p className="lede">
+            Paste a page. We mark it up with you, live.
+            <span>One change at a time. Nothing ships until you keep it.</span>
+          </p>
           <form
             className="start"
             noValidate

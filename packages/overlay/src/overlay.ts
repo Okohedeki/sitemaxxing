@@ -23,21 +23,21 @@ import type { HubEvent, CopyChange } from '@sitemaxxing/core/protocol';
   const style = document.createElement('style');
   style.setAttribute('data-sitemaxxing-overlay', '');
   style.textContent = `
-.sm-ring { position: absolute; z-index: 2147483645; border: 2px solid #d13b20; border-radius: 46% 54% 48% 52% / 56% 44% 56% 44%; pointer-events: none; transform: rotate(-0.8deg); box-shadow: 0 0 0 1px rgba(252,253,255,.5); animation: sm-draw .5s cubic-bezier(.22,1,.36,1) both; }
-.sm-tag { position: absolute; z-index: 2147483646; font: italic 600 15px/1.2 "Schibsted Grotesk", system-ui, sans-serif; letter-spacing: -0.01em; color: #a92e17; background: rgba(252,253,255,.94); padding: 3px 9px 4px; border-radius: 3px; box-shadow: 0 1px 0 rgba(18,23,34,.2), 0 8px 18px -10px rgba(18,23,34,.45); pointer-events: none; white-space: nowrap; animation: sm-note .35s .2s ease both; }
+.sm-ring { position: absolute; z-index: 2147483645; box-sizing: border-box; padding: 2.5px; background: conic-gradient(from 200deg, #ff3d63, #ff8a1f, #ffd83b, #34e07a, #2fa6ff, #9a6bff, #ff3d63); -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0); border-radius: 46% 54% 48% 52% / 56% 44% 56% 44%; pointer-events: none; transform: rotate(-0.8deg); filter: drop-shadow(0 0 6px rgba(255,150,40,.75)); animation: sm-draw .5s cubic-bezier(.22,1,.36,1) both; }
+.sm-tag { position: absolute; z-index: 2147483646; font: 700 11px/1.2 "Archivo", system-ui, sans-serif; text-transform: uppercase; letter-spacing: .08em; color: #ffc36b; background: rgba(9,9,12,.92); padding: 6px 10px; border-radius: 6px; box-shadow: 0 0 0 1px rgba(255,255,255,.1), 0 0 24px -6px rgba(255,150,40,.55), 0 10px 24px -10px rgba(0,0,0,.8); pointer-events: none; white-space: nowrap; animation: sm-note .35s .2s ease both; }
 @keyframes sm-draw { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
 @keyframes sm-note { from { opacity: 0; transform: translateY(4px); } }
 .sm-caret::after { content: ""; display: inline-block; width: .06em; height: .9em; background: currentColor; margin-left: .04em; vertical-align: -.08em; animation: sm-blink .8s steps(1) infinite; }
 .sm-strike { text-decoration: line-through; opacity: .55; }
 @keyframes sm-blink { 50% { opacity: 0; } }
-#sm-pill { position: fixed; right: 14px; bottom: 14px; z-index: 2147483647; display: flex; align-items: center; gap: 10px; background: rgba(252,253,255,.94); color: #121722; backdrop-filter: blur(10px); border: 1px solid rgba(18,23,34,.16); border-radius: 999px; padding: 6px 12px 6px 6px; font: 500 12px/1 system-ui, sans-serif; box-shadow: 0 1px 0 rgba(18,23,34,.2), 0 10px 26px -12px rgba(18,23,34,.45); cursor: pointer; user-select: none; }
-#sm-pill b { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: #121722; color: #fcfdff; font: 600 11px/1 ui-monospace, "JetBrains Mono", monospace; }
-#sm-pill span { color: #535a68; }
-#sm-pill span em { font-style: normal; color: #121722; }
+#sm-pill { position: fixed; right: 14px; bottom: 14px; z-index: 2147483647; display: flex; align-items: center; gap: 10px; background: rgba(9,9,12,.9); color: #f7f3ec; backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,.12); border-radius: 999px; padding: 6px 12px 6px 6px; font: 500 12px/1 system-ui, sans-serif; box-shadow: 0 10px 26px -12px rgba(0,0,0,.8); cursor: pointer; user-select: none; }
+#sm-pill b { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: #f7f3ec; color: #09090c; font: 600 11px/1 ui-monospace, "JetBrains Mono", monospace; }
+#sm-pill span { color: #a3a3ad; }
+#sm-pill span em { font-style: normal; color: #f7f3ec; }
 #sm-pill.sm-collapsed { padding: 6px; gap: 0; }
 #sm-pill.sm-collapsed span { display: none; }
-#sm-pill .sm-dot { width: 6px; height: 6px; border-radius: 50%; background: rgba(18,23,34,.24); }
-#sm-pill .sm-dot.on { background: #d13b20; box-shadow: 0 0 0 3px rgba(209,59,32,.18); }
+#sm-pill .sm-dot { width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,.24); }
+#sm-pill .sm-dot.on { background: #ff9a2e; box-shadow: 0 0 8px #ff9a2e; }
 @media (prefers-reduced-motion: reduce) { .sm-caret::after, .sm-ring, .sm-tag { animation: none; } }
 `;
   document.head.appendChild(style);
