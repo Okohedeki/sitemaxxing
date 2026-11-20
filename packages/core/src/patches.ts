@@ -18,7 +18,8 @@ export function toUnifiedDiff(patch: Patch): string {
 }
 
 export function parse(patchText: string): ParsedDiff[] {
-  return parsePatch(patchText);
+  // An empty patch parses as one diff with no file; a change that touches nothing has no diffs.
+  return parsePatch(patchText).filter((d) => d.hunks.length > 0 && !!(d.oldFileName || d.newFileName));
 }
 
 export function reverseParsed(d: ParsedDiff): ParsedDiff {

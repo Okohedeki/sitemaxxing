@@ -339,6 +339,8 @@ export interface ProjectState {
   mood: Mood | null;
   /** The page a recreated project was made from, or null for a repo. */
   source: string | null;
+  /** For a page rebuilt from a URL: how much of its first screen matches the original, 0 to 1. */
+  sourceMatch?: number | null;
   /** A first draft of the story read from the page, until the owner tells it. */
   suggestedBrief: Partial<Brief> | null;
 }

@@ -4,9 +4,14 @@ import { SyntaxKind, type SourceFile } from 'ts-morph';
 
 export const px = (v: string | undefined): number => parseFloat(v ?? '') || 0;
 
+/** The attribute a copied page carries on every element, unique per element. */
+const MARK = 'data-sm';
+
 export function selFor(n: SnapNode | undefined, fallback = 'body'): string {
   if (!n) return fallback;
   if (n.id) return `#${n.id}`;
+  // A page copied from a URL names every element; its class names are often shared utilities.
+  if (n.attrs?.[MARK]) return `[${MARK}="${n.attrs[MARK]}"]`;
   const cls = n.classes.find((c) => !c.startsWith('sm-') && !c.startsWith('is-'));
   if (cls) return `.${cls}`;
   return n.selector || n.tag || fallback;
@@ -133,6 +138,10 @@ export function changed(files: PatchFile[]): PatchFile[] {
 /** Finds the JSX element matching a snapshot node by its classes (or tag + id). */
 export function jsxFor(file: SourceFile, n: SnapNode | undefined) {
   if (!n) return undefined;
+  if (n.attrs?.[MARK]) {
+    const exact = jsxEdit.find(file, (el) => jsxEdit.attr(el, MARK) === n.attrs[MARK]);
+    if (exact) return exact;
+  }
   if (n.id) {
     const byId = jsxEdit.find(file, (el) => jsxEdit.attr(el, 'id') === n.id);
     if (byId) return byId;

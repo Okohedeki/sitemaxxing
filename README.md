@@ -40,12 +40,15 @@ Open http://localhost:4747. The welcome screen asks for one thing: a page URL. P
 page (or open a sample, or a project folder), and the guide takes it from there, one decision at a
 time:
 
-1. **Paste a page.** Sitemaxxing opens it in a headless browser, reads the brand, navigation, first
-   screen, sections, facts, a quote and the footer, plus the computed colours, fonts and corner
-   radius, and writes them as a small Vite + React project with its own git history. That commit is
-   **v1**. The copy is the page's own and images still load from the original site; nothing on the
-   live site changes. Pages that show a bot check to automated visitors cannot be read, and
-   Sitemaxxing says so rather than trying to get past it. Pasting the same page again reopens it.
+1. **Paste a page.** Sitemaxxing opens it in a headless browser and copies it as a small Vite +
+   React project with its own git history: the page's own elements and class names as JSX, its
+   own stylesheets, and the fonts it used, saved with the project. Scripts are left behind, so a
+   part a script was drawing is kept as the frame it showed; classes the page added as sections
+   scrolled into view are replayed by a small observer. The copy's first screen is then compared
+   with the original and the share that matches is shown next to the address. That commit is
+   **v1**. Images still load from the original site; nothing on the live site changes. Pages
+   that show a bot check to automated visitors cannot be read, and Sitemaxxing says so rather
+   than trying to get past it. Pasting the same page again reopens it.
 2. **Story.** A first draft is read from the page (its description, a likely goal from its call to
    action). Put it in your own words and say who it is for.
 3. **Pick a direction.** Three takes on the story, each previewed on the page as you hover.

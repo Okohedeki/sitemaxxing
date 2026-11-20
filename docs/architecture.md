@@ -28,9 +28,12 @@ Claude Code.
    into a mood on six axes (`packages/core/src/brief.ts`). Nothing is planned without a brief.
    - **Any URL.** `recreate_url` (`packages/core/src/recreate.ts`) reads a public page in Playwright
      and writes it as a Vite + React project from `apps/site-template` (whose installed dependencies
-     it links), with the page's copy in `content.json` and its colours, fonts and radii in
-     `tokens.css`. It commits that as v1, serves it on a free port and runs Intake on it. The hub
-     restarts its dev server when the project is opened again.
+     it links). `mirror.ts` keeps the page as it rendered: its elements as JSX, each with a
+     `data-sm` name so passes can aim at exactly one, its stylesheets as `styles.css`, and the font
+     files it downloaded under `public/fonts`. The copy that could be read as plain text goes in
+     `content.json`, and the main colours and fonts in `tokens.css`. It commits that as v1, serves
+     it on a free port, compares its first screen with the original (`fidelity.ts`) and runs Intake
+     on it. The hub restarts its dev server when the project is opened again.
 2. **Intake.** `init_project` loads the config, makes sure the repo has a commit, opens SQLite,
    snapshots the dev URL with Playwright and scores it. Version 1 is HEAD at that moment.
 3. **Plan.** `audit_page` runs every pass's `detect`, then the planner

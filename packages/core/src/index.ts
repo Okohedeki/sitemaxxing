@@ -22,3 +22,4 @@ export * from './recreate';
 export * from './planner';
 export * from './random';
 export * from './color';
+export * from './fidelity';

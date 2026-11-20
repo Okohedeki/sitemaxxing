@@ -11,6 +11,7 @@ const STEPS = [
   'Reading the layout',
   'Writing it as code',
   'Starting its dev server',
+  'Checking it against the original',
   'Measuring v1',
 ];
 
@@ -46,8 +47,8 @@ function Recreate({ r, onClose }: { r: RecreateState; onClose: () => void }) {
               ))}
             </ol>
             <p className="note">
-              The copy, colours and fonts come from the page. This becomes v1; nothing on the live
-              site changes.
+              The layout, styles and fonts are the page's own; its scripts are left behind. This
+              becomes v1; nothing on the live site changes.
             </p>
           </>
         )}
@@ -86,7 +87,7 @@ export function Stage({
           {state?.viewingVersion
             ? ` · v${state.viewingVersion} (read-only)`
             : state?.source
-              ? ' · rebuilt as code'
+              ? ` · rebuilt as code${typeof state.sourceMatch === 'number' ? ` · ${Math.round(state.sourceMatch * 100)}% match` : ''}`
               : url
                 ? ' · dev server'
                 : ''}
@@ -100,7 +101,7 @@ export function Stage({
         ) : (
           <div className="empty">
             <b>Waiting for a page.</b>
-            <span>Sitemaxxing rebuilds it as code, saves that as v1, and walks you through the glow-up one decision at a time.</span>
+            <span>Sitemaxxing copies it as code, saves that as v1, and walks you through the glow-up one decision at a time.</span>
           </div>
         )}
       </div>

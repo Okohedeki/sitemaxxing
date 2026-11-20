@@ -9,8 +9,12 @@ import {
   siteDirFor,
   suggestBrief,
   tokensOf,
+  siteFiles,
   type SiteCapture,
 } from './recreate';
+import { mirrorCss, type Mirror } from './mirror';
+import { screenshotMatch } from './fidelity';
+import { PNG } from 'pngjs';
 import { parseTsx, allJsx, attr } from './edit/jsx';
 
 const capture = (over: Partial<SiteCapture> = {}): SiteCapture => ({
@@ -92,23 +96,151 @@ describe('recreate', () => {
     expect(c.quote.by).toBe('A parent');
   });
 
-  it('writes an app that renders only what the page had, marked for the copy pass', () => {
-    const app = appOf(
-      capture({
-        quote: undefined,
-        facts: [],
-        hero: { ...capture().hero, secondaryCta: '', image: undefined },
-      }),
-    );
+  const mirror: Mirror = {
+    html: { lang: 'en', class: 'theme-light' },
+    body: { class: 'page' },
+    htmlStyle: [],
+    bodyStyle: [['--gap', '12px']],
+    sheets: [],
+    fontUrls: [],
+    nodes: 6,
+    tree: [
+      {
+        t: 'header',
+        a: { class: 'top md:flex', 'data-state': 'open' },
+        c: [
+          {
+            t: 'svg',
+            a: { viewBox: '0 0 24 24', 'stroke-width': '2', class: 'mark' },
+            h: '<path d="M0 0h24"></path>',
+          },
+          {
+            t: 'a',
+            a: {
+              href: 'https://tidepool.example/prices',
+              target: '_blank',
+              rel: 'noreferrer',
+              tabindex: '0',
+            },
+            c: ['Prices'],
+          },
+        ],
+      },
+      {
+        t: 'main',
+        a: {},
+        c: [
+          {
+            t: 'h1',
+            a: { class: 'title', 'data-copy': 'headline' },
+            s: [
+              ['--delay', '280ms'],
+              ['margin-top', '4px'],
+            ],
+            c: ['Confident swimmers ', { t: 'span', a: { class: 'accent' }, c: ['in ten weeks'] }],
+          },
+          {
+            t: 'p',
+            a: { 'data-copy': 'subhead', 'data-sm-inview': 'is-visible' },
+            c: ['  Four children per teacher.  '],
+          },
+          { t: 'img', a: { src: 'https://tidepool.example/pool.jpg', alt: 'The "warm" pool' } },
+          {
+            t: 'input',
+            a: { type: 'email', value: 'you@example.com', disabled: '', maxlength: '40' },
+          },
+        ],
+      },
+    ],
+  };
+
+  it('writes the page as it was: its own elements, classes and inline styles', () => {
+    const { app, copy } = appOf(capture({ mirror }));
     const { file } = parseTsx(app);
+    expect(
+      file.getPreEmitDiagnostics().filter((d) => d.getCategory() === 1 && d.getCode() < 2000),
+    ).toEqual([]);
+    expect(app).toContain('<header className="top md:flex" data-state="open">');
+    expect(app).toContain('strokeWidth="2"');
+    expect(app).toContain('dangerouslySetInnerHTML={{ __html: "<path d=\\"M0 0h24\\"></path>" }}');
+    expect(app).toContain('tabIndex="0"');
+    expect(app).toContain('style={{ "--delay": "280ms", marginTop: "4px" }}');
+    expect(app).toContain(`alt={"The \\"warm\\" pool"}`);
+    expect(app).toContain('defaultValue="you@example.com" disabled maxLength="40"');
+    // A headline with its own markup stays as written; plain copy is read from the copy file.
+    expect(app).toContain('<span className="accent">');
+    expect(app).toContain('{content.subhead}');
+    expect(copy).toEqual({ subhead: 'Four children per teacher.' });
     const marked = allJsx(file)
       .map((e) => attr(e, 'data-copy'))
       .filter(Boolean);
-    expect(marked).toEqual(expect.arrayContaining(['pill', 'headline', 'subhead', 'cta']));
-    expect(app).not.toContain('btn ghost');
-    expect(app).not.toContain('className="quote"');
-    expect(app).not.toContain('className="spec"');
-    expect(app).toContain('hero solo');
+    expect(marked).toEqual(['headline', 'subhead']);
+  });
+
+  it('keeps the page attributes and replays classes added on scroll', () => {
+    const files = siteFiles(capture({ mirror, css: '.title { color: red; }' }), {
+      devUrl: 'http://localhost:5199',
+      modulesDir: os.tmpdir(),
+    });
+    expect(files['index.html']).toContain('<html lang="en" class="theme-light">');
+    expect(files['index.html']).toContain('<body class="page" style="--gap: 12px">');
+    expect(files['src/styles.css']).toContain('.title { color: red; }');
+    expect(files['src/inview.ts']).toContain('IntersectionObserver');
+    expect(files['src/main.tsx']).toContain(`import './inview';`);
+    expect(JSON.parse(files['src/content.json'] as string).subhead).toBe(
+      'Four children per teacher.',
+    );
+  });
+
+  it('points the page main colours and fonts at the tokens, unless the page defines them itself', async () => {
+    const tokens = {
+      bg: '#ffffff',
+      ink: '#14212b',
+      soft: '#556270',
+      acc: '#0aa0a0',
+      display: '"Fraunces", Georgia, serif',
+      body: 'Inter, system-ui, sans-serif',
+    };
+    const toHex = async (values: string[]) =>
+      values.map(
+        (v) =>
+          ({ 'rgb(10, 160, 160)': '#0aa0a0', '#14212B': '#14212b', '#fff': '#ffffff' })[v] ?? null,
+      );
+    const css = await mirrorCss(
+      [
+        ':root { --brand: rgb(10, 160, 160); } h1 { color: #14212B; font-family: Fraunces, Georgia, serif; } .card { background: #fff; color: #fff; }',
+        'broken {',
+      ],
+      tokens,
+      toHex,
+    );
+    expect(css).toContain('--brand: var(--acc)');
+    expect(css).toContain('color: var(--ink)');
+    expect(css).toContain('font-family: var(--display)');
+    expect(css).toContain('background: var(--bg); color: #fff');
+    expect(css).toContain('broken {');
+    const own = await mirrorCss(
+      [':root { --acc: rgb(10, 160, 160); } a { color: rgb(10, 160, 160); }'],
+      tokens,
+      toHex,
+    );
+    expect(own).toContain('a { color: rgb(10, 160, 160); }');
+  });
+
+  it('scores how much of two screenshots agree', () => {
+    const shot = (split: number) => {
+      const png = new PNG({ width: 120, height: 120 });
+      for (let y = 0; y < 120; y++)
+        for (let x = 0; x < 120; x++) {
+          const i = (y * 120 + x) * 4;
+          const v = y < split ? 250 : 20;
+          png.data[i] = png.data[i + 1] = png.data[i + 2] = v;
+          png.data[i + 3] = 255;
+        }
+      return PNG.sync.write(png);
+    };
+    expect(screenshotMatch(shot(60), shot(60))).toBe(1);
+    expect(screenshotMatch(shot(120), shot(60))).toBeCloseTo(0.5, 1);
   });
 
   it('keeps colours legible and the original font stacks', () => {

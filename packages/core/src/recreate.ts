@@ -1,12 +1,23 @@
 /* Recreate: turns any public page into a small, editable React project, so a URL can be the
-   starting point (v1) for the same passes that work on a repo. The copy is the page's own; the
-   look keeps its colours, fonts and corner radius. It is a faithful starting point, not a clone. */
+   starting point (v1) for the same passes that work on a repo. The project keeps the page's own
+   elements, styles and fonts (see mirror.ts); what is read here on top of that is the copy, the
+   main colours and the fonts, in the keys and tokens the passes work with. */
 
 import fs from 'node:fs';
 import path from 'node:path';
 import type { Page } from 'playwright';
 import type { Brief, Goal } from './types';
 import { DEFAULT_NOISE } from './brief';
+import { STILL_JS } from './fidelity';
+import {
+  INVIEW_ATTR,
+  INVIEW_SOURCE,
+  WATCH_JS,
+  mirrorApp,
+  mirrorCss,
+  mirrorPage,
+  type Mirror,
+} from './mirror';
 
 export interface CapturedImage {
   src: string;
@@ -58,6 +69,14 @@ export interface SiteCapture {
   };
   fonts: { display: string; body: string };
   radius: { button: number; card: number; media: number };
+  /** The page as it was rendered. With it, v1 keeps the page's own layout and styles. */
+  mirror?: Mirror;
+  /** The page's stylesheets as one file, with its main colours and fonts read from the tokens. */
+  css?: string;
+  /** Files saved next to the code (fonts), by path inside the project. */
+  assets?: Record<string, Buffer>;
+  /** The first screen of the original, to check the rebuilt copy against. */
+  shot?: Buffer;
 }
 
 /**
@@ -236,6 +255,9 @@ const CAPTURE_JS = String.raw`(() => {
   const surface = cardBox ? solid(getComputedStyle(cardBox).backgroundColor) : null;
   const fam = (el) => clean(getComputedStyle(el).fontFamily);
   const bodyText = subEl || all('p')[0] || document.body;
+  // Mark the copy on the page itself, so the mirrored elements carry the same marks.
+  const mark = (el, key) => { if (el && !el.hasAttribute('data-copy')) el.setAttribute('data-copy', key); };
+  mark(h1, 'headline'); mark(subEl, 'subhead'); mark(ctaEl, 'cta'); mark(eyebrowEl, 'pill');
   return {
     url: location.href,
     title: clean(document.title),
@@ -280,11 +302,13 @@ export async function captureSite(
   await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 45_000 });
   await page.waitForLoadState('networkidle', { timeout: 12_000 }).catch(() => undefined);
   onStep('Reading the layout');
-  // Scroll through once so lazy images and reveal-on-scroll sections are present.
+  // Scroll through once, a screen at a time, so lazy images load and sections that appear on
+  // scroll are seen in their shown state.
+  await page.evaluate(WATCH_JS);
   await page.evaluate(`(async () => {
-    const h = Math.min(document.body.scrollHeight, 14000);
-    for (let y = 0; y < h; y += 700) { scrollTo(0, y); await new Promise((r) => setTimeout(r, 90)); }
-    scrollTo(0, 0); await new Promise((r) => setTimeout(r, 300));
+    const h = Math.min(document.documentElement.scrollHeight, 16000);
+    for (let y = 0; y < h; y += Math.round(innerHeight * 0.8)) { scrollTo(0, y); await new Promise((r) => setTimeout(r, 380)); }
+    scrollTo(0, 0); await new Promise((r) => setTimeout(r, 400));
   })()`);
   const cap = (await page.evaluate(CAPTURE_JS)) as SiteCapture & { blocked?: boolean };
   if (cap.blocked)
@@ -292,7 +316,95 @@ export async function captureSite(
       'the site shows a bot check to automated visitors, so it cannot be read. Try another page, or point Sitemaxxing at the repo',
     );
   if (!cap.hero.headline) throw new Error('could not find a headline on that page');
+  await mirrorInto(cap, page);
   return cap;
+}
+
+const MAX_FONTS = 24;
+const MAX_FONT_BYTES = 8_000_000;
+const IMPORT = /@import\s+(?:url\(\s*["']?([^"')]+)["']?\s*\)|["']([^"']+)["'])([^;]*);/g;
+const CSS_URL = /url\(\s*(["']?)(?!data:|#|blob:|about:)([^"')]+)\1\s*\)/g;
+
+/** Paints each CSS colour into one pixel in the page and reads it back as hex; see-through colours give null. */
+const HEX_JS = String.raw`(values) => {
+  const cvs = document.createElement('canvas'); cvs.width = cvs.height = 1;
+  const cv = cvs.getContext('2d', { willReadFrequently: true });
+  return values.map((c) => { cv.clearRect(0, 0, 1, 1); cv.fillStyle = '#000'; cv.fillStyle = c; cv.fillRect(0, 0, 1, 1); const d = cv.getImageData(0, 0, 1, 1).data; return d[3] < 250 ? null : '#' + [d[0], d[1], d[2]].map((v) => v.toString(16).padStart(2, '0')).join(''); });
+}`;
+
+/** Adds the rendered page, its styles, its fonts and a picture of its first screen to the capture. */
+async function mirrorInto(cap: SiteCapture, page: Page): Promise<void> {
+  const mirror = await mirrorPage(page);
+  const request = page.context().request;
+  const absolute = (text: string, base: string) =>
+    text.replace(CSS_URL, (m, _q, u: string) => {
+      try {
+        return `url("${new URL(u.trim(), base).href}")`;
+      } catch {
+        return m;
+      }
+    });
+  // A stylesheet's own text, with the sheets it imports put in its place.
+  const fetched = new Map<string, string>();
+  const load = async (href: string, depth = 0): Promise<string> => {
+    if (fetched.has(href)) return '';
+    fetched.set(href, '');
+    const res = await request.get(href, { timeout: 15_000 }).catch(() => null);
+    if (!res?.ok()) return '';
+    let text = absolute(await res.text(), href);
+    if (depth < 3)
+      for (const m of [...text.matchAll(IMPORT)]) {
+        const media = m[3].trim();
+        const inner = await load(new URL(m[1] ?? m[2], href).href, depth + 1);
+        text = text.replace(m[0], media && inner ? `@media ${media} {\n${inner}\n}` : inner);
+      }
+    return text;
+  };
+  const parts: string[] = [];
+  for (const s of mirror.sheets) {
+    const text = s.text ?? (s.href ? await load(s.href) : '');
+    if (!text) continue;
+    parts.push(
+      s.media && s.media !== 'all' && s.media !== 'screen'
+        ? `@media ${s.media} {\n${text}\n}`
+        : text,
+    );
+  }
+  // Fonts refuse to load across origins, so the ones the page used are saved with the project.
+  const assets: Record<string, Buffer> = {};
+  let bytes = 0;
+  let n = 0;
+  for (const url of mirror.fontUrls.slice(0, MAX_FONTS)) {
+    if (!parts.some((p) => p.includes(url))) continue;
+    const res = await request.get(url, { timeout: 15_000 }).catch(() => null);
+    if (!res?.ok()) continue;
+    const buf = await res.body();
+    if (bytes + buf.length > MAX_FONT_BYTES) break;
+    bytes += buf.length;
+    const ext = /\.(woff2?|ttf|otf)(?=\?|#|$)/i.exec(url)?.[1].toLowerCase() ?? 'woff2';
+    const name = `fonts/f${++n}.${ext}`;
+    assets[`public/${name}`] = buf;
+    for (let i = 0; i < parts.length; i++) parts[i] = parts[i].split(url).join(`/${name}`);
+  }
+  const hex = (c: string) => toHex(toRgb(c));
+  cap.css = await mirrorCss(
+    parts,
+    {
+      bg: hex(cap.colors.bg),
+      ink: hex(cap.colors.ink),
+      soft: hex(cap.colors.soft),
+      acc: hex(cap.colors.acc),
+      display: cap.fonts.display,
+      body: cap.fonts.body,
+    },
+    (values) =>
+      page.evaluate(`(${HEX_JS})(${JSON.stringify(values)})`) as Promise<Array<string | null>>,
+  );
+  cap.mirror = mirror;
+  cap.assets = assets;
+  await page.evaluate('scrollTo(0, 0)');
+  await page.evaluate(STILL_JS);
+  cap.shot = await page.screenshot({ type: 'png' }).catch(() => undefined);
 }
 
 // ---------- colour helpers (Node side) ----------
@@ -371,7 +483,7 @@ export function fontImports(family: string, modulesDir: string): string[] {
 // ---------- the project ----------
 
 export interface SiteFiles {
-  [relPath: string]: string;
+  [relPath: string]: string | Buffer;
 }
 
 const MAX_SECTIONS = 6;
@@ -434,9 +546,11 @@ export function tokensOf(cap: SiteCapture): string {
   const bg = toHex(toRgb(c.bg));
   const ink = toHex(toRgb(c.ink));
   let soft = toHex(toRgb(c.soft));
-  if (contrast(soft, bg) < 4.5) soft = mix(ink, bg, 0.3);
+  // A mirrored page keeps its own colours as they are; only the old template needed them legible.
+  const asIs = !!cap.mirror;
+  if (!asIs && contrast(soft, bg) < 4.5) soft = mix(ink, bg, 0.3);
   let acc = toHex(toRgb(c.acc));
-  if (contrast(acc, bg) < 1.4) acc = ink;
+  if (!asIs && contrast(acc, bg) < 1.4) acc = ink;
   const btnInk =
     contrast(toHex(toRgb(c.btnInk)), acc) >= 3
       ? toHex(toRgb(c.btnInk))
@@ -483,150 +597,35 @@ export function tokensOf(cap: SiteCapture): string {
 `;
 }
 
-const img = (expr: string, cls: string) =>
-  `<img className="${cls}" src={${expr}.src} alt={${expr}.alt} loading="lazy" referrerPolicy="no-referrer" />`;
+const MAIN = `import React from 'react';
+import { createRoot } from 'react-dom/client';
+import './fonts';
+import './tokens.css';
+import './styles.css';
+import App from './App';
 
-/** The app file. Only what the page had is rendered, so v1 reads like the original. */
-export function appOf(cap: SiteCapture): string {
-  const c = contentOf(cap) as any;
-  const hasArt = !!c.heroImage;
-  const lines: string[] = [];
-  const push = (s: string) => lines.push(s);
-  push(`import content from './content.json';`);
-  push('');
-  push('export default function App() {');
-  push('  return (');
-  push('    <div className="site">');
-  push('      <header className="nav">');
-  push('        <a className="logo" href="#top">');
-  push(
-    c.logo
-      ? '          <img className="logo-img" src={content.logo} alt="" referrerPolicy="no-referrer" />'
-      : '          <i className="logo-mark" aria-hidden="true" />',
-  );
-  push(
-    c.logo
-      ? '          <span className="sr-only">{content.brand}</span>'
-      : '          {content.brand}',
-  );
-  push('        </a>');
-  if (c.nav.length) {
-    push('        <ul className="links">');
-    push('          {content.nav.map((item) => (');
-    push('            <li key={item.label}>');
-    push('              <a href={item.href}>{item.label}</a>');
-    push('            </li>');
-    push('          ))}');
-    push('        </ul>');
-  }
-  push('        <div className="nav-actions">');
-  push('          <a className="btn" href="#start">');
-  push('            {content.navCta}');
-  push('          </a>');
-  push('        </div>');
-  push('      </header>');
-  push('');
-  push('      <main id="top">');
-  push(`        <section className="hero${hasArt ? '' : ' solo'}">`);
-  push('          <div className="copy">');
-  if (c.pill)
-    push(
-      '            <span className="pill" data-copy="pill">\n              {content.pill}\n            </span>',
-    );
-  push(
-    '            <h1 className="h1" data-copy="headline">\n              {content.headline}\n            </h1>',
-  );
-  if (c.subhead)
-    push(
-      '            <p className="sub" data-copy="subhead">\n              {content.subhead}\n            </p>',
-    );
-  push('            <div className="ctas">');
-  push(
-    '              <a className="btn" href="#start" data-copy="cta">\n                {content.cta}\n              </a>',
-  );
-  if (c.secondaryCta)
-    push(
-      '              <a className="btn ghost" href="#more">\n                {content.secondaryCta}\n              </a>',
-    );
-  push('            </div>');
-  if (c.trust) push('            <p className="trust">{content.trust}</p>');
-  push('          </div>');
-  if (hasArt)
-    push(
-      `          <div className="art">\n            ${img('content.heroImage', 'hero-img')}\n          </div>`,
-    );
-  push('        </section>');
-  if (c.features.length) {
-    push('');
-    push('        <section className="features">');
-    if (c.featuresTitle)
-      push('          <h2 className="features-title">{content.featuresTitle}</h2>');
-    push('          {content.features.map((f) => (');
-    push('            <div className="feature" key={f.title}>');
-    if (c.features.some((f: any) => f.image))
-      push(`              {'image' in f && f.image ? ${img('f.image', 'feature-img')} : null}`);
-    push('              <h3>{f.title}</h3>');
-    push('              <p>{f.text}</p>');
-    push('            </div>');
-    push('          ))}');
-    push('        </section>');
-  }
-  if (c.sections.length) {
-    const anyItemImg = c.sections.some((s: any) => s.items.some((i: any) => i.image));
-    const anyImg = c.sections.some((s: any) => s.image);
-    push('');
-    push('        {content.sections.map((s) => (');
-    push('          <section className="block" key={s.heading}>');
-    push('            {s.heading ? <h2>{s.heading}</h2> : null}');
-    push('            {s.text ? <p>{s.text}</p> : null}');
-    push('            {s.items.length ? (');
-    push('              <div className="items">');
-    push('                {s.items.map((i) => (');
-    push('                  <div className="item" key={i.title}>');
-    if (anyItemImg)
-      push(`                    {'image' in i && i.image ? ${img('i.image', 'item-img')} : null}`);
-    push('                    <h3>{i.title}</h3>');
-    push('                    {i.text ? <p>{i.text}</p> : null}');
-    push('                  </div>');
-    push('                ))}');
-    push('              </div>');
-    push('            ) : null}');
-    if (anyImg)
-      push(`            {'image' in s && s.image ? ${img('s.image', 'block-img')} : null}`);
-    push('          </section>');
-    push('        ))}');
-  }
-  if (c.facts.length) {
-    push('');
-    push('        <div className="spec">');
-    push('          {content.facts.map((f) => (');
-    push('            <div key={f.label}>');
-    push('              <b>{f.value}</b>');
-    push('              <span>{f.label}</span>');
-    push('            </div>');
-    push('          ))}');
-    push('        </div>');
-  }
-  if (c.quote) {
-    push('');
-    push('        <figure className="quote">');
-    push('          <p>{content.quote.text}</p>');
-    if (c.quote.by)
-      push(
-        '          <cite>\n            {content.quote.by}\n            {content.quote.role ? `, ${content.quote.role}` : null}\n          </cite>',
-      );
-    push('        </figure>');
-  }
-  push('      </main>');
-  push('');
-  push('      <footer className="footer">');
-  push('        <span>{content.footer}</span>');
-  push('      </footer>');
-  push('    </div>');
-  push('  );');
-  push('}');
-  return lines.join('\n') + '\n';
+createRoot(document.getElementById('root')!).render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>,
+);
+`;
+
+const COPY_KEYS = ['headline', 'subhead', 'cta', 'pill'];
+
+/** The app file: the page's own elements. Copy that is plain text is read from the copy file. */
+export function appOf(cap: SiteCapture): { app: string; copy: Record<string, string> } {
+  if (!cap.mirror) throw new Error('the page was not read');
+  return mirrorApp(cap.mirror, COPY_KEYS);
 }
+
+const esc = (v: string) => v.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+const htmlAttrs = (a: Record<string, string>, style: Array<[string, string]>, skip: string[]) =>
+  Object.entries(a)
+    .filter(([k]) => !skip.includes(k))
+    .map(([k, v]) => ` ${k}="${esc(v)}"`)
+    .join('') +
+  (style.length ? ` style="${esc(style.map(([p, v]) => `${p}: ${v}`).join('; '))}"` : '');
 
 /** A first draft of the story from the page itself, for the owner to correct. */
 export function suggestBrief(cap: SiteCapture): Partial<Brief> {
@@ -671,15 +670,51 @@ export function siteFiles(
     ...new Set([...fontImports(display, opts.modulesDir), ...fontImports(body, opts.modulesDir)]),
   ];
   const title = cap.title.replace(/[<>&]/g, '') || cap.brand;
+  const m = cap.mirror;
+  if (!m) throw new Error('the page was not read');
+  const { app, copy } = appOf(cap);
+  const lang = cap.lang.replace(/[^a-zA-Z-]/g, '') || 'en';
   return {
-    'src/App.tsx': appOf(cap),
-    'src/content.json': JSON.stringify(contentOf(cap), null, 2) + '\n',
+    ...(cap.assets ?? {}),
+    'src/App.tsx': app,
+    ...(app.includes(INVIEW_ATTR)
+      ? {
+          'src/inview.ts': INVIEW_SOURCE,
+          'src/main.tsx': MAIN.replace(
+            `import App from './App';`,
+            `import App from './App';\nimport './inview';`,
+          ),
+        }
+      : {}),
+    'src/content.json': JSON.stringify({ ...contentOf(cap), ...copy }, null, 2) + '\n',
     'src/tokens.css': tokensOf(cap),
-    'src/fonts.ts': `// Self-hosted fonts (OFL) via Fontsource. Passes add imports here.\n${imports.join('\n')}${imports.length ? '\n' : 'export {};\n'}`,
-    'index.html': `<!doctype html>\n<html lang="${cap.lang.replace(/[^a-zA-Z-]/g, '') || 'en'}">\n  <head>\n    <meta charset="UTF-8" />\n    <meta name="viewport" content="width=device-width, initial-scale=1.0" />\n    <title>${title}</title>\n  </head>\n  <body>\n    <div id="root"></div>\n    <script type="module" src="/src/main.tsx"></script>\n  </body>\n</html>\n`,
+    'src/styles.css': `/* The stylesheets of ${cap.url}, as the page loaded them. Its main colours and fonts read from
+   tokens.css where the page used them as plain values. */
+#root {
+  display: contents;
+}
+
+${cap.css ?? ''}
+`,
+    'src/fonts.ts': `// Self-hosted fonts (OFL) via Fontsource. Passes add imports here.
+${imports.join('\n')}${imports.length ? '\n' : 'export {};\n'}`,
+    'index.html': `<!doctype html>
+<html lang="${lang}"${htmlAttrs(m.html, m.htmlStyle, ['lang'])}>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="referrer" content="no-referrer" />
+    <title>${title}</title>
+  </head>
+  <body${htmlAttrs(m.body, m.bodyStyle, [])}>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+`,
     'sitemaxxing.config.ts': `import { defineConfig } from 'sitemaxxing';\n\nexport default defineConfig({\n  devUrl: '${opts.devUrl}',\n  content: 'src/content.json',\n  sections: 'auto',\n  passes: ['default'],\n  viewports: [[1440, 900], [390, 844]],\n});\n`,
     '.sitemaxxing/suggested-brief.json': JSON.stringify(suggestBrief(cap), null, 2) + '\n',
-    'README.md': `# ${cap.brand}\n\nRecreated by Sitemaxxing from ${cap.url} as a starting point (v1). The copy is the page's own and\nthe images still load from the original site. Run \`npm run dev\` to serve it.\n`,
+    'README.md': `# ${cap.brand}\n\nA copy of ${cap.url} made by Sitemaxxing as a starting point (v1): the page's own elements, styles\nand fonts, without its scripts. Images still load from the original site. Run \`npm run dev\` to serve it.\n`,
     '.gitignore': '.sitemaxxing\nnode_modules\ndist\n',
   };
 }

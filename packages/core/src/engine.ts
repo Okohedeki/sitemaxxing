@@ -17,6 +17,7 @@ import { createLLM } from './llm';
 import { downstreamOf } from './registry';
 import { normalizeBrief, moodOf } from './brief';
 import { captureSite, normalizeUrl, siteDirFor, siteFiles } from './recreate';
+import { STILL_JS, screenshotMatch } from './fidelity';
 import net from 'node:net';
 import { applyLean, describeLean, isNeutral, leanFor } from './taste';
 import { plan, type Detection } from './planner';
@@ -292,9 +293,10 @@ export class Engine {
   }
 
   /**
-   * Any URL: captures a public page, writes it as a small React project with the page's own copy,
-   * colours and fonts, commits that as v1, serves it, and opens it as a project. The story is left
-   * for the owner, with a first draft read from the page.
+   * Any URL: reads a public page, writes it as a small React project that keeps the page's own
+   * elements, styles and fonts, commits that as v1, serves it, checks its first screen against the
+   * original, and opens it as a project. The story is left for the owner, with a first draft read
+   * from the page.
    */
   async recreate(input: string): Promise<{ projectId: string; url: string; rootPath: string; baseline: number | null }> {
     const sites = this.deps.sites;
@@ -324,18 +326,45 @@ export class Engine {
         fs.mkdirSync(path.dirname(path.join(dir, rel)), { recursive: true });
         fs.writeFileSync(path.join(dir, rel), text);
       }
-      fs.writeFileSync(path.join(dir, RECREATED), JSON.stringify({ url, capturedAt: now() }, null, 2) + '\n');
+      const mark = (match: number | null) =>
+        fs.writeFileSync(path.join(dir, RECREATED), JSON.stringify({ url, capturedAt: now(), match }, null, 2) + '\n');
+      mark(null);
       linkNodeModules(sites.template, dir);
       gitx.git(dir, ['init', '-q', '-b', 'main']);
       gitx.git(dir, ['add', '-A']);
       gitx.git(dir, ['-c', 'user.name=Sitemaxxing', '-c', 'user.email=sitemaxxing@localhost', 'commit', '-q', '-m', `v1: recreated from ${url}`, '--no-verify']);
       step('Starting its dev server');
       await this.serveSite(dir, devUrl);
+      step('Checking it against the original');
+      const match = cap.shot ? await this.matchOf(devUrl, cap.shot) : null;
+      mark(match);
+      this.log(`recreated ${url}: first screen matches ${match === null ? 'unknown' : Math.round(match * 100) + '%'}`);
       step('Measuring v1');
       const r = await this.initProject(dir, devUrl);
       return { projectId: r.projectId, url, rootPath: dir, baseline: r.baseline };
     } finally {
       step(null);
+    }
+  }
+
+  /** Screenshots the rebuilt page's first screen and compares it with the original's. */
+  private async matchOf(devUrl: string, original: Buffer): Promise<number | null> {
+    try {
+      const browser = await this.deps.browser();
+      const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 });
+      try {
+        const page = await context.newPage();
+        await page.goto(devUrl, { waitUntil: 'load', timeout: 30_000 });
+        await page.waitForLoadState('networkidle', { timeout: 8_000 }).catch(() => undefined);
+        await page.evaluate('document.fonts.ready');
+        await page.waitForTimeout(600);
+        await page.evaluate(STILL_JS);
+        return screenshotMatch(original, await page.screenshot({ type: 'png' }));
+      } finally {
+        await context.close().catch(() => undefined);
+      }
+    } catch {
+      return null;
     }
   }
 
@@ -755,6 +784,7 @@ export class Engine {
       brief: rt.brief,
       mood: rt.mood,
       source: rt.project.mode === 'url' ? (json.parse<{ url?: string } | null>(readIf(path.join(rt.project.rootPath, RECREATED)), null)?.url ?? null) : null,
+      sourceMatch: rt.project.mode === 'url' ? (json.parse<{ match?: number | null } | null>(readIf(path.join(rt.project.rootPath, RECREATED)), null)?.match ?? null) : null,
       suggestedBrief: rt.brief ? null : json.parse<Partial<Brief> | null>(readIf(path.join(rt.dir, 'suggested-brief.json')), null),
     };
   }

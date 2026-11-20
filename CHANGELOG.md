@@ -32,6 +32,9 @@ This file is managed by Changesets. Run `pnpm changeset` to add an entry.
 - Dev servers Sitemaxxing starts (playgrounds, version previews, rebuilt sites) each get their own
   Vite cache, so two running at once no longer reload each other into a blank page.
 - The side drawer no longer casts its shadow into the page while closed.
+- A pasted page is now copied faithfully: its own elements, stylesheets and fonts, not a fixed
+  template filled with its words. The copy's first screen is compared with the original and the
+  match is shown. Every copied element has its own name, so a change lands on exactly that one.
 - Any URL: paste a public page and it is rebuilt as an editable Vite + React project, committed as
   v1, served and opened, with a first draft of the story read from the page. Pages behind a bot
   check are refused with a clear message.
