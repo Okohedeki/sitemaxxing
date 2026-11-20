@@ -23,7 +23,7 @@ async function tellStory(page: Page, opts: { guided?: boolean } = {}) {
   }, !!opts.guided);
   await page.goto('/');
   // The control room opens on the welcome screen; the Fieldnote sample is one click away.
-  await expect(page.getByRole('heading', { name: /glow.up that is yours/i })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Open a page' })).toBeVisible();
   await page.getByRole('button', { name: 'Fieldnote', exact: true }).click();
   const form = page.locator('form.story');
   await expect(form.or(page.locator('.storycard'))).toBeVisible({ timeout: 60_000 });
@@ -162,9 +162,8 @@ test('Any URL: a pasted page becomes v1 and the story starts from it', async ({ 
     }
   });
   await page.goto('/');
-  // The welcome screen leads with one input, focused, and a real before/after.
+  // The start screen leads with one input, focused.
   await expect(page.locator('#start-url')).toBeFocused();
-  await expect(page.locator('.compare img')).toHaveCount(2);
   await page.locator('#start-url').fill('localhost:5174');
   await page.getByRole('button', { name: 'Start', exact: true }).click();
   await expect(page.locator('.recreate')).toBeVisible();

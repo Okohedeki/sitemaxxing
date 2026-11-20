@@ -76,6 +76,11 @@ export function Stage({
   return (
     <div className="browser sheet">
       <div className="chrome">
+        <span className="lights" aria-hidden="true">
+          <i />
+          <i />
+          <i />
+        </span>
         <em>
           {host}
           {state?.viewingVersion
@@ -86,7 +91,7 @@ export function Stage({
                 ? ' · dev server'
                 : ''}
         </em>
-        {state ? <span className="proofno">Proof {state.viewingVersion ?? state.currentVersion}</span> : null}
+        {state ? <span className="vbadge">v{state.viewingVersion ?? state.currentVersion}</span> : null}
       </div>
       <div className="frame">
         {recreate ? <Recreate r={recreate} onClose={onCloseRecreate} /> : null}

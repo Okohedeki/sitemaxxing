@@ -17,16 +17,16 @@ This file is managed by Changesets. Run `pnpm changeset` to add an entry.
 - Hero layout: seven compositions for the first screen, picked per brief like palettes and
   sections. Imagery no longer forces every photo into one full-bleed overlay.
 - New sections: lead figure, step path and inline ask, so Randomize always has another option.
-- The control room is redesigned as a night studio: a near-black room with film grain, one warm
-  light, prism light for marks and the current step, and heavy expanded caps for headings. The
-  welcome screen pairs one URL field (a white card with the button inside), the four steps as a short
-  contents list, with a sample set beside it as two stacked screens, the newer one lit from behind (press them to see where it
-  started); both columns hold down to tablet width.
-  In the workspace the page sits on a desk as a proof sheet that fills the window's height, the steps are tabs in the top bar, and
-  the guide is an editor's note in the margin: what to change, why, the options as a short list,
-  then Keep, Skip or Show me others, with what is still to mark underneath.
-- On the page itself, a previewed change is circled in a ring of prism light with a short note beside it, and the
-  mark stays until the preview ends instead of flashing.
+- The control room is redesigned as a dark app: film grain, one warm light behind the page, prism
+  light for marks and the current step, and heavy expanded caps for the wordmark and headings.
+  The start screen is plain: one URL field (a white card with the button inside), the samples,
+  recent projects and an open-folder link. The workspace is a fixed shell: the page fills a
+  browser window on the left, and the panel on the right scrolls on its own under a pinned
+  header and versions footer. The steps are tabs in the top bar, the guide holds the change in
+  focus as one card with Keep and Skip under it, and the full list gives the options its whole
+  width.
+- On the page itself, a previewed change is circled in a ring of prism light with a short note
+  beside it, and the mark stays until the preview ends instead of flashing.
 - Every direction says why it is there, the score says what it measures and ignores, saving ends on
   what was saved and how to step back, and the tab title follows the step.
 - Dev servers Sitemaxxing starts (playgrounds, version previews, rebuilt sites) each get their own

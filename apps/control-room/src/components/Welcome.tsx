@@ -1,7 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Project } from '../App';
 
-const SAMPLES: Record<string, string> = { fieldnote: 'Fieldnote', isvik: 'Isvik Expeditions' };
+/** The bundled samples, with what each one is good for trying. */
+const SAMPLES: Record<string, { name: string; what: string }> = {
+  fieldnote: { name: 'Fieldnote', what: 'A SaaS landing page with stock icons and a generic hero' },
+  isvik: { name: 'Isvik Expeditions', what: 'A travel site with a pill badge, two CTAs and a boxed photo' },
+};
 
 /** What the person typed, read the way the hub will read it (bare hosts get https). */
 export function readUrl(input: string): string | null {
@@ -18,50 +22,7 @@ export function readUrl(input: string): string | null {
   }
 }
 
-/**
- * A real before and after, set as two proof sheets: the Isvik sample at v1 underneath and v2 on
- * top. Pressing the plate (or the link under it) brings the other sheet to the front.
- */
-function Compare() {
-  const [before, setBefore] = useState(false);
-  return (
-    <figure className={'compare' + (before ? ' show-before' : '')}>
-      <button
-        type="button"
-        className="plate"
-        onClick={() => setBefore((b) => !b)}
-        aria-pressed={before}
-        aria-label={before ? 'Show the sample after one session' : 'Show the sample as it started'}
-      >
-        <span className="sheet before">
-          <img src="/welcome/before.jpg" width={1136} height={720} alt="The Isvik sample as it started: a centred headline, a pill badge, two buttons and a boxed picture" />
-        </span>
-        <span className="sheet after">
-          <img src="/welcome/after.jpg" width={1136} height={720} alt="The Isvik sample after one session: a large serif headline, one booking button and a wide picture" />
-          <i className="ring" aria-hidden="true" />
-        </span>
-        <span className="ann" aria-hidden="true">
-          {before ? 'the first proof, as pasted' : 'one headline, set large'}
-        </span>
-      </button>
-      <figcaption>
-        <b>Isvik Expeditions</b>, a sample. {before ? 'The page as it was pasted, before any change.' : 'v2 on top, after one session of 15 kept changes.'}{' '}
-        <button type="button" className="linkish" onClick={() => setBefore((b) => !b)}>
-          {before ? 'Show v2' : 'See where it started'}
-        </button>
-      </figcaption>
-    </figure>
-  );
-}
-
-const ROMAN = ['i', 'ii', 'iii', 'iv'];
-const STEPS: Array<[string, string]> = [
-  ['Paste a page', 'a minute'],
-  ['Say what it is for', 'three questions'],
-  ['Pick a direction', 'three takes'],
-  ['Review each change, live', 'keep or skip'],
-];
-
+/** The start screen: open a page, a sample, a folder, or pick up a recent project. A tool, not a pitch. */
 export function Welcome(props: {
   projects: Project[];
   connected: boolean;
@@ -74,7 +35,7 @@ export function Welcome(props: {
   const [folder, setFolder] = useState<string | null>(null);
   const input = useRef<HTMLInputElement>(null);
   const samples = props.projects.filter((p) => SAMPLES[p.name] && !p.source);
-  const recent = props.projects.filter((p) => !samples.includes(p)).slice(0, 4);
+  const recent = props.projects.filter((p) => !samples.includes(p)).slice(0, 6);
   const understood = readUrl(url);
   const host = (p: Project) => {
     try {
@@ -88,26 +49,18 @@ export function Welcome(props: {
   }, []);
   return (
     <div className="home">
-      <div className="light" aria-hidden="true">
-        <i className="glow" />
-        <i className="streak s1" />
-        <i className="streak s2" />
-        <i className="streak s3" />
-      </div>
-      <header className="home-bar">
+      <header className="bar home-bar">
         <span className="brand">Sitemaxxing</span>
+        <span className="bar-sp" />
         <span className={'conn' + (props.connected ? ' on' : '')} aria-live="polite">
-          {props.connected ? 'Ready' : 'Starting…'}
+          {props.connected ? 'Hub ready' : 'Starting the hub…'}
         </span>
       </header>
-      <main className="home-main">
-        <section className="home-copy">
-          <h1>
-            Give your site a glow&#8209;up that is <i>yours</i>.
-          </h1>
-          <p className="lede">
-            Paste a page. We mark it up with you, live.
-            <span>One change at a time. Nothing ships until you keep it.</span>
+      <main className="start-main">
+        <section className="start-card" aria-labelledby="start-title">
+          <h1 id="start-title">Open a page</h1>
+          <p className="start-sub">
+            Paste any URL. It is rebuilt as code and saved as v1, then you review changes one at a time. The live site is never touched.
           </p>
           <form
             className="start"
@@ -135,7 +88,7 @@ export function Welcome(props: {
                 setUrl(e.target.value);
                 if (error) setError(null);
               }}
-              placeholder="your-site.com…"
+              placeholder="your-site.com"
               spellCheck={false}
               autoComplete="url"
               inputMode="url"
@@ -150,63 +103,26 @@ export function Welcome(props: {
             </button>
           </form>
           <p id="start-note" className={'note' + (error ? ' err' : '')} aria-live="polite">
-            {error ?? (understood ? <>Opens {understood.replace(/\/$/, '')}</> : <>Your live site is never touched. Every version is a git commit.</>)}
+            {error ?? (understood ? <>Opens {understood.replace(/\/$/, '')}</> : <>Every version is a git commit you can go back to.</>)}
           </p>
 
-          <ol className="steps" aria-label="What happens next">
-            {STEPS.map(([what, how], i) => (
-              <li key={what}>
-                <b aria-hidden="true">{ROMAN[i]}</b>
-                <span>{what}</span>
-                <small>{how}</small>
-              </li>
-            ))}
-          </ol>
-
-          <div className="alt">
-            {samples.length ? (
-              <>
-                <span>No page handy? Try</span>
-                {samples.map((p, i) => (
-                  <span key={p.id}>
-                    <button className="linkish strong" onClick={() => props.onOpen(p.id)}>
-                      {SAMPLES[p.name]}
-                    </button>
-                    {i < samples.length - 1 ? <span className="or"> or</span> : null}
-                  </span>
+          {samples.length ? (
+            <div className="start-section">
+              <h2>Try a sample</h2>
+              <div className="samples">
+                {samples.map((p) => (
+                  <button key={p.id} className="sample" aria-label={SAMPLES[p.name].name} onClick={() => props.onOpen(p.id)}>
+                    <b>{SAMPLES[p.name].name}</b>
+                    <span>{SAMPLES[p.name].what}</span>
+                  </button>
                 ))}
-                <span className="dot-sep" aria-hidden="true">
-                  ·
-                </span>
-              </>
-            ) : null}
-            {folder === null ? (
-              <button className="linkish" onClick={() => setFolder('')}>
-                Open a project folder instead
-              </button>
-            ) : null}
-          </div>
-          {folder !== null ? (
-            <form
-              className="start folder"
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (folder.trim()) props.onOpenFolder(folder.trim());
-              }}
-            >
-              <label htmlFor="start-folder" className="sr-only">
-                Project folder
-              </label>
-              <input id="start-folder" autoFocus value={folder} onChange={(e) => setFolder(e.target.value)} placeholder="Path to a Vite + React project…" spellCheck={false} />
-              <button className="btn" type="submit" disabled={!props.connected}>
-                Open
-              </button>
-            </form>
+              </div>
+            </div>
           ) : null}
 
           {recent.length ? (
-            <nav className="recent" aria-label="Recent projects">
-              <h2>Pick up where you left off</h2>
+            <nav className="start-section recent" aria-label="Recent projects">
+              <h2>Recent</h2>
               <ul>
                 {recent.map((p) => (
                   <li key={p.id}>
@@ -222,8 +138,31 @@ export function Welcome(props: {
               </ul>
             </nav>
           ) : null}
+
+          <div className="start-section">
+            {folder === null ? (
+              <button className="linkish" onClick={() => setFolder('')}>
+                Open a Vite + React project folder instead
+              </button>
+            ) : (
+              <form
+                className="start folder"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (folder.trim()) props.onOpenFolder(folder.trim());
+                }}
+              >
+                <label htmlFor="start-folder" className="sr-only">
+                  Project folder
+                </label>
+                <input id="start-folder" autoFocus value={folder} onChange={(e) => setFolder(e.target.value)} placeholder="Path to a Vite + React project" spellCheck={false} />
+                <button className="btn" type="submit" disabled={!props.connected}>
+                  Open
+                </button>
+              </form>
+            )}
+          </div>
         </section>
-        <Compare />
       </main>
     </div>
   );
