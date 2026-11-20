@@ -23,21 +23,21 @@ import type { HubEvent, CopyChange } from '@sitemaxxing/core/protocol';
   const style = document.createElement('style');
   style.setAttribute('data-sitemaxxing-overlay', '');
   style.textContent = `
-.sm-ring { position: absolute; z-index: 2147483645; border: 2px solid #c23d28; border-radius: 46% 54% 48% 52% / 56% 44% 56% 44%; pointer-events: none; transform: rotate(-0.8deg); box-shadow: 0 0 0 1px rgba(251,248,242,.5); animation: sm-draw .5s cubic-bezier(.22,1,.36,1) both; }
-.sm-tag { position: absolute; z-index: 2147483646; font: italic 400 17px/1.2 "Newsreader", "Iowan Old Style", Georgia, serif; color: #a8321f; background: rgba(251,248,242,.94); padding: 3px 9px 4px; border-radius: 3px; box-shadow: 0 1px 0 rgba(30,26,21,.2), 0 8px 18px -10px rgba(30,26,21,.45); pointer-events: none; white-space: nowrap; animation: sm-note .35s .2s ease both; }
+.sm-ring { position: absolute; z-index: 2147483645; border: 2px solid #d13b20; border-radius: 46% 54% 48% 52% / 56% 44% 56% 44%; pointer-events: none; transform: rotate(-0.8deg); box-shadow: 0 0 0 1px rgba(252,253,255,.5); animation: sm-draw .5s cubic-bezier(.22,1,.36,1) both; }
+.sm-tag { position: absolute; z-index: 2147483646; font: italic 600 15px/1.2 "Schibsted Grotesk", system-ui, sans-serif; letter-spacing: -0.01em; color: #a92e17; background: rgba(252,253,255,.94); padding: 3px 9px 4px; border-radius: 3px; box-shadow: 0 1px 0 rgba(18,23,34,.2), 0 8px 18px -10px rgba(18,23,34,.45); pointer-events: none; white-space: nowrap; animation: sm-note .35s .2s ease both; }
 @keyframes sm-draw { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
 @keyframes sm-note { from { opacity: 0; transform: translateY(4px); } }
 .sm-caret::after { content: ""; display: inline-block; width: .06em; height: .9em; background: currentColor; margin-left: .04em; vertical-align: -.08em; animation: sm-blink .8s steps(1) infinite; }
 .sm-strike { text-decoration: line-through; opacity: .55; }
 @keyframes sm-blink { 50% { opacity: 0; } }
-#sm-pill { position: fixed; right: 14px; bottom: 14px; z-index: 2147483647; display: flex; align-items: center; gap: 10px; background: rgba(251,248,242,.94); color: #1e1a15; backdrop-filter: blur(10px); border: 1px solid rgba(30,26,21,.16); border-radius: 999px; padding: 6px 12px 6px 6px; font: 500 12px/1 system-ui, sans-serif; box-shadow: 0 1px 0 rgba(30,26,21,.2), 0 10px 26px -12px rgba(30,26,21,.45); cursor: pointer; user-select: none; }
-#sm-pill b { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: #1e1a15; color: #fbf8f2; font: 600 11px/1 ui-monospace, "JetBrains Mono", monospace; }
-#sm-pill span { color: #5f584d; }
-#sm-pill span em { font-style: normal; color: #1e1a15; }
+#sm-pill { position: fixed; right: 14px; bottom: 14px; z-index: 2147483647; display: flex; align-items: center; gap: 10px; background: rgba(252,253,255,.94); color: #121722; backdrop-filter: blur(10px); border: 1px solid rgba(18,23,34,.16); border-radius: 999px; padding: 6px 12px 6px 6px; font: 500 12px/1 system-ui, sans-serif; box-shadow: 0 1px 0 rgba(18,23,34,.2), 0 10px 26px -12px rgba(18,23,34,.45); cursor: pointer; user-select: none; }
+#sm-pill b { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: #121722; color: #fcfdff; font: 600 11px/1 ui-monospace, "JetBrains Mono", monospace; }
+#sm-pill span { color: #535a68; }
+#sm-pill span em { font-style: normal; color: #121722; }
 #sm-pill.sm-collapsed { padding: 6px; gap: 0; }
 #sm-pill.sm-collapsed span { display: none; }
-#sm-pill .sm-dot { width: 6px; height: 6px; border-radius: 50%; background: rgba(30,26,21,.24); }
-#sm-pill .sm-dot.on { background: #c23d28; box-shadow: 0 0 0 3px rgba(194,61,40,.18); }
+#sm-pill .sm-dot { width: 6px; height: 6px; border-radius: 50%; background: rgba(18,23,34,.24); }
+#sm-pill .sm-dot.on { background: #d13b20; box-shadow: 0 0 0 3px rgba(209,59,32,.18); }
 @media (prefers-reduced-motion: reduce) { .sm-caret::after, .sm-ring, .sm-tag { animation: none; } }
 `;
   document.head.appendChild(style);

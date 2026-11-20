@@ -17,10 +17,11 @@ This file is managed by Changesets. Run `pnpm changeset` to add an entry.
 - Hero layout: seven compositions for the first screen, picked per brief like palettes and
   sections. Imagery no longer forces every photo into one full-bleed overlay.
 - New sections: lead figure, step path and inline ask, so Randomize always has another option.
-- The control room is redesigned as a proof: paper, ink and one proofreader's red, a book serif
-  for headlines. The welcome screen is a title page with one URL field, the four steps as a short
-  contents list, and a sample set as two stacked proof sheets (press them to see where it started).
-  In the workspace the page sits on a desk as a proof sheet, the steps are tabs in the top bar, and
+- The control room is redesigned as a proof: cool greys, near-black ink and one vermilion
+  for marks, set in a single newsroom grotesk. The welcome screen pairs one URL field, the four steps as a short
+  contents list, with a sample set beside it as two stacked proof sheets (press them to see where it
+  started); both columns hold down to tablet width.
+  In the workspace the page sits on a desk as a proof sheet that fills the window's height, the steps are tabs in the top bar, and
   the guide is an editor's note in the margin: what to change, why, the options as a short list,
   then Keep, Skip or Show me others, with what is still to mark underneath.
 - On the page itself, a previewed change is circled in red with a short note beside it, and the

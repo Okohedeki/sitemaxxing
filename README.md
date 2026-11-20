@@ -153,7 +153,7 @@ Claude Code (MCP) ────┘                                   │         
                                                               decisions, scores
 ```
 
-- `apps/control-room`: the control room UI (paper, ink and a proofreader's red). `apps/sample-*`: the two sloppy sample sites.
+- `apps/control-room`: the control room UI (a proof on a grey desk, marked up in vermilion). `apps/sample-*`: the two sloppy sample sites.
 - `packages/core`: types, plugin API, patch queue, versions, decision log, LLM adapters, DB.
 - `packages/passes`, `packages/components`, `packages/rules`: the built-in passes, the original
   component sources they write into your repo, and the rule cards.

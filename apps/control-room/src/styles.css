@@ -1,30 +1,33 @@
-/* Proof: paper, ink and a proofreader's red. Light on purpose: a page being edited, not a console.
+/* Proof: a page under edit on a cool grey desk, marked up in one vermilion. Light on purpose.
    The page under edit sits on a desk as a proof sheet; the editor's notes live in the margin. */
 :root {
-  /* Warm paper neutrals (hue ~40), one red for marks, focus and the active step. */
-  --paper: #f3eee4;
-  --desk: #e8e1d3;
-  --sheet: #fbf8f2;
-  --ink: #1e1a15;
-  --soft: #4a443b;
-  --muted: #5f584d;
-  --faint: #726a5e;
-  --rule: rgba(30, 26, 21, 0.12);
-  --rule-strong: rgba(30, 26, 21, 0.24);
-  --red: #c23d28;
-  --red-ink: #a8321f;
-  --red-soft: rgba(194, 61, 40, 0.09);
-  --green: #2c7350;
-  --green-soft: rgba(44, 115, 80, 0.1);
-  --ui: 'Instrument Sans Variable', 'Instrument Sans', system-ui, sans-serif;
-  --display: 'Newsreader Variable', 'Newsreader', 'Iowan Old Style', Georgia, serif;
+  /* Cool greys (hue 218, a little saturation so they read as paper under daylight, not beige),
+     one vermilion for marks, focus and the active step. Every shade is fixed here, in HSL. */
+  --paper: hsl(216 22% 95%);
+  --desk: hsl(216 18% 88%);
+  --sheet: hsl(216 40% 99.5%);
+  --ink: hsl(222 28% 10%);
+  --soft: hsl(221 16% 26%);
+  --muted: hsl(220 11% 36%);
+  --faint: hsl(220 9% 43%);
+  --rule: hsl(222 30% 14% / 0.12);
+  --rule-strong: hsl(222 30% 14% / 0.24);
+  --red: hsl(7 76% 47%);
+  --red-ink: hsl(7 74% 38%);
+  --red-soft: hsl(7 76% 47% / 0.09);
+  --green: hsl(152 48% 29%);
+  --green-soft: hsl(152 48% 29% / 0.1);
+  /* One family: Schibsted Grotesk, a newsroom grotesk, carries both display and UI;
+     mono only for addresses, versions and data. */
+  --ui: 'Schibsted Grotesk Variable', 'Schibsted Grotesk', system-ui, sans-serif;
+  --display: var(--ui);
   --mono: 'JetBrains Mono', ui-monospace, monospace;
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-out-strong: cubic-bezier(0.32, 0.72, 0, 1);
   --label: 600 11px/1.3 var(--ui);
   /* Two-part shadows from one light above: a tight contact line and a soft drop. */
-  --lift-1: 0 1px 0 var(--rule-strong), 0 10px 24px -16px rgba(30, 26, 21, 0.4);
-  --lift-2: 0 1px 0 var(--rule-strong), 0 28px 56px -30px rgba(30, 26, 21, 0.45);
+  --lift-1: 0 1px 0 var(--rule-strong), 0 10px 24px -16px hsl(222 40% 12% / 0.4);
+  --lift-2: 0 1px 0 var(--rule-strong), 0 28px 56px -30px hsl(222 40% 12% / 0.45);
   color-scheme: light;
 }
 
@@ -43,6 +46,14 @@ body {
   color: var(--ink);
   font: 15px/1.5 var(--ui);
   -webkit-font-smoothing: antialiased;
+}
+
+/* Tabular figures only where numbers line up; on body text this font spaces out punctuation too. */
+.score,
+.ver,
+.counts,
+.metrics,
+.ticks {
   font-variant-numeric: tabular-nums;
 }
 
@@ -118,7 +129,7 @@ a {
 }
 
 .btn.primary:hover:not(:disabled) {
-  background: #3a332a;
+  background: hsl(221 22% 22%);
 }
 
 .btn.primary:disabled {
@@ -171,13 +182,15 @@ a {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  padding: 26px clamp(16px, 5vw, 72px);
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 22px clamp(16px, 4vw, 64px);
   border-bottom: 1px solid var(--rule);
 }
 
 .brand {
-  font: 500 21px/1 var(--display);
-  letter-spacing: -0.01em;
+  font: 700 19px/1 var(--display);
+  letter-spacing: -0.03em;
 }
 
 .conn {
@@ -202,18 +215,22 @@ a {
   background: var(--green);
 }
 
+/* Copy left, the before/after plate right and larger: the product is the hero, not the words.
+   Two columns hold down to 860px so a laptop or a half-width window has no dead half. */
 .home-main {
   display: grid;
-  grid-template-columns: minmax(0, 600px) minmax(0, 1fr);
-  gap: clamp(40px, 5vw, 80px);
-  padding: clamp(36px, 7vh, 76px) clamp(16px, 5vw, 72px) 64px;
-  max-width: 1560px;
-  align-items: start;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+  gap: clamp(32px, 4.5vw, 72px);
+  padding: clamp(32px, 6vh, 64px) clamp(16px, 4vw, 64px) 48px;
+  max-width: 1440px;
+  margin: 0 auto;
+  align-items: center;
 }
 
-@media (max-width: 1040px) {
+@media (max-width: 860px) {
   .home-main {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 40px;
   }
 }
 
@@ -222,8 +239,8 @@ a {
 }
 
 .home-copy h1 {
-  font: 400 clamp(46px, 5.4vw, 78px) / 0.98 var(--display);
-  letter-spacing: -0.022em;
+  font: 650 clamp(44px, 5vw, 76px) / 0.96 var(--display);
+  letter-spacing: -0.045em;
   margin: 0 0 22px;
   text-wrap: balance;
 }
@@ -260,7 +277,8 @@ a {
   min-width: 0;
   border: 0;
   background: transparent;
-  font: 400 clamp(22px, 2vw, 27px) / 1.2 var(--display);
+  font: 500 clamp(20px, 1.8vw, 24px) / 1.2 var(--display);
+  letter-spacing: -0.015em;
   padding: 4px 0;
   outline: none;
 }
@@ -314,7 +332,7 @@ a {
 }
 
 .steps b {
-  font: italic 500 16px var(--display);
+  font: 500 12px var(--mono);
   color: var(--red);
   width: 22px;
 }
@@ -370,7 +388,7 @@ a {
 }
 
 .rname {
-  font: 500 17px var(--display);
+  font: 600 16px var(--display);
 }
 
 .rmeta {
@@ -391,7 +409,7 @@ a {
 
 /* The plate: two proof sheets, v2 on top, the first proof underneath. */
 .compare {
-  margin: 34px 0 0;
+  margin: 0 0 0 26px;
   animation: rise 640ms 80ms var(--ease) both;
 }
 
@@ -469,7 +487,7 @@ a {
   position: absolute;
   left: 30%;
   top: calc(100% + 14px);
-  font: italic 400 19px var(--display);
+  font: italic 500 16px var(--display);
   color: var(--red);
   z-index: 3;
   pointer-events: none;
@@ -615,8 +633,8 @@ a {
 }
 
 .score .n {
-  font: 400 30px/1 var(--display);
-  letter-spacing: -0.01em;
+  font: 650 30px/1 var(--display);
+  letter-spacing: -0.04em;
 }
 
 .score .sl {
@@ -733,14 +751,14 @@ a {
 /* ---------- main: the desk and the margin ---------- */
 .main {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 440px;
+  grid-template-columns: minmax(0, 1fr) clamp(340px, 31vw, 440px);
   min-height: calc(100vh - 64px);
   align-items: stretch;
 }
 
-@media (max-width: 1040px) {
+@media (max-width: 860px) {
   .main {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -766,7 +784,7 @@ a {
   gap: 2px;
   padding: 3px;
   border-radius: 7px;
-  background: rgba(30, 26, 21, 0.06);
+  background: hsl(222 30% 14% / 0.06);
 }
 
 .seg button {
@@ -781,7 +799,7 @@ a {
   background: var(--sheet);
   color: var(--ink);
   font-weight: 600;
-  box-shadow: 0 1px 2px rgba(30, 26, 21, 0.14);
+  box-shadow: 0 1px 2px hsl(222 30% 14% / 0.14);
 }
 
 .live {
@@ -846,9 +864,10 @@ a {
   color: var(--red);
 }
 
+/* The page fills the desk's height instead of a fixed ratio, so no dead desk sits under it. */
 .frame {
   position: relative;
-  aspect-ratio: 16 / 10;
+  height: max(420px, calc(100vh - 196px));
   background: #fff;
   box-shadow: 0 0 0 1px var(--rule);
 }
@@ -874,7 +893,8 @@ a {
 }
 
 .frame .empty b {
-  font: 400 24px var(--display);
+  font: 600 22px var(--display);
+  letter-spacing: -0.02em;
 }
 
 .frame .empty span {
@@ -894,9 +914,9 @@ a {
 }
 
 .recreate h3 {
-  font: 400 30px/1.1 var(--display);
+  font: 650 28px/1.1 var(--display);
+  letter-spacing: -0.03em;
   margin: 0 0 18px;
-  letter-spacing: -0.01em;
 }
 
 .recreate ol {
@@ -1083,7 +1103,7 @@ a {
   align-items: center;
   flex-wrap: wrap;
   gap: 8px;
-  font: 500 17px/1.3 var(--display);
+  font: 600 16px/1.3 var(--display);
 }
 
 .item p {
@@ -1145,7 +1165,7 @@ a {
 
 .chip.stale {
   color: var(--soft);
-  background: rgba(30, 26, 21, 0.07);
+  background: hsl(222 30% 14% / 0.07);
   box-shadow: none;
 }
 
@@ -1366,7 +1386,7 @@ a {
 }
 
 .ib:hover:not(:disabled) {
-  background: rgba(30, 26, 21, 0.07);
+  background: hsl(222 30% 14% / 0.07);
   color: var(--ink);
 }
 
@@ -1464,8 +1484,8 @@ a {
 
 .guide > h3 {
   margin: 6px 0 10px;
-  font: 400 clamp(28px, 2.3vw, 34px) / 1.06 var(--display);
-  letter-spacing: -0.012em;
+  font: 650 clamp(24px, 2.1vw, 30px) / 1.08 var(--display);
+  letter-spacing: -0.03em;
   text-wrap: balance;
 }
 
@@ -1564,7 +1584,7 @@ a {
 
 .guide .variants button > span:not(:first-child):not(.why-slot) {
   grid-area: name;
-  font: 500 17px/1.25 var(--display);
+  font: 600 16px/1.25 var(--display);
 }
 
 .guide .variants .why-slot {
@@ -1742,8 +1762,8 @@ a {
 
 .story-head h2 {
   margin: 8px 0 8px;
-  font: 400 34px/1.05 var(--display);
-  letter-spacing: -0.012em;
+  font: 650 30px/1.05 var(--display);
+  letter-spacing: -0.035em;
 }
 
 .story-head p {
@@ -1802,7 +1822,7 @@ a {
 }
 
 .field textarea {
-  font: 400 17px/1.4 var(--display);
+  font: 400 16px/1.45 var(--display);
   border: 1px solid var(--rule-strong);
   background: var(--sheet);
   padding: 10px 12px;
@@ -1936,7 +1956,7 @@ a {
 }
 
 /* ---------- small screens ---------- */
-@media (max-width: 1040px) {
+@media (max-width: 860px) {
   .panel {
     border-left: 0;
     border-top: 1px solid var(--rule);
@@ -1944,6 +1964,10 @@ a {
 
   .browser.sheet {
     position: static;
+  }
+
+  .frame {
+    height: min(72vh, 640px);
   }
 }
 
@@ -1966,7 +1990,9 @@ a {
     bottom: -2px;
   }
 
+  /* The host already shows on the proof sheet; drop it here so Save stays on the first row. */
   .bar .linkish,
+  .bar .where,
   .score .sl {
     display: none;
   }
@@ -1997,6 +2023,10 @@ a {
   .storycard {
     margin-left: 16px;
     margin-right: 16px;
+  }
+
+  .compare {
+    margin-left: 10px;
   }
 
   .plate .before {
