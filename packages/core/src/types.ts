@@ -1,6 +1,7 @@
 /* Core types shared by every package. Keep this file free of Node imports. */
 
 import type { SystemReading } from './system';
+import type { SystemDescription } from './describe';
 
 export type PassKind = 'direction' | 'refine' | 'component';
 
@@ -347,6 +348,8 @@ export interface ProjectState {
   sourceMatch?: number | null;
   /** The design system the project has now, or null before the page has been read. */
   system?: SystemReading | null;
+  /** The reading with its parts named and its rules written down. */
+  systemDoc?: SystemDescription | null;
   /** A first draft of the story read from the page, until the owner tells it. */
   suggestedBrief: Partial<Brief> | null;
 }

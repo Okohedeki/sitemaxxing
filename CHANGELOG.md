@@ -4,6 +4,13 @@ This file is managed by Changesets. Run `pnpm changeset` to add an entry.
 
 ## Unreleased
 
+- The System view now describes the system as well as measuring it: a line and a paragraph on how
+  the page reads, every colour named with what it is used for, the type scale stated with a
+  specimen per step, the usual gaps between items, inside cards and between sections, a corner
+  radius per kind of element, and the do and don't rules the page already follows.
+- Export: the same description as a `DESIGN.md` for coding agents, CSS variables, a Tailwind v4
+  theme or a design tokens file. Copy it from the System view or save it into the project; agents
+  get it from the `export_design_system` tool.
 - Shared values: a new first change that moves every colour, text size and spacing value written
   in place in the stylesheets to a named value on `:root`. Colours are named by family (neutral,
   accent, or their hue) and lightness; an opacity is kept with `color-mix`. The page looks the

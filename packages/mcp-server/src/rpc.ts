@@ -60,6 +60,14 @@ export function rpcHandlers(engine: Engine): Record<string, Handler> {
       await ensureLoaded(pid(p));
       return engine.readSystem(pid(p));
     },
+    export_design_system: async (p) => {
+      await ensureLoaded(pid(p));
+      return engine.exportSystem(pid(p));
+    },
+    save_design_system: async (p) => {
+      await ensureLoaded(pid(p));
+      return engine.saveSystem(pid(p), p.format ?? 'designMd');
+    },
     decisions: async (p) => engine.decisions(pid(p)),
   };
 }

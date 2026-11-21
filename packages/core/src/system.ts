@@ -60,7 +60,15 @@ export interface SystemReading {
   nearDuplicates: number;
   type: {
     families: Array<{ family: string; role: 'display' | 'body' | 'other'; share: number }>;
-    sizes: Array<{ px: number; count: number; share: number }>;
+    /** `weight`, `lineHeight` (a multiple of the size) and `family` are the usual ones at that size. */
+    sizes: Array<{
+      px: number;
+      count: number;
+      share: number;
+      weight?: number;
+      lineHeight?: number;
+      family?: string;
+    }>;
     /** The size most of the text is set in. */
     base: number;
     /** The typical step between neighbouring sizes, or null when there are too few to tell. */
@@ -355,17 +363,31 @@ function readType(dom: SnapshotDOM, textNodes: SnapNode[]): SystemReading['type'
   // One family doing both jobs is the display face too.
   if (families.length && displayFamily === bodyFamily) families[0].role = 'body';
 
-  const bySize = new Map<number, { count: number; weight: number }>();
+  const bySize = new Map<number, { count: number; weight: number; nodes: SnapNode[] }>();
   for (const n of textNodes) {
     const s = round(px(n.styles.fontSize), 0.5);
     if (!s) continue;
-    const e = bySize.get(s) ?? { count: 0, weight: 0 };
+    const e = bySize.get(s) ?? { count: 0, weight: 0, nodes: [] };
     e.count++;
     e.weight += weightOf(n);
+    e.nodes.push(n);
     bySize.set(s, e);
   }
+  const usual = <T>(xs: T[]): T | undefined => tally(xs)[0]?.key;
   const sizes = [...bySize]
-    .map(([p, e]) => ({ px: p, count: e.count, share: e.weight / total }))
+    .map(([p, e]) => {
+      const leading = usual(
+        e.nodes.map((n) => px(n.styles.lineHeight)).filter((v) => v > 0),
+      );
+      return {
+        px: p,
+        count: e.count,
+        share: e.weight / total,
+        weight: usual(e.nodes.map((n) => parseInt(n.styles.fontWeight ?? '', 10)).filter(Boolean)),
+        lineHeight: leading ? Math.round((leading / p) * 100) / 100 : undefined,
+        family: usual(e.nodes.map(family).filter(Boolean)),
+      };
+    })
     .sort((a, b) => a.px - b.px);
   const base = [...sizes].sort((a, b) => b.share - a.share)[0]?.px ?? dom.bodyFontSize;
   const steps = sizes.slice(1).map((s, i) => s.px / sizes[i].px);

@@ -94,6 +94,24 @@ export async function createMcpServer(engine: Engine) {
     },
     async ({ project_id }) => text(engine.readSystem(await ensure(projectOf(undefined, project_id)))),
   );
+  server.registerTool(
+    'export_design_system',
+    {
+      description:
+        "The project's design system written out for other tools: every colour named with what it is for, the type and spacing scales, corner radii, and the do and don't rules the page already follows. Formats: designMd (a DESIGN.md to work from), css (variables), tailwind (a v4 theme), tokens (a design tokens file). With save, the file is also written into the project.",
+      inputSchema: { project_id: z.string().optional(), format: z.enum(['designMd', 'css', 'tailwind', 'tokens']).optional(), save: z.boolean().optional() },
+    },
+    async ({ project_id, format, save }) => {
+      const id = await ensure(projectOf(undefined, project_id));
+      const out = engine.exportSystem(id);
+      if (!out) return text({ error: 'The page has not been read yet. Call audit_page first.' });
+      const f = format ?? 'designMd';
+      const saved = save ? await engine.saveSystem(id, f) : null;
+      return text(saved ? `Saved to ${saved.path}
+
+${out[f]}` : out[f]);
+    },
+  );
   server.registerTool('list_passes', { description: 'Passes with status, variants, points and stale flags.', inputSchema: { project_id: z.string().optional() } }, async ({ project_id }) => text(stripState(engine.state(await ensure(projectOf(undefined, project_id)))).passes));
   server.registerTool('preview_pass', { description: 'Apply a pass (and optional variant) to the working tree and highlight it live.', inputSchema: { pass_id: z.string(), variant_id: z.string().optional() } }, async ({ pass_id, variant_id }) => {
     await engine.preview(await ensure(projectOf(pass_id)), pass_id, variant_id);

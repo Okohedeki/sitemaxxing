@@ -113,6 +113,18 @@ already holds.
 The engine caches one reading per snapshot and puts it on `ProjectState.system`. The control room
 shows it in the System view; agents get it from `read_design_system`.
 
+## Describing and exporting the system
+
+`describeSystem(reading)` in `packages/core/src/describe.ts` is a pure step on top of the reading.
+It names each colour (a plain name, a role-based export name and a sentence on what it is used
+for), picks the type sizes and spacing values that are used often enough to count as the scale,
+reads the usual gaps and the corner radius per kind of element, and writes do and don't rules that
+quote the measured values. One-off sizes and off-grid spacing are counted, not named.
+`exportSystem(name, reading)` writes that description as a `DESIGN.md`, CSS variables, a Tailwind
+v4 `@theme` and a design tokens file. The engine puts the description in the project state as
+`systemDoc`, and `saveSystem` writes one export into the project root. The hub exposes
+`export_design_system` and `save_design_system`; the MCP tool is `export_design_system`.
+
 ## Writing shared values
 
 `systemize.ts` is the step from reading to writing. Given the stylesheets, it replaces each colour

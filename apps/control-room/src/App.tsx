@@ -661,7 +661,7 @@ export function App() {
             </div>
           </div>
           {stageView === 'system' && !recreate ? (
-            <System state={state} />
+            <System state={state} rpc={(m, p) => hub.rpc(m, p)} />
           ) : (
             <Stage
               state={recreate && !recreate.error ? null : state}

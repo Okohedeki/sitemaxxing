@@ -2408,9 +2408,355 @@ a {
   background: var(--red);
 }
 
-@media (max-width: 1100px) {
+/* The page in words, with the source figure beside it. */
+.sys-head {
+  grid-template-columns: minmax(0, 1.5fr) minmax(240px, 1fr);
+  align-items: start;
+}
+
+.sys-say h2 {
+  margin: 0;
+  max-width: 24ch;
+  font: 700 clamp(24px, 2.9vw, 38px) / 1.08 var(--display);
+  font-stretch: 112%;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+.sys-say p {
+  margin: 16px 0 0;
+  max-width: 64ch;
+  font-size: 14.5px;
+  line-height: 1.55;
+  color: var(--soft);
+}
+
+.sys-source {
+  display: grid;
+  gap: 18px;
+}
+
+.sys-source .sys-figure b {
+  font-size: clamp(48px, 5.4vw, 76px);
+}
+
+.sys-source .sys-figure p {
+  font-size: 13px;
+}
+
+.sys-block:has(.sys-comps),
+.sys-rules,
+.sys-export {
+  grid-column: 1 / -1;
+}
+
+.sys-pair {
+  min-width: 0;
+}
+
+/* Colours: each one named, with what it is for. */
+.sys-group {
+  margin-top: 22px;
+}
+
+.sys-group > span {
+  display: block;
+  margin-bottom: 10px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.sys-colors {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 16px 28px;
+}
+
+.sys-colors li {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.sys-colors li > i {
+  display: grid;
+  place-items: center;
+  height: 52px;
+  border-radius: 9px;
+  box-shadow: inset 0 0 0 1px hsl(0 0% 100% / 0.12);
+  font: 600 16px var(--ui);
+  font-style: normal;
+}
+
+.sys-colors b {
+  display: inline;
+  margin-right: 8px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.sys-colors button {
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  font: 500 11.5px var(--mono);
+  color: var(--muted);
+  transition: color 0.15s var(--ease);
+}
+
+.sys-colors button:hover,
+.sys-colors button:focus-visible {
+  color: var(--red-ink);
+}
+
+.sys-colors code {
+  display: block;
+  margin-top: 2px;
+  font: 500 11px var(--mono);
+  color: var(--faint);
+}
+
+.sys-colors p {
+  margin: 5px 0 0;
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--soft);
+}
+
+/* Type: the scale as a specimen. */
+.sys-scale {
+  margin: 0 0 14px;
+  font-size: 15px;
+  color: var(--ink);
+}
+
+.sys-specimen {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.sys-specimen li {
+  display: grid;
+  grid-template-columns: 136px minmax(0, 1fr);
+  gap: 14px;
+  align-items: baseline;
+  padding: 9px 0;
+  border-top: 1px solid var(--rule);
+}
+
+.sys-specimen span {
+  font: 500 11px/1.5 var(--mono);
+  color: var(--faint);
+}
+
+.sys-specimen span b {
+  display: block;
+  font-weight: 500;
+  color: var(--soft);
+}
+
+.sys-specimen em {
+  font-style: normal;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sys-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 14px;
+}
+
+.sys-chips i {
+  padding: 2px 7px;
+  border-radius: 5px;
+  background: hsl(0 0% 100% / 0.08);
+  font: 500 11px var(--mono);
+  font-style: normal;
+  color: var(--soft);
+}
+
+.sys-chips i.off {
+  background: var(--red-soft);
+  color: var(--red-ink);
+}
+
+.sys-faces {
+  list-style: none;
+  margin: 18px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.sys-faces li {
+  display: grid;
+  grid-template-columns: 136px minmax(0, 1fr);
+  gap: 14px;
+  align-items: baseline;
+}
+
+.sys-faces b {
+  font-size: 15px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.sys-faces span {
+  font-size: 12.5px;
+  color: var(--soft);
+}
+
+/* Spacing and corners: what goes where. */
+.sys-table {
+  margin: 0 0 20px;
+  display: grid;
+}
+
+.sys-table > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 84px 160px;
+  gap: 12px;
+  align-items: center;
+  padding: 8px 0;
+  border-top: 1px solid var(--rule);
+  font-size: 13px;
+}
+
+.sys-table dt {
+  color: var(--soft);
+}
+
+.sys-table dd {
+  margin: 0;
+  font: 500 11.5px var(--mono);
+  color: var(--ink);
+}
+
+.sys-table i {
+  display: block;
+  height: 8px;
+  max-width: 100%;
+  border-radius: 2px;
+  background: hsl(0 0% 100% / 0.22);
+}
+
+.sys-table.corners i {
+  width: 44px;
+  height: 28px;
+  background: none;
+  box-shadow: inset 0 0 0 1.5px var(--ink);
+}
+
+/* Rules. */
+.sys-rules > div {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 48px;
+}
+
+.sys-rules ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+  align-content: start;
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+
+.sys-rules li {
+  position: relative;
+  padding-left: 22px;
+  color: var(--soft);
+}
+
+.sys-rules li::before {
+  position: absolute;
+  left: 0;
+  top: 0;
+  font: 600 13px/1.6 var(--mono);
+}
+
+.sys-rules .do li::before {
+  content: '+';
+  color: var(--green);
+}
+
+.sys-rules .dont li::before {
+  content: '\2013';
+  color: var(--faint);
+}
+
+/* Export. */
+.sys-export {
+  border-bottom: 0;
+}
+
+.sys-export-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.sys-export-acts {
+  display: flex;
+  gap: 8px;
+}
+
+.sys-export pre {
+  margin: 14px 0 0;
+  max-height: 420px;
+  overflow: auto;
+  padding: 18px 20px;
+  border-radius: 10px;
+  background: hsl(240 14% 4%);
+  box-shadow: inset 0 0 0 1px var(--rule);
+  font: 400 12px/1.6 var(--mono);
+  color: var(--soft);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  tab-size: 2;
+}
+
+.sys-export pre:focus-visible {
+  outline: 2px solid var(--red);
+  outline-offset: 2px;
+}
+
+/* The sheet shares the window with the queue, so it answers to its own width. */
+.system.sheet {
+  container-type: inline-size;
+}
+
+@container (max-width: 860px) {
   .sys-head,
-  .sys-grid {
+  .sys-grid,
+  .sys-rules > div {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .sys-source {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: end;
+    gap: 28px;
+  }
+}
+
+@container (max-width: 560px) {
+  .sys-source {
     grid-template-columns: minmax(0, 1fr);
   }
 }

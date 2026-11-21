@@ -25,3 +25,4 @@ export * from './color';
 export * from './fidelity';
 export * from './system';
 export * from './systemize';
+export * from './describe';

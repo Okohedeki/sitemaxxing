@@ -28,6 +28,7 @@ import { normalizeBrief, moodOf } from './brief';
 import { captureSite, normalizeUrl, siteDirFor, siteFiles } from './recreate';
 import { STILL_JS, screenshotMatch } from './fidelity';
 import { readSystem, type SystemReading } from './system';
+import { describeSystem, exportSystem, type SystemDescription, type SystemExports } from './describe';
 import net from 'node:net';
 import { applyLean, describeLean, isNeutral, leanFor } from './taste';
 import { plan, type Detection } from './planner';
@@ -144,6 +145,16 @@ const PLACEHOLDER_BRIEF: Brief = {
 };
 
 const pkey = (defId: string, variantId?: string) => `${defId}__${variantId ?? 'default'}`;
+
+export type SystemExportFormat = keyof SystemExports;
+
+/** Where each export is written, from the project's root. */
+export const SYSTEM_EXPORT_FILES: Record<SystemExportFormat, string> = {
+  designMd: 'DESIGN.md',
+  css: 'design-system.css',
+  tailwind: 'design-system.tailwind.css',
+  tokens: 'design.tokens.json',
+};
 
 export class Engine {
   private projects = new Map<string, Runtime>();
@@ -965,6 +976,36 @@ export class Engine {
     return this.systemOf(this.rt(projectId));
   }
 
+  private docs = new WeakMap<SystemReading, SystemDescription>();
+
+  private docOf(reading: SystemReading | null): SystemDescription | null {
+    if (!reading) return null;
+    let doc = this.docs.get(reading);
+    if (!doc) this.docs.set(reading, (doc = describeSystem(reading)));
+    return doc;
+  }
+
+  /** The design system as a DESIGN.md, CSS variables, a Tailwind theme and a tokens file. */
+  exportSystem(projectId: string): SystemExports | null {
+    const rt = this.rt(projectId);
+    const reading = this.systemOf(rt);
+    return reading ? exportSystem(rt.project.name, reading, this.docOf(reading)!) : null;
+  }
+
+  /** Writes one of the exports into the project, where the next version picks it up. */
+  async saveSystem(projectId: string, format: SystemExportFormat): Promise<{ path: string }> {
+    return this.run(projectId, null, async (rt) => {
+      const out = this.exportSystem(projectId);
+      if (!out) throw new Error('The page has not been read yet.');
+      const file = SYSTEM_EXPORT_FILES[format];
+      if (!file) throw new Error(`Unknown format: ${String(format)}`);
+      fs.writeFileSync(path.join(rt.project.rootPath, file), out[format]);
+      rt.extraFiles.add(file);
+      this.persistApplied(rt);
+      return { path: file };
+    });
+  }
+
   private buildState(rt: Runtime): ProjectState {
     const rows = rt.db
       .prepare('SELECT * FROM passes WHERE project_id = ? ORDER BY "order"')
@@ -1036,6 +1077,7 @@ export class Engine {
             )?.match ?? null)
           : null,
       system: this.systemOf(rt),
+      systemDoc: this.docOf(this.systemOf(rt)),
       suggestedBrief: rt.brief
         ? null
         : json.parse<Partial<Brief> | null>(
